@@ -571,6 +571,7 @@ class RecommendationEngine:
             users_db_path=users_db_path,
             user_id=user_id,
             intel_db_path=intel_db_path,
+            rec_storage=storage,
         )
 
         self.recommender = Recommender(

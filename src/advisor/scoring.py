@@ -3,11 +3,14 @@
 import hashlib
 import sqlite3
 from pathlib import Path
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 import structlog
 
 from db import wal_connect
+
+if TYPE_CHECKING:
+    from .recommendation_storage import RecommendationStorage
 
 logger = structlog.get_logger()
 
@@ -18,6 +21,9 @@ MAX_BOOST = 1.5
 # Outcome-based boost thresholds
 MIN_OUTCOMES_FOR_BOOST = 10
 MAX_OUTCOME_BOOST = 0.5
+# User rating (1-5) boost thresholds
+MIN_RATINGS_FOR_BOOST = 2
+MAX_RATING_BOOST = 1.0
 
 
 class RecommendationScorer:
@@ -29,14 +35,17 @@ class RecommendationScorer:
         users_db_path: Optional[Path] = None,
         user_id: Optional[str] = None,
         intel_db_path: Optional[Path] = None,
+        rec_storage: Optional["RecommendationStorage"] = None,
         **_kwargs,
     ):
         self.min_threshold = min_threshold
         self._users_db_path = users_db_path
         self._user_id = user_id
         self._intel_db_path = intel_db_path
+        self._rec_storage = rec_storage
         self._category_boosts: Optional[dict[str, float]] = None
         self._outcome_boosts: Optional[dict[str, float]] = None
+        self._rating_boosts: Optional[dict[str, float]] = None
 
     def passes_threshold(self, score: float) -> bool:
         """Check if score meets minimum threshold."""
@@ -156,7 +165,40 @@ class RecommendationScorer:
 
         return self._outcome_boosts.get(category, 0.0)
 
+    def rating_boost(self, category: str) -> float:
+        """Per-category score adjustment from explicit user ratings (1-5).
+
+        Reads user_rating from recommendation markdown frontmatter via storage.
+        Maps avg rating [1,5] → boost in [-MAX_RATING_BOOST, +MAX_RATING_BOOST].
+        Rating 3 is neutral; <3 penalizes, >3 rewards.
+        """
+        if self._rating_boosts is not None:
+            return self._rating_boosts.get(category, 0.0)
+
+        self._rating_boosts = {}
+        if not self._rec_storage:
+            return 0.0
+
+        try:
+            stats = self._rec_storage.get_feedback_stats()
+            for cat, cat_stats in stats.get("by_category", {}).items():
+                if cat_stats["count"] < MIN_RATINGS_FOR_BOOST:
+                    continue
+                avg = cat_stats["avg_rating"]
+                # map [1,5] → [-1,1] then scale by MAX_RATING_BOOST
+                self._rating_boosts[cat] = MAX_RATING_BOOST * (avg - 3.0) / 2.0
+
+            logger.debug("rating.category_boosts", boosts=self._rating_boosts)
+        except Exception as e:
+            logger.debug("rating.boost_error", error=str(e))
+
+        return self._rating_boosts.get(category, 0.0)
+
     def adjust_score(self, score: float, category: str) -> float:
-        """Apply engagement + outcome boosts to a raw LLM score, clamped [0, 10]."""
-        boost = self.engagement_boost(category) + self.outcome_boost(category)
+        """Apply engagement + outcome + rating boosts to a raw LLM score, clamped [0, 10]."""
+        boost = (
+            self.engagement_boost(category)
+            + self.outcome_boost(category)
+            + self.rating_boost(category)
+        )
         return max(0.0, min(10.0, score + boost))

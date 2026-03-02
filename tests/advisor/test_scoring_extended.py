@@ -1,6 +1,7 @@
-"""Extended tests for RecommendationScorer — engagement_boost, adjust_score, caching."""
+"""Extended tests for RecommendationScorer — engagement_boost, rating_boost, adjust_score."""
 
 import sqlite3
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -135,6 +136,78 @@ class TestEngagementBoost:
         assert s.engagement_boost("nonexistent") == 0.0
 
 
+# ── rating_boost ──────────────────────────────────────────────────────
+
+
+class TestRatingBoost:
+    def test_no_storage_returns_zero(self, scorer):
+        assert scorer.rating_boost("career") == 0.0
+
+    def test_high_rating_positive_boost(self):
+        from advisor.scoring import RecommendationScorer
+
+        storage = MagicMock()
+        storage.get_feedback_stats.return_value = {
+            "by_category": {"career": {"avg_rating": 5.0, "count": 3}},
+        }
+        s = RecommendationScorer(rec_storage=storage)
+        # (5 - 3) / 2 * 1.0 = +1.0
+        assert s.rating_boost("career") == pytest.approx(1.0)
+
+    def test_low_rating_negative_boost(self):
+        from advisor.scoring import RecommendationScorer
+
+        storage = MagicMock()
+        storage.get_feedback_stats.return_value = {
+            "by_category": {"health": {"avg_rating": 1.0, "count": 4}},
+        }
+        s = RecommendationScorer(rec_storage=storage)
+        # (1 - 3) / 2 * 1.0 = -1.0
+        assert s.rating_boost("health") == pytest.approx(-1.0)
+
+    def test_neutral_rating(self):
+        from advisor.scoring import RecommendationScorer
+
+        storage = MagicMock()
+        storage.get_feedback_stats.return_value = {
+            "by_category": {"tech": {"avg_rating": 3.0, "count": 5}},
+        }
+        s = RecommendationScorer(rec_storage=storage)
+        assert s.rating_boost("tech") == pytest.approx(0.0)
+
+    def test_below_min_ratings_skipped(self):
+        from advisor.scoring import RecommendationScorer
+
+        storage = MagicMock()
+        storage.get_feedback_stats.return_value = {
+            "by_category": {"career": {"avg_rating": 5.0, "count": 1}},
+        }
+        s = RecommendationScorer(rec_storage=storage)
+        assert s.rating_boost("career") == 0.0
+
+    def test_unknown_category_returns_zero(self):
+        from advisor.scoring import RecommendationScorer
+
+        storage = MagicMock()
+        storage.get_feedback_stats.return_value = {
+            "by_category": {"career": {"avg_rating": 5.0, "count": 3}},
+        }
+        s = RecommendationScorer(rec_storage=storage)
+        assert s.rating_boost("nonexistent") == 0.0
+
+    def test_caching(self):
+        from advisor.scoring import RecommendationScorer
+
+        storage = MagicMock()
+        storage.get_feedback_stats.return_value = {
+            "by_category": {"career": {"avg_rating": 4.0, "count": 3}},
+        }
+        s = RecommendationScorer(rec_storage=storage)
+        _b1 = s.rating_boost("career")
+        s._rating_boosts["career"] = 99.0
+        assert s.rating_boost("career") == 99.0
+
+
 # ── adjust_score ──────────────────────────────────────────────────────
 
 
@@ -173,3 +246,13 @@ class TestAdjustScore:
         s = RecommendationScorer()
         s._category_boosts = {}
         assert s.adjust_score(6.0, "unknown") == 6.0
+
+    def test_includes_rating_boost(self):
+        from advisor.scoring import RecommendationScorer
+
+        s = RecommendationScorer()
+        s._category_boosts = {"career": 0.5}
+        s._outcome_boosts = {"career": 0.3}
+        s._rating_boosts = {"career": 0.5}
+        # 6.0 + 0.5 + 0.3 + 0.5 = 7.3
+        assert s.adjust_score(6.0, "career") == pytest.approx(7.3)
