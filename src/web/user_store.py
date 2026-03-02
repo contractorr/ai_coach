@@ -184,7 +184,13 @@ def get_or_create_user(
             # Migrate secrets from old duplicate user IDs (same email)
             if email:
                 _migrate_secrets(conn, user_id, email)
-            return {"id": user_id, "email": email, "name": name, "created_at": now, "last_login": now}
+            return {
+                "id": user_id,
+                "email": email,
+                "name": name,
+                "created_at": now,
+                "last_login": now,
+            }
     finally:
         conn.close()
 
