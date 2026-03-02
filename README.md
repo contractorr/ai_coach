@@ -8,6 +8,8 @@
 
 **An open-source AI steward that monitors the world and tells you what to do next.**
 
+**[Try the live demo at StewardMe.ai](https://stewardme.ai)** — sign in with GitHub or Google.
+
 Your journal, goals, and 10 live intel sources feed a RAG pipeline that delivers personalized, explainable guidance — entirely self-hosted.
 
 - **Scans the world for you** — HN, GitHub, arXiv, Reddit, Product Hunt, YC Jobs, Google Patents, RSS, and more
