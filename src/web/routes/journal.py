@@ -1,5 +1,7 @@
 """Journal CRUD routes wrapping src/journal/storage.py (per-user)."""
 
+import asyncio
+from datetime import datetime
 from pathlib import Path
 
 import structlog
@@ -7,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from journal.storage import JournalStorage
 from web.auth import get_current_user
-from web.deps import get_user_paths
+from web.deps import get_config, get_user_paths
 from web.models import JournalCreate, JournalEntry, JournalUpdate, QuickCapture
 from web.user_store import log_event
 
@@ -36,6 +38,78 @@ def _generate_title(content: str, user_id: str) -> str | None:
 def _get_storage(user_id: str) -> JournalStorage:
     paths = get_user_paths(user_id)
     return JournalStorage(paths["journal_dir"])
+
+
+async def _run_post_create_hooks(
+    user_id: str, filepath: Path, content: str, metadata: dict
+) -> None:
+    """Embed + thread detect + memory extract in background (best-effort)."""
+    paths = get_user_paths(user_id)
+    entry_id = str(filepath)
+
+    # 1. ChromaDB embedding
+    try:
+        from journal.embeddings import EmbeddingManager
+
+        chroma_dir = paths.get("chroma_dir")
+        if chroma_dir:
+            em = EmbeddingManager(chroma_dir)
+            em.add_entry(entry_id, content, metadata)
+    except Exception as exc:
+        logger.warning("post_create.embed_failed", error=str(exc), user=user_id)
+        return  # threads needs the embedding, skip if embed fails
+
+    # 2. Thread detection
+    try:
+        config = get_config()
+        threads_cfg = config.threads
+        if threads_cfg.enabled and chroma_dir:
+            result = em.collection.get(ids=[entry_id], include=["embeddings"])
+            if result["embeddings"] and result["embeddings"][0]:
+                embedding = result["embeddings"][0]
+                entry_date = datetime.now()
+                created = metadata.get("created", "")
+                if created:
+                    try:
+                        entry_date = datetime.fromisoformat(
+                            str(created).replace("Z", "+00:00")
+                        ).replace(tzinfo=None)
+                    except (ValueError, OSError):
+                        pass
+
+                from journal.thread_store import ThreadStore
+                from journal.threads import ThreadDetector
+
+                intel_db = paths.get("intel_db", Path.home() / "coach" / "intel.db")
+                db_path = Path(intel_db).parent / "threads.db"
+                store = ThreadStore(db_path)
+                detector = ThreadDetector(
+                    em,
+                    store,
+                    {
+                        "similarity_threshold": threads_cfg.similarity_threshold,
+                        "candidate_count": threads_cfg.candidate_count,
+                        "min_entries_for_thread": threads_cfg.min_entries_for_thread,
+                    },
+                )
+                await detector.detect(entry_id, embedding, entry_date)
+    except Exception as exc:
+        logger.warning("post_create.thread_detect_failed", error=str(exc), user=user_id)
+
+    # 3. Memory pipeline
+    try:
+        config = get_config()
+        if config.memory.enabled:
+            from memory.pipeline import MemoryPipeline
+            from memory.store import FactStore
+
+            intel_db = paths.get("intel_db", Path.home() / "coach" / "intel.db")
+            memory_db = Path(intel_db).parent / "memory.db"
+            fact_store = FactStore(memory_db)
+            pipeline = MemoryPipeline(fact_store)
+            pipeline.process_journal_entry(entry_id, content, metadata)
+    except Exception as exc:
+        logger.warning("post_create.memory_failed", error=str(exc), user=user_id)
 
 
 def _validate_journal_path(filepath: str, storage: JournalStorage) -> Path:
@@ -95,6 +169,12 @@ async def create_entry(
     log_event("journal_entry_created", user["id"])
 
     post = storage.read(filepath)
+
+    # Fire post-create hooks (embed, threads, memory) in background
+    asyncio.create_task(
+        _run_post_create_hooks(user["id"], filepath, post.content, dict(post.metadata))
+    )
+
     return JournalEntry(
         path=str(filepath),
         title=post.get("title", filepath.stem),
@@ -128,19 +208,13 @@ async def quick_capture(
 
     log_event("journal_entry_created", user["id"])
 
-    # Embed in ChromaDB for RAG
-    try:
-        paths = get_user_paths(user["id"])
-        chroma_dir = paths.get("chroma_dir")
-        if chroma_dir:
-            from journal.embeddings import EmbeddingManager
-
-            em = EmbeddingManager(chroma_dir)
-            em.add_entry(str(filepath), text, {"type": "quick", "title": title})
-    except Exception as e:
-        logger.warning("quick_capture.embed_failed", error=str(e))
-
     post = storage.read(filepath)
+
+    # Fire post-create hooks (embed, threads, memory) in background
+    asyncio.create_task(
+        _run_post_create_hooks(user["id"], filepath, post.content, dict(post.metadata))
+    )
+
     return JournalEntry(
         path=str(filepath),
         title=post.get("title", filepath.stem),
