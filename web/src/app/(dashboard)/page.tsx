@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import { useToken } from "@/hooks/useToken";
 import { BriefingPanel } from "@/components/BriefingPanel";
 import { ChatSheet } from "@/components/ChatSheet";
@@ -12,18 +11,9 @@ import { apiFetch } from "@/lib/api";
 import { buildSuggestionChips, getGreeting } from "@/components/BriefingPanel";
 import type { BriefingResponse } from "@/types/briefing";
 
-interface ProfileStatus {
-  has_profile: boolean;
-  is_stale: boolean;
-  has_api_key: boolean;
-  using_shared_key: boolean;
-}
-
 export default function HomePage() {
   const token = useToken();
-  const router = useRouter();
   const [briefing, setBriefing] = useState<BriefingResponse | null>(null);
-  const [needsOnboarding, setNeedsOnboarding] = useState<boolean | null>(null);
   const [userName, setUserName] = useState<string | null>(null);
   const [inlineChatQuestion, setInlineChatQuestion] = useState<string | null>(null);
   const [input, setInput] = useState("");
@@ -46,34 +36,18 @@ export default function HomePage() {
 
     Promise.allSettled([
       loadBriefing(token),
-      apiFetch<{ llm_api_key_set: boolean; using_shared_key: boolean }>("/api/settings", {}, token),
-      apiFetch<ProfileStatus>("/api/onboarding/profile-status", {}, token),
       apiFetch<{ name: string | null }>("/api/user/me", {}, token),
-    ]).then(([, settingsRes, profileRes, userRes]) => {
+    ]).then(([, userRes]) => {
       if (cancelled) return;
-
-      const hasAnyKey =
-        settingsRes.status === "fulfilled" &&
-        (settingsRes.value.llm_api_key_set || settingsRes.value.using_shared_key);
-      const noProfile =
-        profileRes.status === "fulfilled" &&
-        !profileRes.value.has_profile;
-
-      if (!hasAnyKey || noProfile) {
-        router.replace("/onboarding");
-        return;
-      }
-
       if (userRes.status === "fulfilled" && userRes.value.name) {
         setUserName(userRes.value.name);
       }
-      setNeedsOnboarding(false);
     });
 
     return () => {
       cancelled = true;
     };
-  }, [token, loadBriefing, router]);
+  }, [token, loadBriefing]);
 
   const handleAsk = useCallback((text: string) => {
     setInlineChatQuestion(text);
@@ -85,8 +59,7 @@ export default function HomePage() {
     setInput("");
   }, [input, handleAsk]);
 
-  // Wait for settings check before rendering
-  if (!token || needsOnboarding === null) return null;
+  if (!token) return null;
 
   const showBriefing = briefing?.has_data;
 

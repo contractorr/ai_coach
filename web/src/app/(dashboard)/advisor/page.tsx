@@ -88,17 +88,31 @@ export default function AdvisorPage() {
     [token]
   );
 
-  // On mount: load conversation list + restore current conversation
-  // ?conv= deep-link takes priority over localStorage
+  // On mount: load conversation list + restore current conversation.
+  // Validate saved ID against list to avoid 404 on stale IDs.
   useEffect(() => {
     if (!token) return;
-    loadConversations();
-    const convParam = searchParams.get("conv");
-    const saved = convParam || localStorage.getItem(CONV_KEY);
-    if (saved) {
-      loadConversation(saved);
-    }
-  }, [token, searchParams, loadConversations, loadConversation]);
+    (async () => {
+      let list: Conversation[] = [];
+      try {
+        list = await apiFetch<Conversation[]>("/api/advisor/conversations", {}, token);
+        setConversations(list);
+      } catch {
+        // silent
+      }
+      const convParam = searchParams.get("conv");
+      const saved = convParam || localStorage.getItem(CONV_KEY);
+      if (saved) {
+        const exists = list.some((c) => c.id === saved);
+        if (exists) {
+          loadConversation(saved);
+        } else {
+          // Stale ID — clean up silently instead of hitting 404
+          localStorage.removeItem(CONV_KEY);
+        }
+      }
+    })();
+  }, [token, searchParams, loadConversation]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({

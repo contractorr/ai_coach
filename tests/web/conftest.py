@@ -117,8 +117,8 @@ def client(jwt_secret, secret_key, tmp_path, users_db):
         # user_store uses test DB — real get_or_create_user so FK rows exist
         patch("web.user_store._DEFAULT_DB_PATH", users_db),
         # Disable rate limiting and shared-key blocks in tests (env key = shared)
-        patch("web.routes.advisor.check_shared_key_rate_limit", lambda uid: None),
-        patch("web.routes.onboarding.check_shared_key_rate_limit", lambda uid: None),
+        patch("web.routes.advisor.check_shared_key_rate_limit", lambda uid, **kw: None),
+        patch("web.routes.onboarding.check_shared_key_rate_limit", lambda uid, **kw: None),
         patch("web.routes.research._check_shared_key", lambda uid: None),
     ]
 

@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { X } from "lucide-react";
 import { useToken } from "@/hooks/useToken";
 import { usePageView } from "@/hooks/usePageView";
@@ -10,16 +10,44 @@ import { useLiteMode } from "@/hooks/useLiteMode";
 import { AppHeader } from "@/components/AppHeader";
 import { Sidebar } from "@/components/Sidebar";
 import { SettingsSheet } from "@/components/SettingsSheet";
+import { apiFetch } from "@/lib/api";
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   const token = useToken();
   usePageView();
   const pathname = usePathname();
+  const router = useRouter();
   const liteMode = useLiteMode();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [bannerDismissed, setBannerDismissed] = useState(false);
+  const skipGate = pathname === "/onboarding" || pathname === "/settings";
+  const [gateChecked, setGateChecked] = useState(skipGate);
   const showBanner = liteMode && !bannerDismissed && pathname !== "/onboarding";
+
+  // Onboarding gate: redirect to /onboarding if user lacks API key or profile.
+  // Runs once on mount for all dashboard pages (not just /).
+  useEffect(() => {
+    if (!token || skipGate) return;
+    let cancelled = false;
+    Promise.allSettled([
+      apiFetch<{ llm_api_key_set: boolean; using_shared_key: boolean }>("/api/settings", {}, token),
+      apiFetch<{ has_profile: boolean }>("/api/onboarding/profile-status", {}, token),
+    ]).then(([settingsRes, profileRes]) => {
+      if (cancelled) return;
+      const hasAnyKey =
+        settingsRes.status === "fulfilled" &&
+        (settingsRes.value.llm_api_key_set || settingsRes.value.using_shared_key);
+      const noProfile =
+        profileRes.status === "fulfilled" && !profileRes.value.has_profile;
+      if (!hasAnyKey || noProfile) {
+        router.replace("/onboarding");
+      } else {
+        setGateChecked(true);
+      }
+    });
+    return () => { cancelled = true; };
+  }, [token, skipGate, router]);
 
   return (
     <div className="h-screen">
@@ -52,7 +80,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         </div>
       )}
       <main className={`h-full overflow-y-auto pt-12 ${showBanner ? "mt-8" : ""}`}>
-        {children}
+        {gateChecked ? children : null}
       </main>
     </div>
   );

@@ -442,10 +442,11 @@ export default function IntelPage() {
               <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-muted">
                 <Newspaper className="h-7 w-7 text-muted-foreground" />
               </div>
-              <h3 className="text-lg font-medium">Your radar is quiet</h3>
+              <h3 className="text-lg font-medium">No recent items</h3>
               <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-                I haven&apos;t scanned anything yet. Run a scan to pull in signals from
-                Hacker News, GitHub, arXiv, and RSS feeds.
+                No feed items found. Run a scan to pull in the latest signals from
+                Hacker News, GitHub, arXiv, and RSS feeds. Check the Trending tab
+                for clustered topics.
               </p>
               <Button
                 variant="outline"

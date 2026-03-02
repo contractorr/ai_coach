@@ -19,7 +19,9 @@ router = APIRouter(prefix="/api/user", tags=["user"])
 
 @router.get("/me", response_model=UserMe)
 async def get_me(user: dict = Depends(get_current_user)):
-    return UserMe(name=user.get("name"), email=user.get("email"))
+    # Prefer DB name (set during onboarding) over JWT/OAuth name
+    db_name = get_user_name(user["id"])
+    return UserMe(name=db_name or user.get("name"), email=user.get("email"))
 
 
 @router.patch("/me", response_model=UserMe)

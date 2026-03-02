@@ -125,6 +125,22 @@ class AdvisorEngine:
                 pass  # broken goals must not prevent startup
 
             system_prompt = PromptTemplates.build_agentic_system(goals_summary)
+
+            # When profile is missing/empty, pre-inject journal context so
+            # the LLM has user context even if it doesn't call search tools.
+            profile_ctx = rag.get_profile_context()
+            if not profile_ctx.strip():
+                try:
+                    journal_ctx = rag.get_recent_entries(days=30, max_chars=3000)
+                    if journal_ctx.strip():
+                        system_prompt += (
+                            "\n\nNOTE: No user profile found yet. Here are their recent "
+                            "journal entries for context — use these to personalize your advice:\n"
+                            + journal_ctx
+                        )
+                except Exception:
+                    pass
+
             self._orchestrator = AgenticOrchestrator(
                 llm=self.llm,
                 registry=registry,

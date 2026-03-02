@@ -162,9 +162,10 @@ def get_or_create_user(
         row = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
         if row:
             now = datetime.now(timezone.utc).isoformat()
-            # Update email/name if changed + always bump last_login
+            # Update email if changed + always bump last_login.
+            # Only set name if DB has no name yet (preserve onboarding-set name).
             conn.execute(
-                "UPDATE users SET email = COALESCE(?, email), name = COALESCE(?, name), last_login = ? WHERE id = ?",
+                "UPDATE users SET email = COALESCE(?, email), name = COALESCE(name, ?), last_login = ? WHERE id = ?",
                 (email, name, now, user_id),
             )
             conn.commit()

@@ -140,7 +140,7 @@ export function Sidebar({
         </nav>
 
         {/* Footer */}
-        <div className="border-t border-sidebar-border p-3 space-y-1">
+        <div className="shrink-0 border-t border-sidebar-border p-3 space-y-1">
           <NavItem
             href="/settings"
             label="Settings"

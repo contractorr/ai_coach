@@ -243,10 +243,10 @@ def _strip_json_block(text: str) -> str:
 async def start_onboarding(user: dict = Depends(get_current_user)):
     user_id = user["id"]
 
-    # Rate limit shared-key users
+    # Rate limit shared-key users (separate onboarding budget)
     _key, _src = get_api_key_with_source(user_id)
     if _src == "shared":
-        check_shared_key_rate_limit(user_id)
+        check_shared_key_rate_limit(user_id, onboarding=True)
 
     # Clear previous onboarding responses for re-onboarding
     try:
@@ -285,10 +285,10 @@ async def chat_onboarding(
 ):
     user_id = user["id"]
 
-    # Rate limit shared-key users
+    # Rate limit shared-key users (separate onboarding budget)
     _key, _src = get_api_key_with_source(user_id)
     if _src == "shared":
-        check_shared_key_rate_limit(user_id)
+        check_shared_key_rate_limit(user_id, onboarding=True)
 
     session = _sessions.get(user_id)
     if not session:

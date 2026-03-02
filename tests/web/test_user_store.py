@@ -27,7 +27,8 @@ def test_idempotent_upsert(tmp_path):
     get_or_create_user("u1", email="a@b.com", name="Alice", db_path=db)
     user = get_or_create_user("u1", email="new@b.com", name="Alice2", db_path=db)
     assert user["email"] == "new@b.com"
-    assert user["name"] == "Alice2"
+    # Existing name is preserved (not overwritten by OAuth name)
+    assert user["name"] == "Alice"
 
 
 def test_set_get_secret(tmp_path):
