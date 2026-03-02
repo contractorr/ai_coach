@@ -116,7 +116,7 @@ def test_post_hooks_embed_and_memory(tmp_path):
         mock_cfg.return_value.threads.enabled = True
         mock_cfg.return_value.memory.enabled = True
 
-        asyncio.get_event_loop().run_until_complete(
+        asyncio.run(
             _run_post_create_hooks("u1", tmp_path / "entry.md", "text", {"type": "daily"})
         )
 
