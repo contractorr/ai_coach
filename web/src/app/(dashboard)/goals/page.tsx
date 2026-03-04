@@ -342,8 +342,12 @@ export default function GoalsPage() {
                     <CardDescription className={staleUrgency(g.days_since_check)}>
                       Last check-in: {g.days_since_check}d ago
                     </CardDescription>
-                    {progress && progress.total > 0 && (
+                    {progress && progress.total > 0 ? (
                       <span className="text-xs text-muted-foreground">{progress.completed}/{progress.total} milestones</span>
+                    ) : (
+                      <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Plus className="h-3 w-3" /> Add milestones to track progress
+                      </span>
                     )}
                   </div>
                   {progress && progress.total > 0 && (
@@ -367,7 +371,7 @@ export default function GoalsPage() {
                 {selectedGoal === g.path && (
                   <CardContent className="space-y-4">
                     {/* Progress */}
-                    {progress && progress.total > 0 && (
+                    {progress && progress.total > 0 ? (
                       <div>
                         <div className="mb-2 text-sm font-medium">
                           Progress: {progress.percent}% ({progress.completed}/{progress.total})
@@ -379,13 +383,16 @@ export default function GoalsPage() {
                           />
                         </div>
                       </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        No milestones — add one below to start tracking
+                      </p>
                     )}
 
                     {/* Milestones */}
-                    {progress?.milestones && (
-                      <div className="space-y-2">
-                        <h4 className="text-sm font-medium">Milestones</h4>
-                        {progress.milestones.map((m, i) => (
+                    <div className="space-y-2">
+                      <h4 className="text-sm font-medium">Milestones</h4>
+                      {progress?.milestones?.map((m, i) => (
                           <div
                             key={i}
                             className="flex items-center gap-2 text-sm"
@@ -420,8 +427,7 @@ export default function GoalsPage() {
                             Add
                           </Button>
                         </div>
-                      </div>
-                    )}
+                    </div>
 
                     {/* Check-in */}
                     <div className="space-y-2">
