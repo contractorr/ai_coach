@@ -25,7 +25,11 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { apiFetch } from "@/lib/api";
-import type { BriefingRecommendation } from "@/types/briefing";
+import type {
+  BriefingRecommendation,
+  TrackedRecommendationAction,
+  WeeklyPlanResponse,
+} from "@/types/briefing";
 
 interface Milestone {
   title: string;
@@ -76,6 +80,10 @@ export default function GoalsPage() {
   const [progressMap, setProgressMap] = useState<Record<string, Progress>>({});
   const [recommendationsMap, setRecommendationsMap] = useState<Record<string, BriefingRecommendation[]>>({});
   const [unanchored, setUnanchored] = useState<BriefingRecommendation[]>([]);
+  const [actionItems, setActionItems] = useState<TrackedRecommendationAction[]>([]);
+  const [weeklyPlan, setWeeklyPlan] = useState<WeeklyPlanResponse | null>(null);
+  const [reviewNotes, setReviewNotes] = useState<Record<string, string>>({});
+  const [savingActionId, setSavingActionId] = useState<string | null>(null);
   // Per-goal input state
   const [milestoneInputs, setMilestoneInputs] = useState<Record<string, string>>({});
   const [checkInInputs, setCheckInInputs] = useState<Record<string, string>>({});
@@ -120,7 +128,30 @@ export default function GoalsPage() {
       .catch(() => {});
   };
 
+  const loadActionItems = () => {
+    if (!token) return;
+    apiFetch<TrackedRecommendationAction[]>("/api/recommendations/actions?limit=30", {}, token)
+      .then(setActionItems)
+      .catch(() => {});
+  };
+
+  const loadWeeklyPlan = () => {
+    if (!token) return;
+    apiFetch<WeeklyPlanResponse>("/api/recommendations/weekly-plan", {}, token)
+      .then(setWeeklyPlan)
+      .catch(() => {});
+  };
+
   useEffect(loadUnanchored, [token]);
+  useEffect(loadActionItems, [token]);
+  useEffect(loadWeeklyPlan, [token]);
+
+  const refreshExecutionViews = () => {
+    loadActionItems();
+    loadWeeklyPlan();
+    loadUnanchored();
+    goals.forEach((goal) => loadRecommendations(goal.path, goal.title));
+  };
 
   const loadProgress = async (path: string) => {
     if (!token) return;
@@ -227,6 +258,56 @@ export default function GoalsPage() {
     }
   };
 
+  const handleCreateActionItem = async (recId: string, goal?: Goal) => {
+    if (!token) return;
+    setSavingActionId(recId);
+    try {
+      await apiFetch(
+        `/api/recommendations/${encodeURIComponent(recId)}/action-item`,
+        {
+          method: "POST",
+          body: JSON.stringify({ goal_path: goal?.path ?? null }),
+        },
+        token
+      );
+      toast.success(goal ? `Added to ${goal.title}` : "Added to weekly actions");
+      refreshExecutionViews();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setSavingActionId(null);
+    }
+  };
+
+  const handleActionUpdate = async (
+    recId: string,
+    payload: Partial<{
+      status: "accepted" | "deferred" | "blocked" | "completed" | "abandoned";
+      effort: "small" | "medium" | "large";
+      due_window: "today" | "this_week" | "later";
+      review_notes: string;
+    }>
+  ) => {
+    if (!token) return;
+    setSavingActionId(recId);
+    try {
+      await apiFetch(
+        `/api/recommendations/${encodeURIComponent(recId)}/action-item`,
+        {
+          method: "PUT",
+          body: JSON.stringify(payload),
+        },
+        token
+      );
+      toast.success("Action updated");
+      refreshExecutionViews();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setSavingActionId(null);
+    }
+  };
+
   const statusColor: Record<string, string> = {
     active: "default",
     paused: "secondary",
@@ -238,6 +319,126 @@ export default function GoalsPage() {
     if (days >= 14) return "text-destructive";
     if (days >= 7) return "text-warning";
     return "";
+  };
+
+  const actionStatusColor: Record<string, "default" | "secondary" | "outline" | "destructive"> = {
+    accepted: "default",
+    deferred: "secondary",
+    blocked: "destructive",
+    completed: "outline",
+    abandoned: "destructive",
+  };
+
+  const linkedActionItems = (goalPath: string) =>
+    actionItems.filter((item) => item.action_item.goal_path === goalPath);
+
+  const renderActionCard = (item: TrackedRecommendationAction) => {
+    const note = reviewNotes[item.recommendation_id] ?? item.action_item.review_notes ?? "";
+    const pending = savingActionId === item.recommendation_id;
+
+    return (
+      <div key={item.recommendation_id} className="space-y-3 rounded-lg border p-3 text-sm">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-medium">{item.recommendation_title}</span>
+              <Badge variant="secondary" className="text-xs">{item.category}</Badge>
+              <Badge variant={actionStatusColor[item.action_item.status] ?? "secondary"} className="text-xs">
+                {item.action_item.status}
+              </Badge>
+            </div>
+            <p className="mt-1 text-muted-foreground">{item.action_item.next_step}</p>
+            {item.action_item.goal_title && (
+              <p className="mt-1 text-xs text-muted-foreground">Linked to: {item.action_item.goal_title}</p>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-1">
+            {(["small", "medium", "large"] as const).map((effort) => (
+              <Button
+                key={effort}
+                size="sm"
+                variant={item.action_item.effort === effort ? "default" : "outline"}
+                className="h-7 px-2 text-xs"
+                disabled={pending}
+                onClick={() => handleActionUpdate(item.recommendation_id, { effort })}
+              >
+                {effort}
+              </Button>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-1">
+          {([
+            ["today", "Today"],
+            ["this_week", "This week"],
+            ["later", "Later"],
+          ] as const).map(([dueWindow, label]) => (
+            <Button
+              key={dueWindow}
+              size="sm"
+              variant={item.action_item.due_window === dueWindow ? "default" : "outline"}
+              className="h-7 px-2 text-xs"
+              disabled={pending}
+              onClick={() => handleActionUpdate(item.recommendation_id, { due_window: dueWindow })}
+            >
+              {label}
+            </Button>
+          ))}
+        </div>
+
+        {item.action_item.success_criteria && (
+          <p className="text-xs text-muted-foreground">
+            Success: {item.action_item.success_criteria}
+          </p>
+        )}
+
+        <div className="flex flex-wrap gap-1">
+          {([
+            ["accepted", "Accept"],
+            ["deferred", "Defer"],
+            ["blocked", "Block"],
+            ["completed", "Complete"],
+            ["abandoned", "Abandon"],
+          ] as const).map(([statusValue, label]) => (
+            <Button
+              key={statusValue}
+              size="sm"
+              variant={item.action_item.status === statusValue ? "default" : "outline"}
+              className="h-7 px-2 text-xs"
+              disabled={pending}
+              onClick={() =>
+                handleActionUpdate(item.recommendation_id, {
+                  status: statusValue,
+                  review_notes: note,
+                })
+              }
+            >
+              {label}
+            </Button>
+          ))}
+        </div>
+
+        <div className="space-y-2">
+          <Textarea
+            rows={2}
+            placeholder="Review notes — what happened, what changed, what you learned?"
+            value={note}
+            onChange={(e) =>
+              setReviewNotes((prev) => ({ ...prev, [item.recommendation_id]: e.target.value }))
+            }
+          />
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={pending}
+            onClick={() => handleActionUpdate(item.recommendation_id, { review_notes: note })}
+          >
+            Save Notes
+          </Button>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -309,11 +510,31 @@ export default function GoalsPage() {
         </div>
       )}
 
+      {weeklyPlan && weeklyPlan.items.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <CardTitle className="text-base">This week</CardTitle>
+                <CardDescription>
+                  {weeklyPlan.used_points}/{weeklyPlan.capacity_points} effort points planned
+                </CardDescription>
+              </div>
+              <Badge variant="secondary">{weeklyPlan.remaining_points} points free</Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {weeklyPlan.items.map(renderActionCard)}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Goals list */}
       {!loading && goals.length > 0 && (
         <div className="space-y-4">
           {goals.map((g) => {
             const progress = progressMap[g.path];
+            const goalActions = linkedActionItems(g.path);
             return (
               <Card key={g.path}>
                 <CardHeader
@@ -479,6 +700,13 @@ export default function GoalsPage() {
                       )}
                     </div>
 
+                    {goalActions.length > 0 && (
+                      <div className="space-y-2">
+                        <h4 className="text-sm font-medium">Tracked action plans</h4>
+                        {goalActions.map(renderActionCard)}
+                      </div>
+                    )}
+
                     {/* Goal-contextual recommendations */}
                     {recommendationsMap[g.path]?.length > 0 && (
                       <div className="space-y-2">
@@ -492,16 +720,34 @@ export default function GoalsPage() {
                             className="flex items-start gap-2 rounded-md border px-3 py-2 text-sm"
                           >
                             <div className="min-w-0 flex-1">
-                              <span className="font-medium">{rec.title}</span>
-                              <Badge variant="secondary" className="ml-2 text-xs">
-                                {rec.category}
-                              </Badge>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="font-medium">{rec.title}</span>
+                                <Badge variant="secondary" className="text-xs">
+                                  {rec.category}
+                                </Badge>
+                                {rec.action_item && (
+                                  <Badge
+                                    variant={actionStatusColor[rec.action_item.status] ?? "secondary"}
+                                    className="text-xs"
+                                  >
+                                    {rec.action_item.status}
+                                  </Badge>
+                                )}
+                              </div>
                               {rec.description && (
                                 <p className="mt-0.5 text-muted-foreground line-clamp-1">
                                   {rec.description}
                                 </p>
                               )}
                             </div>
+                            <Button
+                              size="sm"
+                              variant={rec.action_item ? "outline" : "default"}
+                              disabled={Boolean(rec.action_item) || savingActionId === rec.id}
+                              onClick={() => handleCreateActionItem(rec.id, g)}
+                            >
+                              {rec.action_item ? "Tracked" : "Add to plan"}
+                            </Button>
                           </div>
                         ))}
                       </div>
@@ -527,17 +773,37 @@ export default function GoalsPage() {
                 key={rec.id}
                 className="rounded-xl border px-4 py-3 text-sm"
               >
-                <div className="flex items-center gap-2">
-                  <span className="font-medium">{rec.title}</span>
-                  <Badge variant="secondary" className="text-xs">
-                    {rec.category}
-                  </Badge>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-medium">{rec.title}</span>
+                      <Badge variant="secondary" className="text-xs">
+                        {rec.category}
+                      </Badge>
+                      {rec.action_item && (
+                        <Badge
+                          variant={actionStatusColor[rec.action_item.status] ?? "secondary"}
+                          className="text-xs"
+                        >
+                          {rec.action_item.status}
+                        </Badge>
+                      )}
+                    </div>
+                    {rec.description && (
+                      <p className="mt-1 text-muted-foreground line-clamp-1">
+                        {rec.description}
+                      </p>
+                    )}
+                  </div>
+                  <Button
+                    size="sm"
+                    variant={rec.action_item ? "outline" : "default"}
+                    disabled={Boolean(rec.action_item) || savingActionId === rec.id}
+                    onClick={() => handleCreateActionItem(rec.id)}
+                  >
+                    {rec.action_item ? "Tracked" : "Track"}
+                  </Button>
                 </div>
-                {rec.description && (
-                  <p className="mt-1 text-muted-foreground line-clamp-1">
-                    {rec.description}
-                  </p>
-                )}
               </div>
             ))}
           </div>

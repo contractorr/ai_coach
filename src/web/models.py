@@ -243,6 +243,63 @@ class BriefingRecommendation(BaseModel):
     reasoning_trace: Optional[ReasoningTrace] = None
     critic: Optional[CriticData] = None
     watchlist_evidence: list[str] = []
+    action_item: Optional["RecommendationActionItem"] = None
+
+
+class RecommendationActionItem(BaseModel):
+    objective: str = ""
+    next_step: str = ""
+    effort: str = Field("medium", pattern=r"^(small|medium|large)$")
+    due_window: str = Field("this_week", pattern=r"^(today|this_week|later)$")
+    blockers: list[str] = Field(default_factory=list)
+    success_criteria: str = ""
+    status: str = Field(
+        "accepted", pattern=r"^(accepted|deferred|blocked|completed|abandoned)$"
+    )
+    review_notes: Optional[str] = None
+    goal_path: Optional[str] = None
+    goal_title: Optional[str] = None
+    created_at: str = ""
+    updated_at: str = ""
+
+
+class RecommendationActionCreate(BaseModel):
+    goal_path: Optional[str] = None
+    objective: Optional[str] = Field(None, max_length=200)
+    next_step: Optional[str] = Field(None, max_length=500)
+    effort: Optional[str] = Field(None, pattern=r"^(small|medium|large)$")
+    due_window: Optional[str] = Field(None, pattern=r"^(today|this_week|later)$")
+    blockers: Optional[list[str]] = None
+    success_criteria: Optional[str] = Field(None, max_length=500)
+
+
+class RecommendationActionUpdate(BaseModel):
+    status: Optional[str] = Field(None, pattern=r"^(accepted|deferred|blocked|completed|abandoned)$")
+    effort: Optional[str] = Field(None, pattern=r"^(small|medium|large)$")
+    due_window: Optional[str] = Field(None, pattern=r"^(today|this_week|later)$")
+    blockers: Optional[list[str]] = None
+    review_notes: Optional[str] = Field(None, max_length=5000)
+    next_step: Optional[str] = Field(None, max_length=500)
+    success_criteria: Optional[str] = Field(None, max_length=500)
+    goal_path: Optional[str] = None
+
+
+class TrackedRecommendationAction(BaseModel):
+    recommendation_id: str = ""
+    recommendation_title: str = ""
+    category: str = ""
+    score: float = 0.0
+    recommendation_status: str = ""
+    created_at: str = ""
+    action_item: RecommendationActionItem
+
+
+class WeeklyPlanResponse(BaseModel):
+    items: list[TrackedRecommendationAction] = Field(default_factory=list)
+    capacity_points: int = 0
+    used_points: int = 0
+    remaining_points: int = 0
+    generated_at: str = ""
 
 
 class WatchlistItem(BaseModel):

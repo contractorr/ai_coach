@@ -21,6 +21,8 @@ MAX_BOOST = 1.5
 # User rating (1-5) boost thresholds
 MIN_RATINGS_FOR_BOOST = 2
 MAX_RATING_BOOST = 1.0
+MIN_EXECUTION_EVENTS_FOR_BOOST = 2
+MAX_EXECUTION_BOOST = 1.0
 
 
 class RecommendationScorer:
@@ -42,6 +44,7 @@ class RecommendationScorer:
         self._rec_storage = rec_storage
         self._category_boosts: Optional[dict[str, float]] = None
         self._rating_boosts: Optional[dict[str, float]] = None
+        self._execution_boosts: Optional[dict[str, float]] = None
 
     def passes_threshold(self, score: float) -> bool:
         """Check if score meets minimum threshold."""
@@ -143,7 +146,35 @@ class RecommendationScorer:
 
         return self._rating_boosts.get(category, 0.0)
 
+    def execution_boost(self, category: str) -> float:
+        """Per-category score adjustment from tracked execution outcomes."""
+        if self._execution_boosts is not None:
+            return self._execution_boosts.get(category, 0.0)
+
+        self._execution_boosts = {}
+        if not self._rec_storage:
+            return 0.0
+
+        try:
+            stats = self._rec_storage.get_execution_stats()
+            for cat, cat_stats in stats.get("by_category", {}).items():
+                if cat_stats.get("count", 0) < MIN_EXECUTION_EVENTS_FOR_BOOST:
+                    continue
+                avg = float(cat_stats.get("avg_outcome", 0.0))
+                avg = max(-1.0, min(1.0, avg))
+                self._execution_boosts[cat] = MAX_EXECUTION_BOOST * avg
+
+            logger.debug("execution.category_boosts", boosts=self._execution_boosts)
+        except Exception as e:
+            logger.debug("execution.boost_error", error=str(e))
+
+        return self._execution_boosts.get(category, 0.0)
+
     def adjust_score(self, score: float, category: str) -> float:
         """Apply engagement + rating boosts to a raw LLM score, clamped [0, 10]."""
-        boost = self.engagement_boost(category) + self.rating_boost(category)
+        boost = (
+            self.engagement_boost(category)
+            + self.rating_boost(category)
+            + self.execution_boost(category)
+        )
         return max(0.0, min(10.0, score + boost))

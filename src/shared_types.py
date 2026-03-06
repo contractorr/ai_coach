@@ -17,6 +17,14 @@ class RecommendationStatus(StrEnum):
     DISMISSED = "dismissed"
 
 
+class ActionItemStatus(StrEnum):
+    ACCEPTED = "accepted"
+    DEFERRED = "deferred"
+    BLOCKED = "blocked"
+    COMPLETED = "completed"
+    ABANDONED = "abandoned"
+
+
 class CareerStage(StrEnum):
     JUNIOR = "junior"
     MID = "mid"

@@ -183,6 +183,85 @@ def test_recommendations_rate(mock_components):
         assert result["rating"] == 5
 
 
+def test_recommendations_action_create(mock_components):
+    """recommendations_action_create should delegate to storage."""
+    from coach_mcp.tools.recommendations import _create_action
+
+    with patch("coach_mcp.tools.recommendations._get_rec_storage") as mock_get:
+        rec_storage = MagicMock()
+        mock_get.return_value = rec_storage
+        rec_storage.create_action_item.return_value = {"status": "accepted"}
+        rec_storage.get_action_item.return_value = MagicMock(action_item={"status": "accepted"})
+
+        result = _create_action({"rec_id": "abc123", "due_window": "today"})
+        assert result["success"] is True
+        assert result["action_item"]["status"] == "accepted"
+
+
+def test_recommendations_action_update(mock_components):
+    """recommendations_action_update should delegate to storage."""
+    from coach_mcp.tools.recommendations import _update_action
+
+    with patch("coach_mcp.tools.recommendations._get_rec_storage") as mock_get:
+        rec_storage = MagicMock()
+        mock_get.return_value = rec_storage
+        rec_storage.update_action_item.return_value = {"status": "completed"}
+
+        result = _update_action({"rec_id": "abc123", "status": "completed"})
+        assert result["success"] is True
+        assert result["action_item"]["status"] == "completed"
+
+
+def test_recommendations_action_list(mock_components):
+    """recommendations_action_list should return tracked actions."""
+    from coach_mcp.tools.recommendations import _list_actions
+
+    with patch("coach_mcp.tools.recommendations._get_rec_storage") as mock_get:
+        rec_storage = MagicMock()
+        mock_get.return_value = rec_storage
+        rec_storage.list_action_items.return_value = [
+            MagicMock(
+                recommendation_id="abc123",
+                recommendation_title="Ship MVP",
+                category="projects",
+                score=8.5,
+                recommendation_status="in_progress",
+                action_item={"status": "accepted"},
+            )
+        ]
+
+        result = _list_actions({"limit": 10})
+        assert result["count"] == 1
+        assert result["actions"][0]["title"] == "Ship MVP"
+
+
+def test_recommendations_action_weekly_plan(mock_components):
+    """recommendations_action_weekly_plan should return weekly plan items."""
+    from coach_mcp.tools.recommendations import _weekly_plan
+
+    with patch("coach_mcp.tools.recommendations._get_rec_storage") as mock_get:
+        rec_storage = MagicMock()
+        mock_get.return_value = rec_storage
+        rec_storage.build_weekly_plan.return_value = {
+            "items": [
+                MagicMock(
+                    recommendation_id="abc123",
+                    recommendation_title="Ship MVP",
+                    category="projects",
+                    score=8.5,
+                    action_item={"status": "accepted"},
+                )
+            ],
+            "capacity_points": 6,
+            "used_points": 2,
+            "remaining_points": 4,
+        }
+
+        result = _weekly_plan({"capacity_points": 6})
+        assert result["used_points"] == 2
+        assert result["items"][0]["title"] == "Ship MVP"
+
+
 def test_research_topics(mock_components):
     """research_topics should return topic suggestions."""
     from coach_mcp.tools.research import _topics

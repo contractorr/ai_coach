@@ -24,6 +24,40 @@ export interface BriefingRecommendation {
   reasoning_trace?: ReasoningTrace | null;
   critic?: CriticData | null;
   watchlist_evidence?: string[];
+  action_item?: RecommendationActionItem | null;
+}
+
+export interface RecommendationActionItem {
+  objective: string;
+  next_step: string;
+  effort: "small" | "medium" | "large";
+  due_window: "today" | "this_week" | "later";
+  blockers: string[];
+  success_criteria: string;
+  status: "accepted" | "deferred" | "blocked" | "completed" | "abandoned";
+  review_notes?: string | null;
+  goal_path?: string | null;
+  goal_title?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TrackedRecommendationAction {
+  recommendation_id: string;
+  recommendation_title: string;
+  category: string;
+  score: number;
+  recommendation_status: string;
+  created_at: string;
+  action_item: RecommendationActionItem;
+}
+
+export interface WeeklyPlanResponse {
+  items: TrackedRecommendationAction[];
+  capacity_points: number;
+  used_points: number;
+  remaining_points: number;
+  generated_at: string;
 }
 
 export interface BriefingGoal {

@@ -208,6 +208,41 @@ class TestRatingBoost:
         assert s.rating_boost("career") == 99.0
 
 
+class TestExecutionBoost:
+    def test_no_storage_returns_zero(self, scorer):
+        assert scorer.execution_boost("career") == 0.0
+
+    def test_completed_actions_increase_boost(self):
+        from advisor.scoring import RecommendationScorer
+
+        storage = MagicMock()
+        storage.get_execution_stats.return_value = {
+            "by_category": {"career": {"avg_outcome": 1.0, "count": 3}},
+        }
+        s = RecommendationScorer(rec_storage=storage)
+        assert s.execution_boost("career") == pytest.approx(1.0)
+
+    def test_abandoned_actions_reduce_boost(self):
+        from advisor.scoring import RecommendationScorer
+
+        storage = MagicMock()
+        storage.get_execution_stats.return_value = {
+            "by_category": {"career": {"avg_outcome": -1.0, "count": 3}},
+        }
+        s = RecommendationScorer(rec_storage=storage)
+        assert s.execution_boost("career") == pytest.approx(-1.0)
+
+    def test_below_min_events_skipped(self):
+        from advisor.scoring import RecommendationScorer
+
+        storage = MagicMock()
+        storage.get_execution_stats.return_value = {
+            "by_category": {"career": {"avg_outcome": 1.0, "count": 1}},
+        }
+        s = RecommendationScorer(rec_storage=storage)
+        assert s.execution_boost("career") == 0.0
+
+
 # ── adjust_score ──────────────────────────────────────────────────────
 
 
@@ -254,4 +289,13 @@ class TestAdjustScore:
         s._category_boosts = {"career": 0.5}
         s._rating_boosts = {"career": 0.5}
         # 6.0 + 0.5 + 0.5 = 7.0
+        assert s.adjust_score(6.0, "career") == pytest.approx(7.0)
+
+    def test_includes_execution_boost(self):
+        from advisor.scoring import RecommendationScorer
+
+        s = RecommendationScorer()
+        s._category_boosts = {"career": 0.5}
+        s._rating_boosts = {"career": 0.25}
+        s._execution_boosts = {"career": 0.25}
         assert s.adjust_score(6.0, "career") == pytest.approx(7.0)

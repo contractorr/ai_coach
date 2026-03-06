@@ -33,12 +33,12 @@ def mock_components():
 
 
 def test_load_tools_returns_20(mock_components):
-    """Server should register exactly 32 tools."""
+    """Server should register exactly 46 tools."""
     from coach_mcp.server import _load_tools
 
     tools, handlers = _load_tools()
-    assert len(tools) == 42
-    assert len(handlers) == 42
+    assert len(tools) == 46
+    assert len(handlers) == 46
 
 
 def test_load_tools_names(mock_components):
@@ -71,6 +71,10 @@ def test_load_tools_names(mock_components):
         "watchlist_delete",
         "recommendations_list",
         "recommendations_update_status",
+        "recommendations_action_create",
+        "recommendations_action_update",
+        "recommendations_action_list",
+        "recommendations_action_weekly_plan",
         "recommendations_rate",
         "research_topics",
         "research_run",
@@ -138,4 +142,4 @@ async def test_list_tools_async(mock_components):
     from coach_mcp.server import list_tools
 
     tools = await list_tools()
-    assert len(tools) == 42
+    assert len(tools) == 46
