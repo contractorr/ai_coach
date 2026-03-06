@@ -1,117 +1,273 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
+import Link from "next/link";
+import { toast } from "sonner";
 import { useToken } from "@/hooks/useToken";
-import { BriefingPanel } from "@/components/BriefingPanel";
-import { ChatSheet } from "@/components/ChatSheet";
-import { Brain, Send } from "lucide-react";
+import { MessageRenderer } from "@/components/MessageRenderer";
+import { Check, ExternalLink, PenLine, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { apiFetch } from "@/lib/api";
-import { buildSuggestionChips, getGreeting } from "@/components/BriefingPanel";
-import type { BriefingResponse } from "@/types/briefing";
+import { apiFetch, apiFetchSSE } from "@/lib/api";
+import { TOOL_LABELS } from "@/lib/constants";
+import type { GreetingResponse } from "@/types/greeting";
+
+interface Message {
+  role: "user" | "assistant";
+  content: string;
+}
+
+type InputMode = "ask" | "capture";
 
 export default function HomePage() {
   const token = useToken();
-  const [briefing, setBriefing] = useState<BriefingResponse | null>(null);
-  const [briefingLoaded, setBriefingLoaded] = useState(false);
+  const [greeting, setGreeting] = useState<string | null>(null);
+  const [greetingLoaded, setGreetingLoaded] = useState(false);
   const [userName, setUserName] = useState<string | null>(null);
-  const [inlineChatQuestion, setInlineChatQuestion] = useState<string | null>(null);
-  const [input, setInput] = useState("");
 
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState("");
+  const [mode, setMode] = useState<InputMode>("ask");
+  const [loading, setLoading] = useState(false);
+  const [toolStatus, setToolStatus] = useState<string | null>(null);
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [captured, setCaptured] = useState(false);
+
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const retried = useRef(false);
+
+  // Fetch greeting + user on mount
   useEffect(() => {
     if (!token) return;
     let cancelled = false;
 
-    apiFetch<BriefingResponse>("/api/briefing", {}, token).then((data) => {
-      if (!cancelled) setBriefing(data);
-    }).catch(() => {}).finally(() => {
-      if (!cancelled) setBriefingLoaded(true);
-    });
+    apiFetch<GreetingResponse>("/api/greeting", {}, token)
+      .then((data) => {
+        if (cancelled) return;
+        setGreeting(data.text);
+        // If stale, retry once after 5s
+        if (data.stale && !retried.current) {
+          retried.current = true;
+          setTimeout(() => {
+            apiFetch<GreetingResponse>("/api/greeting", {}, token)
+              .then((fresh) => {
+                if (!cancelled && !fresh.stale) setGreeting(fresh.text);
+              })
+              .catch(() => {});
+          }, 5000);
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setGreetingLoaded(true);
+      });
 
-    apiFetch<{ name: string | null }>("/api/user/me", {}, token).then((user) => {
-      if (!cancelled && user.name) setUserName(user.name);
-    }).catch(() => {});
+    apiFetch<{ name: string | null }>("/api/user/me", {}, token)
+      .then((user) => {
+        if (!cancelled && user.name) setUserName(user.name);
+      })
+      .catch(() => {});
 
     return () => {
       cancelled = true;
     };
   }, [token]);
 
-  const handleAsk = useCallback((text: string) => {
-    setInlineChatQuestion(text);
-  }, []);
+  // Auto-scroll
+  useEffect(() => {
+    scrollRef.current?.scrollTo({
+      top: scrollRef.current.scrollHeight,
+      behavior: "smooth",
+    });
+  }, [messages, loading]);
+
+  const sendMessage = useCallback(
+    async (question: string, convId: string | null) => {
+      setLoading(true);
+      setToolStatus(null);
+
+      try {
+        await apiFetchSSE(
+          "/api/advisor/ask/stream",
+          {
+            method: "POST",
+            body: JSON.stringify({
+              question,
+              advice_type: "general",
+              conversation_id: convId,
+            }),
+          },
+          token,
+          (event) => {
+            const type = event.type as string;
+            if (type === "tool_start") {
+              setToolStatus(
+                TOOL_LABELS[event.tool as string] || `Running ${event.tool}`,
+              );
+            } else if (type === "tool_done") {
+              setToolStatus(null);
+            } else if (type === "answer") {
+              const cid = event.conversation_id as string;
+              setConversationId(cid);
+              setMessages((prev) => [
+                ...prev,
+                { role: "assistant", content: event.content as string },
+              ]);
+            } else if (type === "error") {
+              toast.error(event.detail as string);
+              setMessages((prev) => [
+                ...prev,
+                { role: "assistant", content: "Error: " + (event.detail as string) },
+              ]);
+            }
+          },
+        );
+      } catch (e) {
+        toast.error((e as Error).message);
+        setMessages((prev) => [
+          ...prev,
+          { role: "assistant", content: "Error: " + (e as Error).message },
+        ]);
+      } finally {
+        setLoading(false);
+        setToolStatus(null);
+      }
+    },
+    [token],
+  );
+
+  const handleAsk = useCallback(() => {
+    if (!input.trim() || loading) return;
+    const question = input.trim();
+    setInput("");
+    setMessages((prev) => [...prev, { role: "user", content: question }]);
+    sendMessage(question, conversationId);
+  }, [input, loading, conversationId, sendMessage]);
+
+  const handleCapture = useCallback(async () => {
+    if (!input.trim() || !token) return;
+    const text = input.trim();
+    setInput("");
+    try {
+      await apiFetch(
+        "/api/journal/quick",
+        { method: "POST", body: JSON.stringify({ content: text }) },
+        token,
+      );
+      setCaptured(true);
+      toast.success("Captured");
+      setTimeout(() => setCaptured(false), 2000);
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
+  }, [input, token]);
 
   const handleSubmit = useCallback(() => {
-    if (!input.trim()) return;
-    handleAsk(input.trim());
-    setInput("");
-  }, [input, handleAsk]);
+    if (mode === "ask") handleAsk();
+    else handleCapture();
+  }, [mode, handleAsk, handleCapture]);
 
-  if (!token || !briefingLoaded) {
+  if (!token || !greetingLoaded) {
     return (
-      <div className="h-full overflow-y-auto px-4 py-4">
-        <div className="mx-auto max-w-2xl animate-pulse space-y-4">
-          <div className="h-4 w-32 rounded bg-muted" />
-          <div className="h-24 rounded bg-muted" />
+      <div className="flex h-full flex-col">
+        <div className="mx-auto w-full max-w-2xl flex-1 animate-pulse space-y-4 px-4 py-8">
+          <div className="h-16 rounded-2xl bg-muted" />
           <div className="space-y-2">
-            <div className="h-3 w-full rounded bg-muted" />
             <div className="h-3 w-5/6 rounded bg-muted" />
             <div className="h-3 w-2/3 rounded bg-muted" />
-          </div>
-          <div className="flex gap-2">
-            <div className="h-10 flex-1 rounded bg-muted" />
-            <div className="h-10 w-12 rounded bg-muted" />
           </div>
         </div>
       </div>
     );
   }
 
-  const showBriefing = briefing?.has_data;
+  const hasConversation = messages.length > 0;
 
   return (
-    <div className="h-full overflow-y-auto px-4 py-4">
-      {showBriefing && briefing && (
-        <BriefingPanel
-          briefing={briefing}
-          onChipClick={handleAsk}
-          token={token}
-          userName={userName}
-        />
-      )}
+    <div className="flex h-full flex-col">
+      {/* Messages area */}
+      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4">
+        <div className="mx-auto max-w-2xl space-y-3">
+          {/* Greeting as first assistant message */}
+          {greeting && (
+            <div className="mr-4 rounded-2xl rounded-bl-sm px-4 py-2.5">
+              <p className="text-sm">
+                {userName && (
+                  <span className="font-medium">{userName}, </span>
+                )}
+                {greeting}
+              </p>
+            </div>
+          )}
 
-      {!showBriefing && (
-        <div className="mx-auto max-w-2xl flex flex-col items-center justify-center py-16 text-center">
-          <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-muted">
-            <Brain className="h-7 w-7 text-muted-foreground" />
-          </div>
-          <h3 className="text-lg font-medium">
-            {userName ? `${getGreeting()}, ${userName}` : getGreeting()}
-          </h3>
-          <p className="mt-1 max-w-md text-sm text-muted-foreground">
-            Ask me anything — a decision, a priority, a goal, or what to do next.
-          </p>
-          <div className="mt-6 flex flex-wrap justify-center gap-2">
-            {buildSuggestionChips(briefing).map((chip) => (
-              <button
-                key={chip}
-                onClick={() => handleAsk(chip)}
-                className="rounded-full border px-3 py-1.5 text-xs hover:bg-accent transition-colors"
-              >
-                {chip}
-              </button>
-            ))}
-          </div>
+          {/* Conversation messages */}
+          {messages.map((msg, i) => (
+            <div
+              key={i}
+              className={
+                msg.role === "user"
+                  ? "ml-12 rounded-2xl rounded-br-sm bg-primary/10 px-4 py-2.5"
+                  : "mr-4 rounded-2xl rounded-bl-sm px-4 py-2.5"
+              }
+            >
+              {msg.role === "assistant" ? (
+                <MessageRenderer
+                  content={msg.content}
+                  onAction={(text) => {
+                    setInput(text);
+                    setTimeout(() => textareaRef.current?.focus(), 100);
+                  }}
+                />
+              ) : (
+                <p className="text-sm">{msg.content}</p>
+              )}
+            </div>
+          ))}
+
+          {/* Loading indicator */}
+          {loading && (
+            <div className="mr-4 rounded-2xl rounded-bl-sm px-4 py-3">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <div className="flex gap-1">
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground [animation-delay:0ms]" />
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground [animation-delay:150ms]" />
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground [animation-delay:300ms]" />
+                </div>
+                {toolStatus || "Thinking..."}
+              </div>
+            </div>
+          )}
+
+          {/* Empty state hint (no messages yet) */}
+          {!hasConversation && !loading && (
+            <div className="pt-4 text-center">
+              <p className="text-sm text-muted-foreground">
+                Ask me anything — a decision, a priority, a goal, or what to do next.
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Conversation link */}
+      {conversationId && (
+        <div className="flex justify-center border-t px-4 py-1">
+          <Button variant="ghost" size="sm" className="h-7 text-xs gap-1" asChild>
+            <Link href={`/advisor?conv=${conversationId}`}>
+              Open in Conversations <ExternalLink className="h-3 w-3" />
+            </Link>
+          </Button>
         </div>
       )}
 
-      {/* Always-visible ask input */}
-      <div className="mx-auto max-w-2xl mt-4 mb-4">
-        <div className="flex gap-2">
+      {/* Input area */}
+      <div className="border-t px-4 py-3">
+        <div className="mx-auto flex max-w-2xl gap-2">
           <Textarea
+            ref={textareaRef}
             rows={1}
-            placeholder="Ask anything..."
+            placeholder={mode === "ask" ? "Ask anything..." : "Quick thought..."}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
@@ -122,23 +278,34 @@ export default function HomePage() {
             }}
             className="flex-1 resize-none"
           />
-          <Button onClick={handleSubmit} disabled={!input.trim()}>
-            <Send className="h-4 w-4" />
-          </Button>
+          <div className="flex flex-col gap-1 self-end">
+            {captured ? (
+              <Button size="icon" variant="ghost" disabled className="h-9 w-9">
+                <Check className="h-4 w-4 text-green-600" />
+              </Button>
+            ) : (
+              <Button
+                size="icon"
+                onClick={handleSubmit}
+                disabled={!input.trim() || loading}
+                className="h-9 w-9"
+              >
+                {mode === "ask" ? (
+                  <Send className="h-4 w-4" />
+                ) : (
+                  <PenLine className="h-4 w-4" />
+                )}
+              </Button>
+            )}
+            <button
+              onClick={() => setMode((m) => (m === "ask" ? "capture" : "ask"))}
+              className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {mode === "ask" ? "capture" : "ask"}
+            </button>
+          </div>
         </div>
       </div>
-
-      {/* Chat Sheet — slides in from right */}
-      {token && (
-        <ChatSheet
-          token={token}
-          open={!!inlineChatQuestion}
-          initialQuestion={inlineChatQuestion}
-          onOpenChange={(open) => {
-            if (!open) setInlineChatQuestion(null);
-          }}
-        />
-      )}
     </div>
   );
 }

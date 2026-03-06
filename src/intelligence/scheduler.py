@@ -539,6 +539,16 @@ class IntelScheduler:
                     metrics.counter("scraper_failure")
                     results["unknown"] = {"error": str(result)}
 
+            # Invalidate all greeting caches after scrape batch
+            try:
+                from advisor.context_cache import ContextCache
+
+                cache_db = self.storage.db_path.parent / "context_cache.db"
+                cache = ContextCache(cache_db)
+                cache.invalidate_by_prefix("greeting_v1_")
+            except Exception as e:
+                logger.warning("greeting_cache_invalidate_failed", error=str(e))
+
             return results
         finally:
             structlog.contextvars.unbind_contextvars("run_id")

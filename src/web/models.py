@@ -188,6 +188,15 @@ class OnboardingFeedsResponse(BaseModel):
     categories: list[str]
 
 
+# --- Greeting ---
+
+
+class GreetingResponse(BaseModel):
+    text: str
+    cached: bool = False
+    stale: bool = False
+
+
 # --- Briefing ---
 
 

@@ -44,6 +44,16 @@ Mode is set at engine construction time. In CLI, this is config-driven. In web, 
 - Recurring thought threads are injected if enabled
 - Recent research reports are optionally included
 
+### Proactive greeting (chat-first home)
+
+1. On home page load, system serves a cached personalized greeting (3-5 sentences)
+2. Greeting is pre-computed by cheap LLM from current state: stale goals, top recommendations, recent intel highlights, profile name
+3. Cache TTL: 4 hours; invalidated on journal create/update, goal check-in, or scrape batch
+4. If no cache exists, static fallback shown while greeting generates in background
+5. Greeting is the first assistant message in the home page chat
+6. Chat input doubles as journal quick-capture (explicit mode toggle) or advisor question
+7. No dashboard sections — dedicated pages (Goals, Journal, Radar) handle deep dives
+
 ### Conversation continuity
 
 User can send follow-up questions with conversation history. The system passes prior turns to the LLM for multi-turn dialogue.
@@ -65,6 +75,11 @@ Beyond free-form Q&A, the advisor can run:
 - [ ] Conversation history is passed through for multi-turn dialogue
 - [ ] Advice type changes the framing/focus of the response
 - [ ] Works via CLI, web (including SSE streaming), and MCP
+- [ ] Greeting returns in <100ms when cached
+- [ ] Greeting reflects current user state (stale goals, recent intel)
+- [ ] Cache invalidated on data events (journal create/update, goal check-in, scrape batch)
+- [ ] Static fallback shown on first visit (no blocking LLM call)
+- [ ] Quick-capture mode creates journal entries via existing `/api/journal/quick`
 
 ## Edge Cases
 

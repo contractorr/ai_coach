@@ -1,5 +1,7 @@
 # Daily Brief & Signals
 
+> **Deprecation note:** Daily Brief dashboard UI replaced by chat-first home page (see `ask-advice.md` → Proactive greeting). `DailyBriefBuilder` and `/api/briefing` endpoint retained for MCP tool backward compat.
+
 **Status:** Approved
 **Author:** —
 **Date:** 2026-03-02

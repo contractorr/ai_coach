@@ -13,6 +13,7 @@ from web.routes import (
     briefing,
     engagement,
     goals,
+    greeting,
     heartbeat,
     intel,
     journal,
@@ -115,6 +116,7 @@ app.include_router(intel.router)
 app.include_router(research.router)
 app.include_router(onboarding.router)
 app.include_router(briefing.router)
+app.include_router(greeting.router)
 app.include_router(recommendations.router)
 app.include_router(engagement.router)
 app.include_router(profile.router)

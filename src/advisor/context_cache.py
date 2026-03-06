@@ -25,8 +25,13 @@ class ContextCache:
                 )"""
             )
 
-    def get(self, cache_key: str) -> str | None:
-        """Return cached value if not expired, else None."""
+    def get(self, cache_key: str, ttl: int | None = None) -> str | None:
+        """Return cached value if not expired, else None.
+
+        Args:
+            cache_key: Cache key to look up.
+            ttl: Override default TTL for this lookup (seconds).
+        """
         with wal_connect(self.db_path) as conn:
             row = conn.execute(
                 "SELECT value, created_at FROM context_cache WHERE key = ?",
@@ -35,7 +40,8 @@ class ContextCache:
         if row is None:
             return None
         value, created_at = row
-        if time.time() - created_at > self.default_ttl:
+        effective_ttl = ttl if ttl is not None else self.default_ttl
+        if time.time() - created_at > effective_ttl:
             self._delete(cache_key)
             return None
         return value
@@ -60,6 +66,18 @@ class ContextCache:
         cutoff = time.time() - self.default_ttl
         with wal_connect(self.db_path) as conn:
             conn.execute("DELETE FROM context_cache WHERE created_at < ?", (cutoff,))
+
+    def invalidate(self, cache_key: str):
+        """Delete a specific cache entry."""
+        self._delete(cache_key)
+
+    def invalidate_by_prefix(self, prefix: str):
+        """Delete all cache entries whose key starts with prefix."""
+        with wal_connect(self.db_path) as conn:
+            conn.execute(
+                "DELETE FROM context_cache WHERE key LIKE ?",
+                (prefix + "%",),
+            )
 
     def _delete(self, cache_key: str):
         with wal_connect(self.db_path) as conn:

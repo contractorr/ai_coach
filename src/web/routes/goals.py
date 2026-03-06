@@ -81,6 +81,20 @@ async def check_in(
     success = tracker.check_in_goal(resolved, notes=body.notes)
     if not success:
         raise HTTPException(status_code=404, detail="Goal not found")
+
+    # Invalidate greeting cache on check-in
+    try:
+        from advisor.context_cache import ContextCache
+        from advisor.greeting import invalidate_greeting
+        from web.deps import get_user_paths as _gup
+
+        paths = _gup(user["id"])
+        cache_db = paths["intel_db"].parent / "context_cache.db"
+        cache = ContextCache(cache_db)
+        invalidate_greeting(user["id"], cache)
+    except Exception:
+        pass
+
     return {"ok": True}
 
 

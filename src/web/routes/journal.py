@@ -127,6 +127,17 @@ async def _run_post_create_hooks(
     except Exception as exc:
         logger.warning("post_create.memory_failed", error=str(exc), user=user_id)
 
+    # 4. Invalidate greeting cache
+    try:
+        from advisor.context_cache import ContextCache
+        from advisor.greeting import invalidate_greeting
+
+        cache_db = paths["intel_db"].parent / "context_cache.db"
+        cache = ContextCache(cache_db)
+        invalidate_greeting(user_id, cache)
+    except Exception as exc:
+        logger.warning("post_create.greeting_invalidate_failed", error=str(exc), user=user_id)
+
 
 def _validate_journal_path(filepath: str, storage: JournalStorage) -> Path:
     """Validate path is inside journal dir (prevent traversal)."""
