@@ -59,12 +59,16 @@ class GeminiProvider(LLMProvider):
         prompt = "\n".join(parts)
 
         try:
-            from google.genai import types
+            try:
+                from google.genai import types  # type: ignore
 
+                config = types.GenerateContentConfig(max_output_tokens=max_tokens)
+            except ImportError:
+                config = {"max_output_tokens": max_tokens}
             response = self.client.models.generate_content(
                 model=self.model_name,
                 contents=prompt,
-                config=types.GenerateContentConfig(max_output_tokens=max_tokens),
+                config=config,
             )
             return response.text
         except Exception as e:

@@ -80,10 +80,16 @@ def init(samples: bool):
     # Create default config if not exists
     config_path = Path.home() / "coach" / "config.yaml"
     if not config_path.exists():
-        config_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(config_path, "w") as f:
-            yaml.dump(MINIMAL_CONFIG, f, default_flow_style=False)
-        console.print(f"[green]✓[/] Created config: {config_path}")
+        try:
+            config_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(config_path, "w", encoding="utf-8") as f:
+                yaml.dump(MINIMAL_CONFIG, f, default_flow_style=False)
+            console.print(f"[green]✓[/] Created config: {config_path}")
+        except PermissionError:
+            console.print(
+                f"[yellow]![/] Could not create config at {config_path}. "
+                "You can create it manually later."
+            )
 
     # Create sample entries
     if samples:
@@ -101,8 +107,14 @@ def init(samples: bool):
 
     # Create profile directory
     profile_path = Path(config.get("profile", {}).get("path", "~/coach/profile.yaml")).expanduser()
-    profile_path.parent.mkdir(parents=True, exist_ok=True)
-    console.print(f"[green]✓[/] profile dir: {profile_path.parent}")
+    try:
+        profile_path.parent.mkdir(parents=True, exist_ok=True)
+        console.print(f"[green]✓[/] profile dir: {profile_path.parent}")
+    except PermissionError:
+        console.print(
+            f"[yellow]![/] Could not create profile dir at {profile_path.parent}. "
+            "You can create it manually later."
+        )
 
     console.print("\n[bold]Minimal setup:[/]")
     console.print("  1. Set ANTHROPIC_API_KEY (or OPENAI_API_KEY / GEMINI_API_KEY)")

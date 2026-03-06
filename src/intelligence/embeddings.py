@@ -3,9 +3,9 @@
 from pathlib import Path
 from typing import Optional
 
-import chromadb
 import structlog
-from chromadb.config import Settings
+
+from chroma_utils import LocalCollection, build_embedding_function
 
 logger = structlog.get_logger()
 
@@ -24,13 +24,12 @@ class IntelEmbeddingManager:
         self.default_results = default_results
         self.similarity_threshold = similarity_threshold
         self.collection_name = "intel"
+        self.embedding_function = build_embedding_function()
 
-        self.client = chromadb.PersistentClient(
-            path=str(self.chroma_dir),
-            settings=Settings(anonymized_telemetry=False),
-        )
-        self.collection = self.client.get_or_create_collection(
+        self.collection = LocalCollection(
+            base_dir=self.chroma_dir,
             name=self.collection_name,
+            embedding_function=self.embedding_function,
             metadata={"hnsw:space": "cosine", "embedding_model": DEFAULT_EMBEDDING_MODEL},
         )
 
@@ -179,9 +178,11 @@ class IntelEmbeddingManager:
 
     def delete_collection(self) -> None:
         """Delete and reinitialize the collection."""
-        self.client.delete_collection(self.collection_name)
-        self.collection = self.client.get_or_create_collection(
+        self.collection.delete_collection()
+        self.collection = LocalCollection(
+            base_dir=self.chroma_dir,
             name=self.collection_name,
+            embedding_function=self.embedding_function,
             metadata={"hnsw:space": "cosine", "embedding_model": DEFAULT_EMBEDDING_MODEL},
         )
 

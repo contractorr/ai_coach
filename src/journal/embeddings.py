@@ -3,9 +3,9 @@
 from pathlib import Path
 from typing import Optional
 
-import chromadb
 import structlog
-from chromadb.config import Settings
+
+from chroma_utils import LocalCollection, build_embedding_function
 
 logger = structlog.get_logger()
 
@@ -20,13 +20,12 @@ class EmbeddingManager:
         self.chroma_dir = Path(chroma_dir).expanduser()
         self.chroma_dir.mkdir(parents=True, exist_ok=True)
         self.collection_name = collection_name
+        self.embedding_function = build_embedding_function()
 
-        self.client = chromadb.PersistentClient(
-            path=str(self.chroma_dir),
-            settings=Settings(anonymized_telemetry=False),
-        )
-        self.collection = self.client.get_or_create_collection(
+        self.collection = LocalCollection(
+            base_dir=self.chroma_dir,
             name=collection_name,
+            embedding_function=self.embedding_function,
             metadata={"hnsw:space": "cosine", "embedding_model": DEFAULT_EMBEDDING_MODEL},
         )
 
@@ -161,8 +160,10 @@ class EmbeddingManager:
 
     def delete_collection(self) -> None:
         """Delete and reinitialize the collection."""
-        self.client.delete_collection(self.collection_name)
-        self.collection = self.client.get_or_create_collection(
+        self.collection.delete_collection()
+        self.collection = LocalCollection(
+            base_dir=self.chroma_dir,
             name=self.collection_name,
+            embedding_function=self.embedding_function,
             metadata={"hnsw:space": "cosine", "embedding_model": DEFAULT_EMBEDDING_MODEL},
         )

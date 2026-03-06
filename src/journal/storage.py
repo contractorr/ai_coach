@@ -106,7 +106,7 @@ class JournalStorage:
             filepath = self._validate_path(self.journal_dir / f"{base}_{counter}.md")
             counter += 1
 
-        with open(filepath, "w") as f:
+        with open(filepath, "w", encoding="utf-8") as f:
             f.write(frontmatter.dumps(fm))
 
         return filepath
@@ -134,7 +134,7 @@ class JournalStorage:
 
         post["updated"] = datetime.now().isoformat()
 
-        with open(filepath, "w") as f:
+        with open(filepath, "w", encoding="utf-8") as f:
             f.write(frontmatter.dumps(post))
 
         return filepath
