@@ -646,8 +646,11 @@ class RAGRetriever:
                 context_parts = []
                 total_chars = 0
                 for r in results:
+                    label = r.get("title", "Unknown")
+                    if r.get("change_summary"):
+                        label = f"{label} — {r.get('change_summary')}"
                     text = (
-                        f"[Research: {r.get('title', 'Unknown')}]\n{r.get('content', '')[:1500]}\n"
+                        f"[Research: {label}]\n{r.get('content', '')[:1500]}\n"
                     )
                     if total_chars + len(text) > max_chars:
                         break
@@ -662,7 +665,10 @@ class RAGRetriever:
         for entry in research_entries[:max_entries]:
             try:
                 post = self.journal.storage.read(entry["path"])
-                text = f"[Research: {entry['title']}]\n{post.content[:1500]}\n"
+                label = entry["title"]
+                if post.get("change_summary"):
+                    label = f"{label} — {post.get('change_summary')}"
+                text = f"[Research: {label}]\n{post.content[:1500]}\n"
                 if total_chars + len(text) > max_chars:
                     break
                 context_parts.append(text)

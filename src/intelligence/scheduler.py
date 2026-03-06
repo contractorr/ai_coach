@@ -71,10 +71,7 @@ class ResearchRunner:
         self.config = config
 
     def _init_agent(self):
-        """Initialize research agent if configured."""
-        research_config = self.config.get("research", {})
-        if not research_config.get("enabled", False):
-            return None
+        """Initialize research agent for manual or scheduled research operations."""
 
         if not self.journal_storage or not self.embeddings:
             logger.warning("Research agent requires journal_storage and embeddings")
@@ -93,7 +90,7 @@ class ResearchRunner:
             logger.error("Failed to import research agent: %s", e)
             return None
 
-    def run(self, topic: Optional[str] = None) -> list[dict]:
+    def run(self, topic: Optional[str] = None, dossier_id: Optional[str] = None) -> list[dict]:
         """Run deep research immediately."""
         agent = self._init_agent()
         if not agent:
@@ -101,7 +98,34 @@ class ResearchRunner:
             return []
 
         try:
-            return agent.run(specific_topic=topic)
+            return agent.run(specific_topic=topic, dossier_id=dossier_id)
+        finally:
+            agent.close()
+
+    def list_dossiers(self, include_archived: bool = False, limit: int = 50) -> list[dict]:
+        agent = self._init_agent()
+        if not agent:
+            return []
+        try:
+            return agent.list_dossiers(include_archived=include_archived, limit=limit)
+        finally:
+            agent.close()
+
+    def create_dossier(self, **kwargs) -> dict | None:
+        agent = self._init_agent()
+        if not agent:
+            return None
+        try:
+            return agent.create_dossier(**kwargs)
+        finally:
+            agent.close()
+
+    def get_dossier(self, dossier_id: str) -> dict | None:
+        agent = self._init_agent()
+        if not agent:
+            return None
+        try:
+            return agent.get_dossier(dossier_id)
         finally:
             agent.close()
 
@@ -601,13 +625,29 @@ class IntelScheduler:
         self.scheduler.shutdown()
 
     # Delegate research methods
-    def run_research_now(self, topic: Optional[str] = None) -> list[dict]:
+    def run_research_now(
+        self,
+        topic: Optional[str] = None,
+        dossier_id: Optional[str] = None,
+    ) -> list[dict]:
         """Run deep research immediately."""
-        return self._research.run(topic=topic)
+        return self._research.run(topic=topic, dossier_id=dossier_id)
 
     def get_research_topics(self) -> list[dict]:
         """Get suggested research topics."""
         return self._research.get_topics()
+
+    def list_research_dossiers(self, include_archived: bool = False, limit: int = 50) -> list[dict]:
+        """List persistent research dossiers."""
+        return self._research.list_dossiers(include_archived=include_archived, limit=limit)
+
+    def create_research_dossier(self, **kwargs) -> dict | None:
+        """Create a persistent research dossier."""
+        return self._research.create_dossier(**kwargs)
+
+    def get_research_dossier(self, dossier_id: str) -> dict | None:
+        """Get a persistent research dossier with updates."""
+        return self._research.get_dossier(dossier_id)
 
     # Delegate recommendation methods
     def run_recommendations_now(self) -> dict:
