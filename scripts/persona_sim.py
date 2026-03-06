@@ -253,6 +253,27 @@ class CoachAPIClient:
     def profile_get(self) -> tuple[int, dict, float]:
         return self._call("get", "/api/profile")
 
+    # -- Greeting (chat-first home) --
+    def greeting_get(self) -> tuple[int, dict, float]:
+        return self._call("get", "/api/greeting")
+
+    # -- Suggestions (unified recs + daily brief) --
+    def suggestions_get(self, limit: int = 10) -> tuple[int, dict, float]:
+        return self._call("get", f"/api/suggestions?limit={limit}")
+
+    # -- Insights --
+    def insights_get(self) -> tuple[int, dict, float]:
+        return self._call("get", "/api/insights")
+
+    # -- Milestones --
+    def milestone_add(self, goal_path: str, title: str) -> tuple[int, dict, float]:
+        return self._call("post", f"/api/goals/{goal_path}/milestones", json={"title": title})
+
+    def milestone_complete(self, goal_path: str, index: int) -> tuple[int, dict, float]:
+        return self._call(
+            "post", f"/api/goals/{goal_path}/milestones/complete", json={"milestone_index": index}
+        )
+
     def close(self):
         self.client.close()
 
@@ -595,6 +616,40 @@ class DayRunner:
             count = len(body) if isinstance(body, list) else 0
             self._log(day, f"goals:list({count})", status, body, lat)
 
+        elif atype == "greeting":
+            status, body, lat = self.client.greeting_get()
+            self._log(day, "greeting:get", status, body, lat)
+            if "text" in body:
+                click.echo(f"    → {body['text'][:150]}...")
+
+        elif atype == "suggestions":
+            status, body, lat = self.client.suggestions_get()
+            count = len(body) if isinstance(body, list) else 0
+            self._log(day, f"suggestions:get({count})", status, body, lat)
+
+        elif atype == "insights":
+            status, body, lat = self.client.insights_get()
+            count = len(body) if isinstance(body, list) else 0
+            self._log(day, f"insights:get({count})", status, body, lat)
+
+        elif atype == "milestone_add":
+            self._refresh_goals()
+            path = self._find_goal(action.get("keyword", ""))
+            if path:
+                status, body, lat = self.client.milestone_add(path, action["title"])
+                self._log(day, "milestone:add", status, body, lat)
+            else:
+                click.echo(f"  ⚠ No goal found for keyword '{action.get('keyword')}'")
+
+        elif atype == "milestone_complete":
+            self._refresh_goals()
+            path = self._find_goal(action.get("keyword", ""))
+            if path:
+                status, body, lat = self.client.milestone_complete(path, action.get("index", 0))
+                self._log(day, "milestone:complete", status, body, lat)
+            else:
+                click.echo(f"  ⚠ No goal found for keyword '{action.get('keyword')}'")
+
         else:
             click.echo(f"  ⚠ Unknown action type: {atype}")
 
@@ -704,6 +759,16 @@ def _get_schedule(persona_key: str) -> dict[int, list[dict]]:  # noqa: C901
                     "notes": "Had 1:1 with skip-level manager, expressed interest in the platform team. She said they're finalizing the team charter next month.",
                 },
                 {
+                    "type": "milestone_add",
+                    "keyword": "platform",
+                    "title": "Complete Kubernetes CKA certification",
+                },
+                {
+                    "type": "milestone_add",
+                    "keyword": "platform",
+                    "title": "Contribute to platform team RFC",
+                },
+                {
                     "type": "journal",
                     "content": (
                         "Weekly reflection: Good progress on multiple fronts. The LoRA experiments "
@@ -721,8 +786,9 @@ def _get_schedule(persona_key: str) -> dict[int, list[dict]]:  # noqa: C901
                         "ML platform lead? I'm strong on PyTorch and model development but weaker on "
                         "Kubernetes, CI/CD, and distributed systems."
                     ),
-                    "advice_type": "career",
+                    "advice_type": "skill_gap",
                 },
+                {"type": "suggestions"},
             ],
             6: [
                 {
@@ -817,6 +883,12 @@ def _get_schedule(persona_key: str) -> dict[int, list[dict]]:  # noqa: C901
                 },
             ],
             10: [
+                {"type": "greeting"},
+                {
+                    "type": "milestone_complete",
+                    "keyword": "platform",
+                    "index": 1,
+                },
                 {
                     "type": "journal",
                     "content": (
@@ -851,6 +923,8 @@ def _get_schedule(persona_key: str) -> dict[int, list[dict]]:  # noqa: C901
                     "continue_conv": True,
                 },
                 {"type": "goals_list"},
+                {"type": "suggestions"},
+                {"type": "insights"},
             ],
         }
     else:  # david
@@ -1064,6 +1138,7 @@ def _get_schedule(persona_key: str) -> dict[int, list[dict]]:  # noqa: C901
                 },
             ],
             10: [
+                {"type": "greeting"},
                 {
                     "type": "journal",
                     "content": (
@@ -1098,6 +1173,8 @@ def _get_schedule(persona_key: str) -> dict[int, list[dict]]:  # noqa: C901
                     "continue_conv": True,
                 },
                 {"type": "goals_list"},
+                {"type": "suggestions"},
+                {"type": "insights"},
             ],
         }
 

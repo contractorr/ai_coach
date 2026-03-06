@@ -55,8 +55,22 @@ Founder advisor never referenced journal entry content despite highly relevant e
 
 ### Goals
 - Auto-creation from onboarding is impressive and specific.
-- Page is static after creation — no progress bars, milestones, or links between journal entries and goals.
+- Goals now support milestones and progress tracking (added in issue #57 Phase 2). Auto-generated milestones via "break this down for me" advisor prompt. Learning paths merged into goals with `type` field.
 - Check-in timestamps don't update from advisor conversations (junior_dev s4: "Last check-in: 2d ago" despite advisor discussing goal progress that session).
+
+### Chat-first Home
+- Dashboard-style Brief replaced by chat-first landing with cached LLM greeting (issue #57 Phase 1).
+- Greeting pre-computed every 4hrs or on data events (journal entry, goal check-in, scrape batch). Served instantly from cache.
+- Static fallback shown on first visit while greeting generates in background.
+- Chat input doubles as journal quick-capture or advisor question.
+- Dedicated pages (Goals, Journal, Radar) handle deep dives instead of dashboard sections.
+- **Test scenarios needed:** cached greeting displays in <100ms, staleness refresh triggers on data events, quick-capture creates journal entry, greeting reflects current user state (stale goals, recent intel).
+
+### Insights & Suggestions
+- Signals, patterns, and heartbeat notifications merged into unified "Insights" concept (issue #57 Phase 3). Auto-expire after 14 days via TTL.
+- Recommendations and daily brief items merged into "Suggestions" — unified `/api/suggestions` endpoint.
+- Predictions removed entirely (zero persona interaction across 13 test sessions).
+- Engagement tracked implicitly via click-through, not explicit dismiss.
 
 ---
 
@@ -142,9 +156,9 @@ Founder shows a sharp inflection at session 3 when onboarding finally completed 
    Chat scrolls to bottom on render. User must scroll up to read the response from the beginning. Minor but happens every session.
    *All 3 personas, s3-s5*
 
-8. **Goals page has no progress tracking**
-   Goals are created from onboarding but then static — no progress bars, milestones, journal-to-goal linking, or advisor-conversation-based check-ins. junior_dev's "Own a feature end-to-end" goal stayed at "0/1 done" even after shipping a feature.
-   *junior_dev s3-s4, founder s3-s4*
+8. **Goals page progress tracking — verify milestone merge works end-to-end**
+   Previously static after creation. Issue #57 Phase 2 added milestones, progress bars, and goal types. Learning paths merged into goal milestones. Need to re-test: does the progress UI reflect milestone completions? Does "break this down for me" generate sensible milestones? Does the migration from learning paths preserve completion status?
+   *Needs re-evaluation with updated code — previously junior_dev s3-s4, founder s3-s4*
 
 9. **Journal card previews show raw markdown**
    `##` headers render as plaintext in card previews instead of being stripped or rendered.

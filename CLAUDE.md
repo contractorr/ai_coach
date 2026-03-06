@@ -55,7 +55,7 @@ RAG-based personal AI advisor. Journal entries + external intelligence scrapers 
 - **llm/** — Provider factory with auto-detection from env vars. Unified `LLMProvider` interface: Claude/OpenAI/Gemini
 - **profile/** — `UserProfile` Pydantic model (YAML-backed). `ProfileInterviewer` for LLM-driven onboarding (5-7 turns, force-extraction fallback). Two rendering modes: `summary()` (compact) and `structured_summary()` (multi-section XML)
 - **cli/** — Click CLI (`coach` command). Pydantic config validation. Structlog logging
-- **web/** — FastAPI backend: JWT auth (python-jose), Fernet-encrypted secret storage, per-user data isolation at `~/coach/users/{safe_user_id}/`. Global intel DB stays shared. 20 route modules. `get_or_create_user()` auto-registers on first request
+- **web/** — FastAPI backend: JWT auth (python-jose), Fernet-encrypted secret storage, per-user data isolation at `~/coach/users/{safe_user_id}/`. Global intel DB stays shared. 21 route modules. `get_or_create_user()` auto-registers on first request
 - **coach_mcp/** — 37 MCP tools across 12 modules (journal, goals, intel, recommendations, research, reflect, profile, projects, insights, brief, memory, threads)
 
 ### Advisor deep dive
@@ -105,8 +105,8 @@ Never skip steps or reorder. Even small changes must flow: functional spec → t
 Core loop stabilization in progress. Do NOT add new features.
 
 Core (stable): journal, intelligence scrapers, RAG retrieval, advisor Q&A, recommendations
-Experimental: goal tracking, deep research, trend clustering, learning paths, memory, threads, insights
-Removed: mood analysis, burnout detection, momentum detection, predictions, signals (merged into insights), heartbeat UI (now invisible infra)
+Experimental: goal tracking, deep research, trend clustering, memory, threads, insights, suggestions
+Removed: mood analysis, burnout detection, momentum detection, predictions, signals (merged into insights), heartbeat UI (now invisible infra), learning paths (merged into goal milestones), skill gap analyzer (merged into advisor prompt mode)
 
 ## Adding a new intelligence source
 
