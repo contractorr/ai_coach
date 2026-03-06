@@ -24,14 +24,14 @@ Entry types: `daily`, `project`, `goal`, `reflection`, `insight`, `note`, `quick
 
 ### Templates
 
-1. User requests a template (e.g., weekly reflection, project update, goal check-in, learning log, decision record)
+1. User requests a template (e.g., daily reflection, weekly review, goal setting, project update, learning log)
 2. System returns a structured prompt with section headings the user fills in
 3. Completed template is saved as a normal entry
 
 ### Searching entries
 
 1. User searches by keyword, semantic similarity, or both
-2. System returns ranked results combining full-text search (keyword) and vector search (semantic) via Reciprocal Rank Fusion
+2. System returns ranked results combining full-text search (keyword) and vector search (semantic) via weighted rank fusion (configurable semantic weight, default 0.7)
 3. User can filter by entry type, tags, or date range
 
 ### Browsing entries
@@ -59,7 +59,7 @@ Entry types: `daily`, `project`, `goal`, `reflection`, `insight`, `note`, `quick
 
 - [ ] User can create entries via CLI, web, and MCP
 - [ ] Entries with no title get an LLM-generated title
-- [ ] New entries are embedded into ChromaDB within the same operation
+- [ ] New entries are embedded into ChromaDB (via MCP and web layers; direct `JournalStorage.create()` callers must embed separately)
 - [ ] Search returns results combining keyword and semantic matches
 - [ ] List entries returns newest-first, respects type/tag filters
 - [ ] Editing an entry updates the `updated` timestamp

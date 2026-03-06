@@ -1,138 +1,163 @@
 # Test Harness Summary Report
 
-**Date:** 2026-03-02
-**Sessions:** 6 total (2 per persona across 2 days)
-**Personas:** founder (Priya), junior_dev (Alex), switcher (Marcus)
-
----
-
-## Prioritized Issue List
-
-### P0 — Critical
-
-| # | Issue | Affected | Sessions |
-|---|-------|----------|----------|
-| 1 | **Onboarding rate limit (429) blocks lite-mode profile completion** — profile interview exhausts lite-mode budget after 1-2 questions. Users can never finish onboarding. Blocks Brief page, prevents profile-based personalization. | founder (both sessions) | 2/6 confirmed, likely all lite-mode users |
-| 2 | **Advisor ignores journal context for founder persona** — no RAG retrieval from journal entries despite 2 sessions of content. Advisor treats every question as cold/standalone. junior_dev and switcher get personalization; founder does not. | founder | 2/2 founder sessions |
-| 3 | **Radar Feed tab empty (regression)** — Feed shows "Your radar is quiet" / "Run First Scan" while Trending has 212 items. junior_dev session 1 had 50+ feed items; all session 2 runs show empty. `/api/intel/recent` returns 200 but renders nothing. | all 3 personas | 3/3 session-2 runs |
-
-### P1 — High
-
-| # | Issue | Affected | Sessions |
-|---|-------|----------|----------|
-| 4 | **Sidebar nav links outside viewport** — sidebar items (especially "Conversations") are clipped and unclickable at 900px viewport height. Must navigate via direct URL. | all 3 personas | 5/6 sessions |
-| 5 | **Display name uses account name, not onboarding name** — "Good evening, Junior Dev" instead of "Alex", "Switcher" instead of "Marcus". Profile name entered during onboarding is not propagated to dashboard greeting or sidebar. | junior_dev, switcher | all 4 sessions |
-| 6 | **Inconsistent onboarding gate** — Brief (`/`) redirects to onboarding when profile incomplete, but Journal, Advisor, and Radar are all accessible. Either gate all pages or none. | founder | 2/2 founder sessions |
-| 7 | **Stale conversation 404** — `GET /api/advisor/conversations/{uuid}` returns 404 on first Conversations page load. Conversation ID from a prior session no longer resolves. | all 3 personas | 4/6 sessions |
-
-### P2 — Medium
-
-| # | Issue | Affected | Sessions |
-|---|-------|----------|----------|
-| 8 | **React hydration mismatches** — Radix UI tab components generate different `aria-controls`/`id` values between SSR and CSR. Console warnings on Radar + Advisor pages. | all 3 personas | 3/6 sessions |
-| 9 | **Journal grammar: "1 entries"** — missing singular/plural logic on journal page header. | founder | confirmed in screenshots |
-| 10 | **Journal card shows raw markdown** — `##` headers render as plaintext in card preview instead of stripped/rendered text. | founder | 2/2 sessions |
-| 11 | **Brief page flash of empty content** — renders empty `<main>` before redirecting to `/onboarding`. Should redirect server-side or show loading. | founder | 2/2 sessions |
-| 12 | **Journal dialog stays open after save** — form resets (type reverts to Daily) but dialog doesn't close. Minor friction. | switcher | 1/6 sessions |
-| 13 | **Next.js "1 Issue" dev badge visible** — bottom-left debug badge visible in what should be production UI. | junior_dev, founder | 2/6 sessions |
-
-### P3 — Low
-
-| # | Issue | Affected | Sessions |
-|---|-------|----------|----------|
-| 14 | **Radar topic toggle UX** — during onboarding, pre-selected topics toggle off on click with no clear selected/unselected visual state. | switcher | 1/6 sessions |
-| 15 | **Radar Feed has no pagination** — 50+ items in a single scroll with no infinite-scroll indicator or load-more. | junior_dev | session 1 only (feed now empty) |
-| 16 | **Advisor response time ~60s in lite mode** — only "Thinking..." text shown, no progress indicator. Acceptable but noticeable. | junior_dev | session 2 |
+3 personas, 13 total sessions analyzed (founder: 4, junior_dev: 3, switcher: 2).
+Scope: founder all sessions; junior_dev sessions 3-5; switcher sessions 3-4 only.
 
 ---
 
 ## Common Bugs Across Personas
 
-**Universal (all 3 personas):**
-- Sidebar nav links outside viewport (layout/CSS)
-- Radar Feed empty in session 2 (regression)
-- Stale conversation 404 on Conversations page load
-- Hydration mismatch warnings (Radix UI)
+### Display name ignores onboarding name (all 3 personas, every session)
+Dashboard greets with account name ("Junior Dev", "Switcher", "Founder") instead of the name entered during onboarding ("Alex", "Marcus", "Priya"). Sidebar also shows account name. Affects perceived personalization on every login.
 
-**2 of 3 personas:**
-- Display name mismatch (junior_dev, switcher — founder never completed onboarding)
-- Next.js dev badge visible (junior_dev, founder)
+### Sidebar nav links outside viewport (all 3 personas, intermittent)
+At 1280x900, sidebar links (Journal, Goals, Conversations, Radar) are in DOM but positioned off-screen. Click fails with "element is outside of the viewport". Workaround: direct URL navigation. Reported in founder sessions 1-2, "fixed" in session 3, broken again in session 4. Present in all junior_dev and switcher sessions tested. Likely a CSS/layout flake tied to sidebar state or animation.
 
-**Founder-only:**
-- Onboarding 429 rate limit (lite mode)
-- No journal-based personalization in advisor
-- Inconsistent onboarding page gating
-- Grammar and raw markdown in journal cards
+### Advisor auto-scrolls to bottom, clipping opening paragraph (junior_dev s3-s5, switcher s3-s4, founder s4)
+When advisor response renders, chat scrolls to show the bottom. User must manually scroll up to read from the beginning. Consistent across all personas in later sessions.
+
+### Feed tab shows only github_trending items (founder s4, switcher s3-s4)
+Trending clusters pull from reddit, RSS, HN, deep_research — but Feed tab only shows GitHub repos. Users browsing Feed miss all non-GitHub content. Either Feed has a source filter bug or only shows the latest scrape batch.
+
+### Feed tab empty state while Trending has data (founder s1-s2, junior_dev s2, switcher s2)
+Feed showed "Your radar is quiet / I haven't scanned anything yet" while Trending had 212 items. Resolved by session 3 for all personas — likely a transient data/timing issue. Messaging was misleading regardless.
+
+### No RAG retrieval from journal entries for founder persona (all 4 sessions)
+Founder advisor never referenced journal entry content despite highly relevant entries (fundraising numbers, competitor analysis, hiring loss details, board prep). Junior_dev and switcher advisors pulled profile data well but also showed limited direct journal quoting. This is the single biggest personalization gap.
 
 ---
 
 ## UX Patterns
 
-### What works well
-- **Onboarding interview** — conversational, adaptive questioning. Feels like a coaching intake, not a form. Auto-generates specific goals from answers (junior_dev got 3, switcher got 5). Standout first-time experience when it completes successfully.
-- **Journal entry creation** — clean dialog with title/type/tags/content. Toast confirmation. Cards render in a nice grid. Entries persist across sessions.
-- **Advisor response formatting** — well-structured with section headers, bullet points, bold emphasis, nested lists. Ends with follow-up questions that encourage return usage.
-- **Radar Trending view** — clustered topics with summaries, source attribution badges, expandable items, "For you" personalization tags with match reasons (skill:data, goal:own). Best-designed page in the app.
-- **Lite mode banner** — persistent, informative, non-intrusive. Clear CTA to add API key.
-- **Dashboard suggested questions** — contextual to user's goals, good engagement nudge.
+### Onboarding
+- Profile interview is a standout feature — conversational, adaptive questions, auto-generates goals and RSS feeds. When it works, it's the strongest first-run experience.
+- Founder hit 429 rate limit on lite mode in sessions 1-2, blocking profile completion for 2 full sessions. Everything downstream (Brief, personalization, goals) was gated on this. Critical path failure.
+- Onboarding blank page bug (founder s3): `/onboarding` rendered empty `<main>` on client-side navigation. Hard refresh fixed it. Did not reproduce in s4.
 
-### What needs work
-- **Onboarding + lite mode** — rate limit kills the flow immediately. The very first interaction fails. Users told to "add your own API key" during first-time setup — hostile first-run experience.
-- **Feed vs Trending disconnect** — two tabs on the same page showing contradictory states (212 items vs "nothing yet"). Confusing mental model. Users who discover Feed first think the system has no data.
-- **Sidebar responsiveness** — at 900px height, nav items are clipped. No scroll, no overflow handling. Users can't reach "Conversations" without direct URL.
-- **Profile data propagation** — name entered in onboarding doesn't reach dashboard greeting or sidebar. Feels like the system didn't remember you.
-- **Journal previews** — raw markdown in card text (## headers visible). Should either render or strip formatting markers.
-- **Empty states** — Brief shows empty `<main>` flash. Feed says "I haven't scanned anything yet" when data exists. Inconsistent messaging.
+### Journal
+- Entry creation flow is reliable across all personas and sessions — dialog, save, toast, card appearance.
+- Card grid layout scales well (tested up to 9 entries).
+- Journal dialog stayed open after save (switcher s2-s3), then auto-closed in s4 — fixed.
+- Card previews show raw markdown `##` headers instead of stripped/rendered text (founder all sessions).
+- "1 entries" grammar bug (founder s1).
+
+### Advisor
+- Response quality is consistently high even on Haiku/lite mode.
+- Well-structured formatting: section headers, bullet points, nested lists, bold emphasis.
+- CTA cards ("What would you like to do next?") appeared from s3 onward — good engagement hook that improved in contextual relevance across sessions.
+- Response times: 40-60s in lite mode. "Thinking..." shown but no progress bar.
+
+### Radar
+- Trending clusters with "For you" tags and match reasons (skill:data, goal:product) are the best personalization signal in the app.
+- Source health indicator (23/23 → 29/29 over time) is reassuring.
+- "Load more (N remaining)" pagination landed in s3 — better than s1's full dump.
+- Feed tab now has "For you" tags on individual items (junior_dev s5: `docker/compose` and `microsoft/typescript-go` tagged with match reasons like `skill:typescript, tech:go`). Previously only Trending clusters had personalization tags — this is an improvement observed in later sessions.
+
+### Goals
+- Auto-creation from onboarding is impressive and specific.
+- Page is static after creation — no progress bars, milestones, or links between journal entries and goals.
+- Check-in timestamps don't update from advisor conversations (junior_dev s4: "Last check-in: 2d ago" despite advisor discussing goal progress that session).
 
 ---
 
 ## Advisor Quality Trends
 
-### Session 1 → Session 2 comparison
+### junior_dev (sessions 3-5)
 
-| Persona | Session 1 | Session 2 | Trend |
-|---------|-----------|-----------|-------|
-| **founder** | High quality, generic. Well-structured competitive advice. No profile or journal context. | High quality, still generic. No RAG retrieval despite 2 journal entries. Good structure but zero personalization. | **Flat** — quality stays high but no adaptation |
-| **junior_dev** | Strong first session. Referenced profile data from onboarding. Gave relevant career advice. Personalization 4/5. | Excellent. Referenced journal entry about PR review, linked to existing goals, gave specific response scripts. Personalization 5/5. | **Improving** — clear cross-context reasoning in session 2 |
-| **switcher** | Exceptional for first session. Referenced SEC filings project, Python level, imposter syndrome, time constraints. Gave honest pushback. | Even better. Phased learning plan with per-item hour budgets totaling 288hrs (12h/wk x 6mo). Specific resource recommendations. Explicit "skip list." | **Improving** — more specific, opinionated, and actionable |
+| Dimension | S3 (Go vs React) | S4 (First ship) | S5 (Weekly summary) |
+|---|---|---|---|
+| Relevance | 5/5 — Go prioritization tied to goals | 5/5 — Recognized win, pivoted to momentum | 5/5 — Genuine weekly summary with dated timeline |
+| Actionability | 5/5 — Week-by-week plan with resources | 5/5 — Per-goal next steps, two tiers | 4/5 — Reflective (appropriate for the ask), less prescriptive |
+| Personalization | 5/5 — All 3 goals by name, learning budget, imposter syndrome reframe | 5/5 — Connected ship to goals, suggested backend optimization on shipped feature | 5/5 — Strongest yet: dated entries, quoted journal language verbatim, all goals mapped |
+| Past context | 5/5 — Cross-session synthesis, "React Reality Check" novel insight | 5/5 — Implicit s2→s4 narrative arc (PR destruction → approval) | 5/5 — Synthesized all 5 sessions into coherent weekly narrative with emotional trajectory |
+| Tone | 5/5 — Strategic, emoji headers for scannability | 5/5 — Celebratory but forward-looking | 5/5 — Evidence-based affirmation, "spiraling upward" reframe |
 
-### Key observations
+junior_dev shows the strongest adaptation arc. Advisor evolved from general career guidance (s1) → specific pain response (s2) → strategic prioritization with novel insights (s3) → momentum coaching connecting prior pain to current win (s4) → reflective weekly synthesis weaving all sessions into a narrative (s5). Cross-session coherence is excellent. Session 5's weekly summary is the best single response across all personas — it demonstrated genuine longitudinal analysis rather than single-entry retrieval.
 
-1. **Personalization divergence by persona**: junior_dev and switcher show strong and improving personalization. founder shows none — likely because the profile interview never completed (429 error), so no profile exists for RAG retrieval. This is the onboarding rate limit bug manifesting as a downstream quality problem.
+### switcher (sessions 3-4)
 
-2. **Baseline quality is high even without personalization**: founder's advisor gave genuinely useful strategic advice both sessions despite having zero user context. The default prompt engineering and Haiku model produce solid outputs.
+| Dimension | S3 (Course→production) | S4 (Finance leverage) |
+|---|---|---|
+| Relevance | 5/5 — Direct answer to course-vs-production gap | 5/5 — Addressed all 4 numbered questions |
+| Actionability | 5/5 — Week-by-week with code snippets | 5/5 — Resume-ready narrative bullets |
+| Personalization | 4/5 — SEC pipeline, 12hr/wk, but no journal/conversation refs | 4/5 — Same: question-driven not context-retrieved |
+| Past context | 3/5 — Didn't reference journal or prior advice | 3/5 — No cross-session synthesis |
+| Tone | 4/5 — Technical, appropriate for tactical question | 5/5 — Direct with honest pushback maintained |
 
-3. **Journal→advisor pipeline works when profile exists**: junior_dev session 2 proved the system can reference journal entries in advisor responses ("your journal says you want backend fundamentals"). switcher session 2 showed SEC field-level detail pulled from profile context. The RAG pipeline works — the founder is the outlier due to missing profile.
+switcher advisor is consistently strong on individual responses but weaker on cross-session memory. Each conversation feels somewhat standalone. The advisor doesn't say "building on what we discussed last time" or "I notice you keep returning to imposter syndrome." Profile data is used well; journal entries and prior conversations are not.
 
-4. **Cross-conversation continuity is weak**: No persona's advisor referenced prior conversations. Each new conversation starts fresh. Session 1 advisor conversation is not carried into session 2 context.
+### founder (sessions 1-4)
 
-5. **Tone calibration is good**: Each persona got appropriate tone — direct/strategic for founder, empathetic/practical for junior_dev, structured/mentoring for switcher. The system adapts tone well even across lite mode.
+| Dimension | S1 | S2 | S3 | S4 |
+|---|---|---|---|---|
+| Relevance | 4/5 | 5/5 | 5/5 | 5/5 |
+| Actionability | 4/5 | 5/5 | 5/5 | 5/5 |
+| Personalization | 2/5 | 2/5 | 4/5 | 3.5/5 |
+| Past context | N/A | 1/5 | 2/5 | 2/5 |
+| Tone | 4/5 | 4/5 | 5/5 | 5/5 |
+
+Founder shows a sharp inflection at session 3 when onboarding finally completed — profile data unlocked real personalization. But journal RAG retrieval never worked: the board-prep journal entry (s4) contained specific names, numbers, board composition, and deck structure that the advisor completely ignored. Across all 4 sessions, the advisor treated every question as standalone with no cross-conversation continuity. This is the weakest persona for adaptation despite having the richest journal content.
+
+### Cross-persona patterns
+- **Profile-driven personalization works well** — once onboarding completes, advisor references goals, constraints, and context from the profile interview.
+- **Journal RAG retrieval varies by persona** — founder never saw journal content in advisor responses (P0 bug). junior_dev shows strong journal retrieval from s2 onward, peaking in s5 with verbatim quotes from multiple entries and a dated timeline. switcher saw none explicitly. The discrepancy suggests RAG retrieval may work for some profiles/configurations but not others.
+- **Cross-conversation continuity varies** — junior_dev's advisor demonstrated strong cross-session synthesis by s5 (weaving all 5 sessions into a narrative). Founder and switcher advisors showed no cross-conversation references. The difference may relate to profile completeness or journal embedding quality.
+- **Response quality on Haiku is surprisingly strong** — structured, opinionated, actionable advice even on the lite model.
 
 ---
 
-## Aggregate Scores
+## Prioritized Issues
 
-| Category | Founder S1 | Founder S2 | Junior S1 | Junior S2 | Switcher S1 | Switcher S2 | **Avg** |
-|----------|-----------|-----------|----------|----------|------------|------------|---------|
-| Functionality | 4 | 4 | 5 | 4 | 5 | 4 | **4.3** |
-| Personalization | 2 | 2 | 4 | 5 | 4 | 5 | **3.7** |
-| Adaptation | N/A | 2 | 3 | 4 | N/A | 4 | **3.3** |
-| UX | 4 | 3.5 | 4 | 4 | 4 | 4 | **3.9** |
+### P0 — Critical
 
-**Overall: 3.8/5** — functional and well-designed, dragged down by the onboarding/personalization gap for lite-mode users and the Feed regression.
+1. **Journal entries not retrieved in advisor context (RAG failure)**
+   Founder wrote 4 detailed journal entries with specific numbers, names, and action items. None were referenced by the advisor. This is the core value proposition of the product — RAG-augmented advice from personal context. If journal content doesn't flow into advisor responses, the journal is just a diary with no feedback loop.
+   *Personas affected: founder (confirmed), switcher (likely), junior_dev (partial — profile data works, journal content unclear)*
 
----
+2. **Cross-conversation continuity missing**
+   Advisor treats each conversation independently. No "building on our last discussion" or "I notice a recurring theme." For a coaching product, session-over-session memory is table stakes.
+   *All 3 personas, all sessions*
 
-## Recommendations
+3. **Onboarding rate limit on lite mode (founder s1-s2)**
+   Profile interview consumed the lite mode token budget, failing after 1-2 questions. This blocked profile completion for 2 full sessions, cascading into: no Brief access, no personalization, no goals. First-time lite-mode users would abandon.
+   *Confirmed fixed by s3 but root cause unclear — could recur*
 
-1. **Fix lite-mode onboarding budget** — either exempt profile interview from rate limit, batch interview into fewer LLM calls, or pre-fill profile from a shorter form. This is the highest-leverage fix: it unblocks Brief, enables personalization, and fixes the founder persona entirely.
+### P1 — High
 
-2. **Fix Radar Feed regression** — Feed and Trending query different endpoints/data paths. Unify them or ensure Feed's `/api/intel/recent` actually returns the global intel data that Trending clusters from.
+4. **Display name mismatch**
+   Every persona sees their account name instead of the name they entered in onboarding. Undermines the personal feel of the product on every single page load.
+   *All 3 personas, every session*
 
-3. **Fix sidebar overflow** — add `overflow-y: auto` or collapsible nav for shorter viewports. All three personas hit this.
+5. **Sidebar nav links off-viewport**
+   Users can't navigate via sidebar at 1280x900 (common viewport). Must use direct URLs. Intermittent — sometimes works, sometimes doesn't. Likely CSS flake.
+   *All 3 personas, most sessions*
 
-4. **Propagate onboarding name to dashboard/sidebar** — use the name from profile interview as display name, falling back to account name.
+6. **Feed tab missing non-GitHub sources**
+   Trending clusters surface reddit, RSS, HN, deep_research items. Feed tab only shows github_trending. Users who browse Feed instead of Trending miss most of the scraped content.
+   *founder s4, switcher s3-s4*
 
-5. **Investigate cross-conversation context** — advisor starts fresh each conversation. Consider injecting a summary of recent conversations or linking conversation history to RAG retrieval.
+### P2 — Medium
 
-6. **Clean up hydration mismatches** — Radix UI tabs need stable IDs across SSR/CSR. Use `useId()` or suppress hydration for those components.
+7. **Advisor response auto-scrolls past opening paragraph**
+   Chat scrolls to bottom on render. User must scroll up to read the response from the beginning. Minor but happens every session.
+   *All 3 personas, s3-s5*
+
+8. **Goals page has no progress tracking**
+   Goals are created from onboarding but then static — no progress bars, milestones, journal-to-goal linking, or advisor-conversation-based check-ins. junior_dev's "Own a feature end-to-end" goal stayed at "0/1 done" even after shipping a feature.
+   *junior_dev s3-s4, founder s3-s4*
+
+9. **Journal card previews show raw markdown**
+   `##` headers render as plaintext in card previews instead of being stripped or rendered.
+   *founder all sessions*
+
+10. **Feed tab items personalization inconsistent**
+    Feed items now show "For you" tags with match reasons for junior_dev (s5: `microsoft/typescript-go` matched `skill:typescript, tech:go`). However, switcher (Python-focused) saw mostly Go/Rust repos with no "For you" tags in s3-s4. Personalization may depend on profile completeness or matching algorithm coverage.
+    *switcher s3-s4 (no tags), junior_dev s5 (tags present)*
+
+### P3 — Low
+
+11. **"1 entries" grammar** — founder s1
+12. **Onboarding blank page on client-side navigation** — founder s3, did not reproduce in s4
+13. **Hydration mismatch warnings (Radix UI tab IDs)** — junior_dev s2, founder s2, resolved by s3
+14. **Transient 404 on `/advisor/conversations/{id}`** — all personas s1-s2, resolved by s3
+15. **Advisor response time (40-60s) with minimal progress indicator** — all personas, lite mode

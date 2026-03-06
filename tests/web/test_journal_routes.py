@@ -116,9 +116,7 @@ def test_post_hooks_embed_and_memory(tmp_path):
         mock_cfg.return_value.threads.enabled = True
         mock_cfg.return_value.memory.enabled = True
 
-        asyncio.run(
-            _run_post_create_hooks("u1", tmp_path / "entry.md", "text", {"type": "daily"})
-        )
+        asyncio.run(_run_post_create_hooks("u1", tmp_path / "entry.md", "text", {"type": "daily"}))
 
     mock_em.add_entry.assert_called_once()
     mock_pipeline.process_journal_entry.assert_called_once()

@@ -17,7 +17,7 @@ All users. New users go through onboarding; returning users can update their pro
 ### Onboarding (new users)
 
 1. System detects no profile exists (or profile is stale >90 days)
-2. System starts an interactive interview: LLM asks questions conversationally across 5-7 turns (CLI) or up to 15 turns (web)
+2. System starts an interactive interview: LLM asks questions conversationally across up to 10 turns (CLI) or up to 15 turns (web). The LLM is prompted to aim for 5-7 questions
 3. Questions cover: current role, skills + proficiency (1-5 scale), interests, career stage, short/long-term goals, technologies/industries watching, learning style, weekly hours available, constraints, active projects
 4. LLM extracts structured data from conversational responses
 5. If extraction fails after normal turns, system uses a force-extraction fallback
@@ -54,8 +54,8 @@ All users. New users go through onboarding; returning users can update their pro
 - Languages & frameworks
 - Learning style (visual / reading / hands-on / mixed)
 - Weekly hours available
-- Short-term goals (6-month horizon)
-- Long-term goals (3-year horizon)
+- Goals short-term (6-month horizon)
+- Goals long-term (3-year horizon)
 - Industries watching
 - Technologies watching
 - Constraints (time, geography, budget)

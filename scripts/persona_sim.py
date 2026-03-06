@@ -80,7 +80,10 @@ MAYA = Persona(
     fears=["Being pigeonholed as 'just ML'", "Missing the LLM wave", "Career stagnation"],
     hours_per_week=8,
     learning_style="hands-on",
-    active_projects=["Feature extraction pipeline at work", "Open-source MLOps dashboard side project"],
+    active_projects=[
+        "Feature extraction pipeline at work",
+        "Open-source MLOps dashboard side project",
+    ],
     industries_watching=["fintech", "AI/ML infrastructure"],
     technologies_watching=["JAX", "vLLM", "PEFT/LoRA", "Ray"],
     personalization_keywords=[
@@ -339,7 +342,9 @@ class OnboardingDriver:
 
         for turn in range(1, 12):
             if body.get("done"):
-                click.echo(f"  Onboarding complete at turn {turn - 1}, goals created: {body.get('goals_created', 0)}")
+                click.echo(
+                    f"  Onboarding complete at turn {turn - 1}, goals created: {body.get('goals_created', 0)}"
+                )
                 return True
 
             reply = OnboardingDriver.respond(persona, body["message"], turn)
@@ -350,7 +355,9 @@ class OnboardingDriver:
                 return False
             click.echo(f"  [turn {turn}] Coach: {body['message'][:120]}... ({lat:.0f}ms)")
 
-        click.echo(f"  Onboarding finished (done={body.get('done')}), goals: {body.get('goals_created', 0)}")
+        click.echo(
+            f"  Onboarding finished (done={body.get('done')}), goals: {body.get('goals_created', 0)}"
+        )
         return True
 
 
@@ -438,14 +445,18 @@ class ObservationLogger:
         click.echo(f"Avg latency:          {avg_lat:.0f}ms")
         click.echo(f"Advisor calls:        {len(advisor_rows)}")
         if advisor_rows:
-            click.echo(f"Personalization rate: {personalized}/{len(advisor_rows)} ({100 * personalized / len(advisor_rows):.0f}%)")
+            click.echo(
+                f"Personalization rate: {personalized}/{len(advisor_rows)} ({100 * personalized / len(advisor_rows):.0f}%)"
+            )
         click.echo(f"Slow (>15s):          {slow}")
         click.echo(f"Errors:               {len(errors)}")
 
         if errors:
             click.echo("\nError details:")
             for e in errors:
-                click.echo(f"  day {e['day']} | {e['persona']} | {e['action']} | {e['status']} | {e['notes']}")
+                click.echo(
+                    f"  day {e['day']} | {e['persona']} | {e['action']} | {e['status']} | {e['notes']}"
+                )
 
         # Per-persona breakdown
         for pname in ("Maya Chen", "David Park"):
@@ -457,7 +468,9 @@ class ObservationLogger:
             pa = [r for r in pr if r["action"].startswith("advisor")]
             pp = sum(1 for r in pa if r["personalized"] == "yes")
             click.echo(f"\n--- {pname} ---")
-            click.echo(f"  Actions: {len(pr)}, Success: {psuc}/{len(pr)}, Avg latency: {pavg:.0f}ms")
+            click.echo(
+                f"  Actions: {len(pr)}, Success: {psuc}/{len(pr)}, Avg latency: {pavg:.0f}ms"
+            )
             if pa:
                 click.echo(f"  Advisor: {len(pa)}, Personalized: {pp}/{len(pa)}")
 
@@ -471,15 +484,17 @@ class ObservationLogger:
             parts = [p.strip() for p in line.split("|")[1:-1]]
             if len(parts) >= 6:
                 try:
-                    self.rows.append({
-                        "day": int(parts[0]),
-                        "persona": parts[1],
-                        "action": parts[2],
-                        "latency_ms": int(parts[3]),
-                        "status": int(parts[4]),
-                        "personalized": parts[5],
-                        "notes": parts[6] if len(parts) > 6 else "",
-                    })
+                    self.rows.append(
+                        {
+                            "day": int(parts[0]),
+                            "persona": parts[1],
+                            "action": parts[2],
+                            "latency_ms": int(parts[3]),
+                            "status": int(parts[4]),
+                            "personalized": parts[5],
+                            "notes": parts[6] if len(parts) > 6 else "",
+                        }
+                    )
                 except (ValueError, IndexError):
                     pass
 
@@ -594,294 +609,494 @@ def _get_schedule(persona_key: str) -> dict[int, list[dict]]:  # noqa: C901
     if persona_key == "maya":
         return {
             1: [
-                {"type": "journal", "content": (
-                    "Kicked off new feature extraction pipeline at work, debating PyTorch vs JAX "
-                    "for the transformer layer. The team is split — JAX has better XLA compilation "
-                    "but our existing codebase is all PyTorch. Need to prototype both this week. "
-                    "Also attended an internal talk on model serving with vLLM, looks promising for "
-                    "our inference latency issues."
-                ), "entry_type": "daily", "title": "Pipeline kickoff — PyTorch vs JAX debate"},
+                {
+                    "type": "journal",
+                    "content": (
+                        "Kicked off new feature extraction pipeline at work, debating PyTorch vs JAX "
+                        "for the transformer layer. The team is split — JAX has better XLA compilation "
+                        "but our existing codebase is all PyTorch. Need to prototype both this week. "
+                        "Also attended an internal talk on model serving with vLLM, looks promising for "
+                        "our inference latency issues."
+                    ),
+                    "entry_type": "daily",
+                    "title": "Pipeline kickoff — PyTorch vs JAX debate",
+                },
             ],
             2: [
-                {"type": "journal", "content": (
-                    "Team standup — manager hinted at platform team forming, could be my chance. "
-                    "She mentioned they're looking for someone who understands both model development "
-                    "and infrastructure. Spent the afternoon reviewing our CI/CD for model deployment, "
-                    "it's a mess of shell scripts. This is exactly what a platform team should fix."
-                ), "entry_type": "daily", "title": "Platform team opportunity"},
-                {"type": "advisor", "question": (
-                    "What should I prioritize to position myself for an ML platform lead role? "
-                    "I'm currently a senior ML engineer with strong PyTorch skills but weaker on "
-                    "the infrastructure/MLOps side. My manager hinted a platform team is forming."
-                ), "advice_type": "career"},
+                {
+                    "type": "journal",
+                    "content": (
+                        "Team standup — manager hinted at platform team forming, could be my chance. "
+                        "She mentioned they're looking for someone who understands both model development "
+                        "and infrastructure. Spent the afternoon reviewing our CI/CD for model deployment, "
+                        "it's a mess of shell scripts. This is exactly what a platform team should fix."
+                    ),
+                    "entry_type": "daily",
+                    "title": "Platform team opportunity",
+                },
+                {
+                    "type": "advisor",
+                    "question": (
+                        "What should I prioritize to position myself for an ML platform lead role? "
+                        "I'm currently a senior ML engineer with strong PyTorch skills but weaker on "
+                        "the infrastructure/MLOps side. My manager hinted a platform team is forming."
+                    ),
+                    "advice_type": "career",
+                },
             ],
             3: [
-                {"type": "goal", "title": "Get promoted to ML Platform Lead",
-                 "content": "Transition from senior ML engineer to leading the new ML platform team. Need to demonstrate infrastructure skills and cross-team leadership.",
-                 "tags": ["career", "leadership"]},
-                {"type": "goal", "title": "Publish paper on efficient fine-tuning",
-                 "content": "Write and submit a paper on PEFT techniques for production ML systems, targeting a top ML conference.",
-                 "tags": ["research", "writing"]},
-                {"type": "goal", "title": "Build open-source MLOps dashboard",
-                 "content": "Side project: create a dashboard for monitoring ML model performance, training runs, and data drift.",
-                 "tags": ["side-project", "open-source"]},
-                {"type": "journal", "content": (
-                    "Reflecting on my career direction. I've been heads-down on model development "
-                    "for 4 years now. The platform lead opportunity feels like the right next step — "
-                    "it combines my ML knowledge with systems thinking. But I worry about losing "
-                    "my technical edge if I move into management too early."
-                ), "entry_type": "reflection", "title": "Career direction reflection"},
+                {
+                    "type": "goal",
+                    "title": "Get promoted to ML Platform Lead",
+                    "content": "Transition from senior ML engineer to leading the new ML platform team. Need to demonstrate infrastructure skills and cross-team leadership.",
+                    "tags": ["career", "leadership"],
+                },
+                {
+                    "type": "goal",
+                    "title": "Publish paper on efficient fine-tuning",
+                    "content": "Write and submit a paper on PEFT techniques for production ML systems, targeting a top ML conference.",
+                    "tags": ["research", "writing"],
+                },
+                {
+                    "type": "goal",
+                    "title": "Build open-source MLOps dashboard",
+                    "content": "Side project: create a dashboard for monitoring ML model performance, training runs, and data drift.",
+                    "tags": ["side-project", "open-source"],
+                },
+                {
+                    "type": "journal",
+                    "content": (
+                        "Reflecting on my career direction. I've been heads-down on model development "
+                        "for 4 years now. The platform lead opportunity feels like the right next step — "
+                        "it combines my ML knowledge with systems thinking. But I worry about losing "
+                        "my technical edge if I move into management too early."
+                    ),
+                    "entry_type": "reflection",
+                    "title": "Career direction reflection",
+                },
             ],
             4: [
-                {"type": "journal", "content": (
-                    "Explored PEFT techniques today — LoRA seems promising for our use case. "
-                    "Ran experiments with rank=8 and rank=16 on our sentiment model, got within "
-                    "2% of full fine-tuning accuracy with 10x less compute. This could be the "
-                    "basis of my paper. Also looked at QLoRA for our larger models."
-                ), "entry_type": "daily", "title": "LoRA experiments — promising results"},
-                {"type": "advisor", "question": (
-                    "I'm at a crossroads between deepening my ML research path (I have promising "
-                    "LoRA experiment results) and going after the platform lead role. Can I do both? "
-                    "How should I think about the ML platform vs research track?"
-                ), "advice_type": "career"},
+                {
+                    "type": "journal",
+                    "content": (
+                        "Explored PEFT techniques today — LoRA seems promising for our use case. "
+                        "Ran experiments with rank=8 and rank=16 on our sentiment model, got within "
+                        "2% of full fine-tuning accuracy with 10x less compute. This could be the "
+                        "basis of my paper. Also looked at QLoRA for our larger models."
+                    ),
+                    "entry_type": "daily",
+                    "title": "LoRA experiments — promising results",
+                },
+                {
+                    "type": "advisor",
+                    "question": (
+                        "I'm at a crossroads between deepening my ML research path (I have promising "
+                        "LoRA experiment results) and going after the platform lead role. Can I do both? "
+                        "How should I think about the ML platform vs research track?"
+                    ),
+                    "advice_type": "career",
+                },
             ],
             5: [
-                {"type": "goal_check_in", "keyword": "platform",
-                 "notes": "Had 1:1 with skip-level manager, expressed interest in the platform team. She said they're finalizing the team charter next month."},
-                {"type": "journal", "content": (
-                    "Weekly reflection: Good progress on multiple fronts. The LoRA experiments "
-                    "are yielding great results. Had a productive skip-level where I pitched myself "
-                    "for the platform lead role. Need to be more visible in cross-team discussions. "
-                    "Feeling energized but stretched thin."
-                ), "entry_type": "reflection", "title": "Week 1 reflection — momentum building"},
-                {"type": "advisor", "question": (
-                    "What are the most critical skill gaps I should address to be credible as an "
-                    "ML platform lead? I'm strong on PyTorch and model development but weaker on "
-                    "Kubernetes, CI/CD, and distributed systems."
-                ), "advice_type": "career"},
+                {
+                    "type": "goal_check_in",
+                    "keyword": "platform",
+                    "notes": "Had 1:1 with skip-level manager, expressed interest in the platform team. She said they're finalizing the team charter next month.",
+                },
+                {
+                    "type": "journal",
+                    "content": (
+                        "Weekly reflection: Good progress on multiple fronts. The LoRA experiments "
+                        "are yielding great results. Had a productive skip-level where I pitched myself "
+                        "for the platform lead role. Need to be more visible in cross-team discussions. "
+                        "Feeling energized but stretched thin."
+                    ),
+                    "entry_type": "reflection",
+                    "title": "Week 1 reflection — momentum building",
+                },
+                {
+                    "type": "advisor",
+                    "question": (
+                        "What are the most critical skill gaps I should address to be credible as an "
+                        "ML platform lead? I'm strong on PyTorch and model development but weaker on "
+                        "Kubernetes, CI/CD, and distributed systems."
+                    ),
+                    "advice_type": "career",
+                },
             ],
             6: [
-                {"type": "journal", "content": (
-                    "Hit a wall — our fine-tuning pipeline keeps OOMing on the A100s. Tried "
-                    "gradient checkpointing but throughput dropped 40%. The model is 7B params "
-                    "and we need to fine-tune on 50K examples. Tried DeepSpeed ZeRO-3 but the "
-                    "communication overhead is killing us. Starting to think we need a fundamentally "
-                    "different approach."
-                ), "entry_type": "daily", "title": "OOM crisis on A100 fine-tuning"},
-                {"type": "advisor", "question": (
-                    "I'm running into OOM issues fine-tuning a 7B parameter model on A100s. "
-                    "Gradient checkpointing dropped throughput by 40%. DeepSpeed ZeRO-3 has too "
-                    "much communication overhead. What other approaches should I consider? "
-                    "Would FSDP or a different sharding strategy help?"
-                ), "advice_type": "technical"},
+                {
+                    "type": "journal",
+                    "content": (
+                        "Hit a wall — our fine-tuning pipeline keeps OOMing on the A100s. Tried "
+                        "gradient checkpointing but throughput dropped 40%. The model is 7B params "
+                        "and we need to fine-tune on 50K examples. Tried DeepSpeed ZeRO-3 but the "
+                        "communication overhead is killing us. Starting to think we need a fundamentally "
+                        "different approach."
+                    ),
+                    "entry_type": "daily",
+                    "title": "OOM crisis on A100 fine-tuning",
+                },
+                {
+                    "type": "advisor",
+                    "question": (
+                        "I'm running into OOM issues fine-tuning a 7B parameter model on A100s. "
+                        "Gradient checkpointing dropped throughput by 40%. DeepSpeed ZeRO-3 has too "
+                        "much communication overhead. What other approaches should I consider? "
+                        "Would FSDP or a different sharding strategy help?"
+                    ),
+                    "advice_type": "technical",
+                },
             ],
             7: [
-                {"type": "journal", "content": (
-                    "Weekly review: Mixed week. The OOM issue ate up 2 days but I learned a lot "
-                    "about memory-efficient training. On the career front, the platform team charter "
-                    "is being drafted and my manager put my name forward. Paper outline is taking "
-                    "shape — focusing on practical PEFT for production systems."
-                ), "entry_type": "reflection", "title": "Week 2 review — mixed progress"},
+                {
+                    "type": "journal",
+                    "content": (
+                        "Weekly review: Mixed week. The OOM issue ate up 2 days but I learned a lot "
+                        "about memory-efficient training. On the career front, the platform team charter "
+                        "is being drafted and my manager put my name forward. Paper outline is taking "
+                        "shape — focusing on practical PEFT for production systems."
+                    ),
+                    "entry_type": "reflection",
+                    "title": "Week 2 review — mixed progress",
+                },
                 {"type": "intel_check", "days": 7},
-                {"type": "advisor", "question": (
-                    "How am I tracking against my goals this week? I set goals around the platform "
-                    "lead role, publishing a paper on fine-tuning, and building an MLOps dashboard. "
-                    "The OOM issues set me back but I made progress on the career front."
-                ), "advice_type": "general"},
+                {
+                    "type": "advisor",
+                    "question": (
+                        "How am I tracking against my goals this week? I set goals around the platform "
+                        "lead role, publishing a paper on fine-tuning, and building an MLOps dashboard. "
+                        "The OOM issues set me back but I made progress on the career front."
+                    ),
+                    "advice_type": "general",
+                },
             ],
             8: [
-                {"type": "journal", "content": (
-                    "Realized I should contribute to the platform team's RFC even before the role "
-                    "opens — shows initiative and gives me a seat at the table. Drafted a section "
-                    "on model serving infrastructure based on our vLLM experiments. Also got positive "
-                    "feedback on my LoRA results from the research team lead."
-                ), "entry_type": "daily", "title": "Contributing to platform RFC proactively"},
-                {"type": "goal_check_in", "keyword": "paper",
-                 "notes": "Outline complete, LoRA experiments done. Need to write up results section and run ablation studies."},
-                {"type": "advisor", "question": (
-                    "I'm writing a paper on efficient fine-tuning techniques (LoRA/PEFT) for "
-                    "production ML systems. What venues should I target? I'm considering ICML, "
-                    "NeurIPS, or maybe a more applied venue like MLSys."
-                ), "advice_type": "general"},
+                {
+                    "type": "journal",
+                    "content": (
+                        "Realized I should contribute to the platform team's RFC even before the role "
+                        "opens — shows initiative and gives me a seat at the table. Drafted a section "
+                        "on model serving infrastructure based on our vLLM experiments. Also got positive "
+                        "feedback on my LoRA results from the research team lead."
+                    ),
+                    "entry_type": "daily",
+                    "title": "Contributing to platform RFC proactively",
+                },
+                {
+                    "type": "goal_check_in",
+                    "keyword": "paper",
+                    "notes": "Outline complete, LoRA experiments done. Need to write up results section and run ablation studies.",
+                },
+                {
+                    "type": "advisor",
+                    "question": (
+                        "I'm writing a paper on efficient fine-tuning techniques (LoRA/PEFT) for "
+                        "production ML systems. What venues should I target? I'm considering ICML, "
+                        "NeurIPS, or maybe a more applied venue like MLSys."
+                    ),
+                    "advice_type": "general",
+                },
             ],
             9: [
                 {"type": "intel_check", "days": 7},
-                {"type": "advisor", "question": (
-                    "What are the latest trends in AI/ML infrastructure and MLOps? I want to make "
-                    "sure the platform team RFC I'm contributing to is forward-looking. Particularly "
-                    "interested in model serving, training infrastructure, and ML observability."
-                ), "advice_type": "general"},
-                {"type": "goal", "title": "Contribute to platform team RFC by end of month",
-                 "content": "Write and submit the model serving section of the platform team's founding RFC. Use vLLM experiment data as evidence.",
-                 "tags": ["career", "writing"]},
+                {
+                    "type": "advisor",
+                    "question": (
+                        "What are the latest trends in AI/ML infrastructure and MLOps? I want to make "
+                        "sure the platform team RFC I'm contributing to is forward-looking. Particularly "
+                        "interested in model serving, training infrastructure, and ML observability."
+                    ),
+                    "advice_type": "general",
+                },
+                {
+                    "type": "goal",
+                    "title": "Contribute to platform team RFC by end of month",
+                    "content": "Write and submit the model serving section of the platform team's founding RFC. Use vLLM experiment data as evidence.",
+                    "tags": ["career", "writing"],
+                },
             ],
             10: [
-                {"type": "journal", "content": (
-                    "Comprehensive reflection after 10 days of focused effort. I've made real "
-                    "progress on three fronts: (1) The platform lead opportunity is solidifying — "
-                    "my RFC contribution was well-received and I'm on the shortlist. (2) The LoRA "
-                    "paper has a clear path forward with strong experimental results. (3) The OOM "
-                    "crisis actually deepened my understanding of distributed training. Feeling more "
-                    "confident that I can bridge the research-to-platform gap. Next: finalize the "
-                    "RFC, run paper ablation studies, and prepare for the platform lead interview."
-                ), "entry_type": "reflection", "title": "10-day retrospective — real momentum"},
-                {"type": "advisor", "question": (
-                    "Looking at my trajectory over the past couple of weeks, I've been working "
-                    "toward the ML platform lead role, writing a paper on PEFT, and dealing with "
-                    "production challenges. What should my top 3 priorities be for the next month?"
-                ), "advice_type": "career"},
-                {"type": "advisor", "question": (
-                    "As a follow-up: if I get the platform lead role, how should I approach the "
-                    "first 90 days? I want to balance quick wins with setting the right long-term "
-                    "technical direction for the team."
-                ), "advice_type": "career", "continue_conv": True},
+                {
+                    "type": "journal",
+                    "content": (
+                        "Comprehensive reflection after 10 days of focused effort. I've made real "
+                        "progress on three fronts: (1) The platform lead opportunity is solidifying — "
+                        "my RFC contribution was well-received and I'm on the shortlist. (2) The LoRA "
+                        "paper has a clear path forward with strong experimental results. (3) The OOM "
+                        "crisis actually deepened my understanding of distributed training. Feeling more "
+                        "confident that I can bridge the research-to-platform gap. Next: finalize the "
+                        "RFC, run paper ablation studies, and prepare for the platform lead interview."
+                    ),
+                    "entry_type": "reflection",
+                    "title": "10-day retrospective — real momentum",
+                },
+                {
+                    "type": "advisor",
+                    "question": (
+                        "Looking at my trajectory over the past couple of weeks, I've been working "
+                        "toward the ML platform lead role, writing a paper on PEFT, and dealing with "
+                        "production challenges. What should my top 3 priorities be for the next month?"
+                    ),
+                    "advice_type": "career",
+                },
+                {
+                    "type": "advisor",
+                    "question": (
+                        "As a follow-up: if I get the platform lead role, how should I approach the "
+                        "first 90 days? I want to balance quick wins with setting the right long-term "
+                        "technical direction for the team."
+                    ),
+                    "advice_type": "career",
+                    "continue_conv": True,
+                },
                 {"type": "goals_list"},
             ],
         }
     else:  # david
         return {
             1: [
-                {"type": "journal", "content": (
-                    "Spent the day wireframing the CLI tool. Realized I need to nail the plugin "
-                    "architecture before anything else — if plugins are an afterthought, the whole "
-                    "DX falls apart. Looked at how Vite and ESBuild handle plugins for inspiration. "
-                    "The hook-based approach seems cleanest."
-                ), "entry_type": "daily", "title": "Plugin architecture wireframing"},
+                {
+                    "type": "journal",
+                    "content": (
+                        "Spent the day wireframing the CLI tool. Realized I need to nail the plugin "
+                        "architecture before anything else — if plugins are an afterthought, the whole "
+                        "DX falls apart. Looked at how Vite and ESBuild handle plugins for inspiration. "
+                        "The hook-based approach seems cleanest."
+                    ),
+                    "entry_type": "daily",
+                    "title": "Plugin architecture wireframing",
+                },
             ],
             2: [
-                {"type": "journal", "content": (
-                    "Had coffee chat with a YC founder. They said focus on one workflow, not a "
-                    "platform. 'Do one thing insanely well.' Made me reconsider the scope — maybe "
-                    "API mocking should be the entire product, not just a feature. Also mentioned "
-                    "that devtools founders need to be in the community."
-                ), "entry_type": "daily", "title": "YC founder advice — narrow the scope"},
-                {"type": "advisor", "question": (
-                    "Should I narrow my MVP scope to just API mocking, or keep the broader devtools "
-                    "vision? A YC founder advised me to do one thing well. But I worry that API "
-                    "mocking alone isn't a big enough market. My current plan includes API mocking, "
-                    "schema validation, and test generation."
-                ), "advice_type": "general"},
+                {
+                    "type": "journal",
+                    "content": (
+                        "Had coffee chat with a YC founder. They said focus on one workflow, not a "
+                        "platform. 'Do one thing insanely well.' Made me reconsider the scope — maybe "
+                        "API mocking should be the entire product, not just a feature. Also mentioned "
+                        "that devtools founders need to be in the community."
+                    ),
+                    "entry_type": "daily",
+                    "title": "YC founder advice — narrow the scope",
+                },
+                {
+                    "type": "advisor",
+                    "question": (
+                        "Should I narrow my MVP scope to just API mocking, or keep the broader devtools "
+                        "vision? A YC founder advised me to do one thing well. But I worry that API "
+                        "mocking alone isn't a big enough market. My current plan includes API mocking, "
+                        "schema validation, and test generation."
+                    ),
+                    "advice_type": "general",
+                },
             ],
             3: [
-                {"type": "goal", "title": "Launch MVP by end of Q2",
-                 "content": "Ship a usable MVP of the devtool CLI with at least API mocking feature complete. Target: public beta on Product Hunt.",
-                 "tags": ["product", "launch"]},
-                {"type": "goal", "title": "Get 100 beta signups",
-                 "content": "Reach 100 genuine beta users through community engagement, content marketing, and direct outreach.",
-                 "tags": ["growth", "marketing"]},
-                {"type": "goal", "title": "Raise $500K pre-seed",
-                 "content": "Close a $500K pre-seed round from angels and micro-VCs. Need pitch deck, financial model, and warm intros.",
-                 "tags": ["fundraising"]},
-                {"type": "journal", "content": (
-                    "Competitor analysis deep dive. Found 3 players in the API mocking space: "
-                    "MockServer (open-source, Java, clunky), Prism (Stoplight, good but limited), "
-                    "and WireMock (enterprise, expensive). None have great CLI-first DX or "
-                    "TypeScript-native support. There's a real gap for a modern, TS-first tool."
-                ), "entry_type": "daily", "title": "Competitor analysis — gap confirmed"},
+                {
+                    "type": "goal",
+                    "title": "Launch MVP by end of Q2",
+                    "content": "Ship a usable MVP of the devtool CLI with at least API mocking feature complete. Target: public beta on Product Hunt.",
+                    "tags": ["product", "launch"],
+                },
+                {
+                    "type": "goal",
+                    "title": "Get 100 beta signups",
+                    "content": "Reach 100 genuine beta users through community engagement, content marketing, and direct outreach.",
+                    "tags": ["growth", "marketing"],
+                },
+                {
+                    "type": "goal",
+                    "title": "Raise $500K pre-seed",
+                    "content": "Close a $500K pre-seed round from angels and micro-VCs. Need pitch deck, financial model, and warm intros.",
+                    "tags": ["fundraising"],
+                },
+                {
+                    "type": "journal",
+                    "content": (
+                        "Competitor analysis deep dive. Found 3 players in the API mocking space: "
+                        "MockServer (open-source, Java, clunky), Prism (Stoplight, good but limited), "
+                        "and WireMock (enterprise, expensive). None have great CLI-first DX or "
+                        "TypeScript-native support. There's a real gap for a modern, TS-first tool."
+                    ),
+                    "entry_type": "daily",
+                    "title": "Competitor analysis — gap confirmed",
+                },
             ],
             4: [
-                {"type": "journal", "content": (
-                    "Built first prototype of the API mocking feature. Users in Discord seem "
-                    "excited — got 15 reactions on the demo video. The mock generation from "
-                    "OpenAPI specs is working but needs polish. TypeScript inference is the killer "
-                    "feature — full type safety from your API spec to your mocks."
-                ), "entry_type": "daily", "title": "API mocking prototype — Discord buzz"},
-                {"type": "advisor", "question": (
-                    "I'm a solo founder building a devtools startup. My API mocking prototype is "
-                    "getting early traction in Discord. What should my go-to-market strategy look "
-                    "like? I'm thinking open-source core with a paid cloud hosted version."
-                ), "advice_type": "general"},
+                {
+                    "type": "journal",
+                    "content": (
+                        "Built first prototype of the API mocking feature. Users in Discord seem "
+                        "excited — got 15 reactions on the demo video. The mock generation from "
+                        "OpenAPI specs is working but needs polish. TypeScript inference is the killer "
+                        "feature — full type safety from your API spec to your mocks."
+                    ),
+                    "entry_type": "daily",
+                    "title": "API mocking prototype — Discord buzz",
+                },
+                {
+                    "type": "advisor",
+                    "question": (
+                        "I'm a solo founder building a devtools startup. My API mocking prototype is "
+                        "getting early traction in Discord. What should my go-to-market strategy look "
+                        "like? I'm thinking open-source core with a paid cloud hosted version."
+                    ),
+                    "advice_type": "general",
+                },
             ],
             5: [
-                {"type": "goal_check_in", "keyword": "MVP",
-                 "notes": "API mocking feature working, need auth + billing. Got 15 Discord reactions on demo. Timeline tight for Q2."},
-                {"type": "journal", "content": (
-                    "Reflection: I'm building in public and it's working — the Discord community "
-                    "is growing (now 47 members). But I'm spread too thin between coding, content, "
-                    "and fundraising prep. Need to ruthlessly prioritize. The prototype works but "
-                    "is far from production-ready. Auth and billing are blocking the beta launch."
-                ), "entry_type": "reflection", "title": "Reflection — spread too thin"},
-                {"type": "advisor", "question": (
-                    "As a solo founder, how should I prioritize between shipping features "
-                    "(auth + billing needed for beta), creating content for community growth, "
-                    "and preparing my fundraising pitch deck? I have 12 hours per week and "
-                    "need to launch by Q2."
-                ), "advice_type": "general"},
+                {
+                    "type": "goal_check_in",
+                    "keyword": "MVP",
+                    "notes": "API mocking feature working, need auth + billing. Got 15 Discord reactions on demo. Timeline tight for Q2.",
+                },
+                {
+                    "type": "journal",
+                    "content": (
+                        "Reflection: I'm building in public and it's working — the Discord community "
+                        "is growing (now 47 members). But I'm spread too thin between coding, content, "
+                        "and fundraising prep. Need to ruthlessly prioritize. The prototype works but "
+                        "is far from production-ready. Auth and billing are blocking the beta launch."
+                    ),
+                    "entry_type": "reflection",
+                    "title": "Reflection — spread too thin",
+                },
+                {
+                    "type": "advisor",
+                    "question": (
+                        "As a solo founder, how should I prioritize between shipping features "
+                        "(auth + billing needed for beta), creating content for community growth, "
+                        "and preparing my fundraising pitch deck? I have 12 hours per week and "
+                        "need to launch by Q2."
+                    ),
+                    "advice_type": "general",
+                },
             ],
             6: [
-                {"type": "journal", "content": (
-                    "Stripe integration is a nightmare. Spent 3 days on webhook handling. The "
-                    "subscription lifecycle edge cases (trials, upgrades, failed payments, refunds) "
-                    "are insane. Starting to doubt I can ship by Q2. Maybe I should use Lemon Squeezy "
-                    "or Paddle instead — simpler billing for indie devtools."
-                ), "entry_type": "daily", "title": "Stripe nightmare — Q2 deadline at risk"},
-                {"type": "advisor", "question": (
-                    "I'm drowning in Stripe integration complexity as a solo founder. Should I "
-                    "switch to a simpler billing provider like Lemon Squeezy or Paddle? The trade-off "
-                    "is less control but faster time-to-market. My Q2 launch deadline is at risk."
-                ), "advice_type": "technical"},
+                {
+                    "type": "journal",
+                    "content": (
+                        "Stripe integration is a nightmare. Spent 3 days on webhook handling. The "
+                        "subscription lifecycle edge cases (trials, upgrades, failed payments, refunds) "
+                        "are insane. Starting to doubt I can ship by Q2. Maybe I should use Lemon Squeezy "
+                        "or Paddle instead — simpler billing for indie devtools."
+                    ),
+                    "entry_type": "daily",
+                    "title": "Stripe nightmare — Q2 deadline at risk",
+                },
+                {
+                    "type": "advisor",
+                    "question": (
+                        "I'm drowning in Stripe integration complexity as a solo founder. Should I "
+                        "switch to a simpler billing provider like Lemon Squeezy or Paddle? The trade-off "
+                        "is less control but faster time-to-market. My Q2 launch deadline is at risk."
+                    ),
+                    "advice_type": "technical",
+                },
             ],
             7: [
-                {"type": "journal", "content": (
-                    "Weekly review: Rough week. Stripe ate most of my development time. On the "
-                    "bright side, Discord community is at 62 members and I got my first 3 beta "
-                    "signups from the waitlist. The API mocking feature is solid — users love the "
-                    "TypeScript inference. Need to make a call on billing ASAP."
-                ), "entry_type": "reflection", "title": "Week 2 review — billing blocking everything"},
+                {
+                    "type": "journal",
+                    "content": (
+                        "Weekly review: Rough week. Stripe ate most of my development time. On the "
+                        "bright side, Discord community is at 62 members and I got my first 3 beta "
+                        "signups from the waitlist. The API mocking feature is solid — users love the "
+                        "TypeScript inference. Need to make a call on billing ASAP."
+                    ),
+                    "entry_type": "reflection",
+                    "title": "Week 2 review — billing blocking everything",
+                },
                 {"type": "intel_check", "days": 7},
-                {"type": "advisor", "question": (
-                    "Give me an honest assessment of my progress. I'm trying to launch a devtools "
-                    "MVP by Q2, get 100 beta users, and raise a pre-seed. One week in and I'm "
-                    "stuck on Stripe integration while my community is growing organically."
-                ), "advice_type": "general"},
+                {
+                    "type": "advisor",
+                    "question": (
+                        "Give me an honest assessment of my progress. I'm trying to launch a devtools "
+                        "MVP by Q2, get 100 beta users, and raise a pre-seed. One week in and I'm "
+                        "stuck on Stripe integration while my community is growing organically."
+                    ),
+                    "advice_type": "general",
+                },
             ],
             8: [
-                {"type": "journal", "content": (
-                    "Talked to 5 potential users — 4 want API mocking, only 1 wants the full "
-                    "platform. This confirms the YC advice: narrow the scope. Decided to pivot "
-                    "fully to 'the best API mocking tool for TypeScript devs'. Also switching "
-                    "from Stripe to Lemon Squeezy — 2 days integration max."
-                ), "entry_type": "daily", "title": "User interviews confirm narrow scope — pivoting"},
-                {"type": "goal_check_in", "keyword": "beta",
-                 "notes": "At 3 signups from 62 Discord members. Need to 10x community outreach. User interviews confirm API mocking focus."},
-                {"type": "advisor", "question": (
-                    "I just did 5 user interviews and 4 out of 5 want just the API mocking tool, "
-                    "not the broader platform. How should I approach user research going forward? "
-                    "I want to keep validating as I build. What frameworks or methods work best "
-                    "for solo founders?"
-                ), "advice_type": "general"},
+                {
+                    "type": "journal",
+                    "content": (
+                        "Talked to 5 potential users — 4 want API mocking, only 1 wants the full "
+                        "platform. This confirms the YC advice: narrow the scope. Decided to pivot "
+                        "fully to 'the best API mocking tool for TypeScript devs'. Also switching "
+                        "from Stripe to Lemon Squeezy — 2 days integration max."
+                    ),
+                    "entry_type": "daily",
+                    "title": "User interviews confirm narrow scope — pivoting",
+                },
+                {
+                    "type": "goal_check_in",
+                    "keyword": "beta",
+                    "notes": "At 3 signups from 62 Discord members. Need to 10x community outreach. User interviews confirm API mocking focus.",
+                },
+                {
+                    "type": "advisor",
+                    "question": (
+                        "I just did 5 user interviews and 4 out of 5 want just the API mocking tool, "
+                        "not the broader platform. How should I approach user research going forward? "
+                        "I want to keep validating as I build. What frameworks or methods work best "
+                        "for solo founders?"
+                    ),
+                    "advice_type": "general",
+                },
             ],
             9: [
                 {"type": "intel_check", "days": 7},
-                {"type": "advisor", "question": (
-                    "What are the latest trends in the devtools market? I'm particularly interested "
-                    "in how AI is changing developer workflows, the open-source vs SaaS debate for "
-                    "devtools, and what investors are looking for in devtools startups."
-                ), "advice_type": "general"},
-                {"type": "goal", "title": "Run 10 user interviews this month",
-                 "content": "Systematic user research: interview 10 TypeScript developers about their API testing/mocking workflows to validate product direction.",
-                 "tags": ["research", "validation"]},
+                {
+                    "type": "advisor",
+                    "question": (
+                        "What are the latest trends in the devtools market? I'm particularly interested "
+                        "in how AI is changing developer workflows, the open-source vs SaaS debate for "
+                        "devtools, and what investors are looking for in devtools startups."
+                    ),
+                    "advice_type": "general",
+                },
+                {
+                    "type": "goal",
+                    "title": "Run 10 user interviews this month",
+                    "content": "Systematic user research: interview 10 TypeScript developers about their API testing/mocking workflows to validate product direction.",
+                    "tags": ["research", "validation"],
+                },
             ],
             10: [
-                {"type": "journal", "content": (
-                    "10-day retrospective. Key learnings: (1) Narrowing scope was the right call — "
-                    "API mocking for TypeScript devs is a clear, defensible niche. (2) Community-led "
-                    "growth works — 62 Discord members with zero ad spend. (3) Billing complexity "
-                    "nearly derailed me — Lemon Squeezy is integrated and working. (4) User "
-                    "interviews are gold — should have done them earlier. Next month: ship beta, "
-                    "hit 100 signups, start fundraising conversations."
-                ), "entry_type": "reflection", "title": "10-day retrospective — clarity through pain"},
-                {"type": "advisor", "question": (
-                    "I'm a solo founder preparing to launch my devtools beta and start fundraising. "
-                    "My product is an API mocking tool for TypeScript developers. I have 62 Discord "
-                    "members and 3 beta signups. What should my fundraising strategy look like? "
-                    "When should I start talking to investors vs focus on traction?"
-                ), "advice_type": "general"},
-                {"type": "advisor", "question": (
-                    "Following up on fundraising: what metrics and milestones should I target "
-                    "before approaching pre-seed investors? I'm aiming for $500K. What does a "
-                    "compelling pre-seed pitch look like for a devtools startup?"
-                ), "advice_type": "general", "continue_conv": True},
+                {
+                    "type": "journal",
+                    "content": (
+                        "10-day retrospective. Key learnings: (1) Narrowing scope was the right call — "
+                        "API mocking for TypeScript devs is a clear, defensible niche. (2) Community-led "
+                        "growth works — 62 Discord members with zero ad spend. (3) Billing complexity "
+                        "nearly derailed me — Lemon Squeezy is integrated and working. (4) User "
+                        "interviews are gold — should have done them earlier. Next month: ship beta, "
+                        "hit 100 signups, start fundraising conversations."
+                    ),
+                    "entry_type": "reflection",
+                    "title": "10-day retrospective — clarity through pain",
+                },
+                {
+                    "type": "advisor",
+                    "question": (
+                        "I'm a solo founder preparing to launch my devtools beta and start fundraising. "
+                        "My product is an API mocking tool for TypeScript developers. I have 62 Discord "
+                        "members and 3 beta signups. What should my fundraising strategy look like? "
+                        "When should I start talking to investors vs focus on traction?"
+                    ),
+                    "advice_type": "general",
+                },
+                {
+                    "type": "advisor",
+                    "question": (
+                        "Following up on fundraising: what metrics and milestones should I target "
+                        "before approaching pre-seed investors? I'm aiming for $500K. What does a "
+                        "compelling pre-seed pitch look like for a devtools startup?"
+                    ),
+                    "advice_type": "general",
+                    "continue_conv": True,
+                },
                 {"type": "goals_list"},
             ],
         }
@@ -904,18 +1119,20 @@ def setup():
     _require_env()
 
     for key, persona in PERSONAS.items():
-        click.echo(f"\n{'='*60}")
+        click.echo(f"\n{'=' * 60}")
         click.echo(f"Setting up {persona.name} ({persona.user_id})")
-        click.echo(f"{'='*60}")
+        click.echo(f"{'=' * 60}")
 
         client = CoachAPIClient(persona)
         try:
             # Set API key via settings
             click.echo("  Setting LLM API key...")
-            status, body, lat = client.settings_put({
-                "llm_api_key": ANTHROPIC_API_KEY,
-                "llm_provider": "anthropic",
-            })
+            status, body, lat = client.settings_put(
+                {
+                    "llm_api_key": ANTHROPIC_API_KEY,
+                    "llm_provider": "anthropic",
+                }
+            )
             click.echo(f"  Settings: {status} ({lat:.0f}ms)")
 
             # Run onboarding
@@ -931,9 +1148,9 @@ def setup():
             client.close()
 
     # Trigger shared intel scrape once
-    click.echo(f"\n{'='*60}")
+    click.echo(f"\n{'=' * 60}")
     click.echo("Triggering shared intel scrape...")
-    click.echo(f"{'='*60}")
+    click.echo(f"{'=' * 60}")
     client = CoachAPIClient(MAYA)  # use Maya's auth, intel is shared
     try:
         status, body, lat = client.intel_scrape()
@@ -946,8 +1163,13 @@ def setup():
 
 @cli.command()
 @click.argument("n", type=int)
-@click.option("--persona", "-p", type=click.Choice(["maya", "david"]), default=None,
-              help="Run for a single persona")
+@click.option(
+    "--persona",
+    "-p",
+    type=click.Choice(["maya", "david"]),
+    default=None,
+    help="Run for a single persona",
+)
 def day(n: int, persona: str | None):
     """Run day N activities for persona(s)."""
     _require_env()
@@ -966,9 +1188,9 @@ def day(n: int, persona: str | None):
             click.echo(f"\nNo actions for {p.name} on day {n}")
             continue
 
-        click.echo(f"\n{'='*60}")
+        click.echo(f"\n{'=' * 60}")
         click.echo(f"Day {n} — {p.name}")
-        click.echo(f"{'='*60}")
+        click.echo(f"{'=' * 60}")
 
         client = CoachAPIClient(p)
         runner = DayRunner(client, p, obs)

@@ -16,9 +16,9 @@ Users with a completed profile (especially skills, learning style, and weekly ho
 
 ### Skill gap detection
 
-1. System compares user's current skills + proficiency against their aspirations and goal requirements
-2. System identifies gaps: skills needed but not present, or present but at insufficient proficiency
-3. Gaps are prioritized based on goal relevance and career trajectory
+1. System sends user's profile context (skills, aspirations) and journal context to the LLM, which identifies gaps
+2. Gap detection is LLM-driven from free text, not a programmatic field-by-field comparison
+3. Gaps are prioritized by the LLM based on goal relevance and career trajectory
 
 ### Path generation
 
@@ -41,7 +41,7 @@ Users with a completed profile (especially skills, learning style, and weekly ho
 
 ## Acceptance Criteria
 
-- [ ] Skill gaps derived from profile skills vs. aspirations/goals
+- [ ] Skill gaps identified by LLM using profile and journal context
 - [ ] Learning paths are personalized to learning style and time constraints
 - [ ] Paths include ordered steps with actionable content
 - [ ] User can track progress through path steps

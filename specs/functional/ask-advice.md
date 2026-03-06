@@ -34,7 +34,7 @@ User can optionally specify an advice type that adjusts the system prompt:
 - **Classic RAG**: single retrieval pass → single LLM call. Deterministic context assembly.
 - **Agentic**: LLM decides what to look up via tool calls (search journal, query intel, check goals, etc.) in a multi-turn loop. Richer but uses more tokens.
 
-Mode is determined by configuration, not per-question.
+Mode is set at engine construction time. In CLI, this is config-driven. In web, the client can toggle `use_tools` per request via query parameter.
 
 ### Context composition
 

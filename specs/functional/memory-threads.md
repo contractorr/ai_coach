@@ -20,7 +20,7 @@ All users. Memory value compounds over time — most useful for regular users wi
 2. Facts are categorized: `preference`, `skill`, `constraint`, `pattern`, `context`, `goal_context`
 3. Each fact has a confidence score (0-1) assigned by the LLM
 4. Facts from multiple sources: journal entries, recommendation feedback, goal events
-5. Duplicate/conflicting facts are resolved: fast Jaccard-similarity check auto-skips near-duplicates; ambiguous conflicts go to LLM arbitration
+5. Duplicate/conflicting facts are resolved: fast token-overlap similarity check auto-skips near-duplicates (>0.95 threshold); ambiguous conflicts go to LLM arbitration
 6. Active facts are injected into advisor prompts as `<user_memory>` context
 
 ### Viewing and managing memory
@@ -46,7 +46,7 @@ All users. Memory value compounds over time — most useful for regular users wi
 ## Acceptance Criteria
 
 - [ ] Facts automatically extracted from new journal entries
-- [ ] Facts deduplicated via Jaccard similarity (auto-NOOP at >0.95)
+- [ ] Facts deduplicated via token-overlap similarity (auto-NOOP at >0.95)
 - [ ] Conflicting facts resolved via LLM arbitration
 - [ ] Up to 25 facts injected into advisor context (configurable)
 - [ ] User can list, search, and delete facts

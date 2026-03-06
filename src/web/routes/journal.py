@@ -53,9 +53,7 @@ async def _run_post_create_hooks(
 
         chroma_dir = paths.get("chroma_dir")
         if chroma_dir:
-            em = EmbeddingManager(
-                chroma_dir, collection_name=f"journal_{safe_user_id(user_id)}"
-            )
+            em = EmbeddingManager(chroma_dir, collection_name=f"journal_{safe_user_id(user_id)}")
             em.add_entry(entry_id, content, metadata)
     except Exception as exc:
         logger.warning("post_create.embed_failed", error=str(exc), user=user_id)
