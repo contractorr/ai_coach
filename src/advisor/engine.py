@@ -17,7 +17,6 @@ from .prompts import PromptTemplates
 from .rag import RAGRetriever
 from .recommendation_storage import RecommendationStorage
 from .recommendations import RecommendationEngine
-from .skills import SkillGapAnalyzer
 from .tools import ToolRegistry
 
 logger = structlog.get_logger()
@@ -202,7 +201,7 @@ class AdvisorEngine:
 
         Args:
             question: User's question
-            advice_type: general, career, goals, opportunities
+            advice_type: general, career, goals, opportunities, skill_gap
             include_research: Include deep research context
             conversation_history: Prior conversation messages for context
             event_callback: Optional callback for streaming events
@@ -216,6 +215,23 @@ class AdvisorEngine:
                 question,
                 conversation_history=conversation_history,
                 event_callback=event_callback,
+            )
+
+        # Skill gap analysis uses profile + journal only (no intel)
+        if advice_type == "skill_gap":
+            profile_ctx = self.rag.get_profile_context()
+            journal_ctx = self.rag.get_journal_context(
+                question or "skills goals career aspirations learning",
+                max_entries=8,
+                max_chars=4000,
+            )
+            prompt = PromptTemplates.SKILL_GAP_ANALYSIS.format(
+                profile_context=profile_ctx,
+                journal_context=journal_ctx,
+                question=question or "What are my skill gaps?",
+            )
+            return self._call_llm(
+                PromptTemplates.SYSTEM, prompt, conversation_history=conversation_history
             )
 
         # Classic RAG mode: single-shot retrieval + LLM call
@@ -332,13 +348,6 @@ class AdvisorEngine:
         )
 
         return self._call_llm(PromptTemplates.SYSTEM, prompt)
-
-    # === Skill & Learning Methods ===
-
-    def analyze_skill_gaps(self) -> str:
-        """Analyze skill gaps between current state and aspirations."""
-        analyzer = SkillGapAnalyzer(self.rag, self._call_llm)
-        return analyzer.analyze()
 
     def generate_milestones(
         self,

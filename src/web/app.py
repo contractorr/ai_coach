@@ -24,6 +24,7 @@ from web.routes import (
     recommendations,
     research,
     settings,
+    suggestions,
     threads,
     user,
 )
@@ -122,6 +123,7 @@ app.include_router(user.router)
 app.include_router(pageview.router)
 app.include_router(admin.router)
 app.include_router(insights.router)
+app.include_router(suggestions.router)
 app.include_router(memory.router)
 app.include_router(threads.router)
 

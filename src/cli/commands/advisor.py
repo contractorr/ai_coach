@@ -48,7 +48,6 @@ def today():
     brief = DailyBriefBuilder().build(
         stale_goals=stale_goals,
         recommendations=recs,
-        learning_paths=[],
         all_goals=all_goals,
         weekly_hours=weekly_hours,
     )
@@ -84,7 +83,7 @@ def today():
     "--type",
     "advice_type",
     default="general",
-    type=click.Choice(["general", "career", "goals", "opportunities"]),
+    type=click.Choice(["general", "career", "goals", "opportunities", "skill_gap"]),
     help="Type of advice to get",
 )
 def ask(question: str, advice_type: str):

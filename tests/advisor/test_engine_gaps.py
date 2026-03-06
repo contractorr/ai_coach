@@ -85,16 +85,15 @@ class TestWeeklyReviewStaleGoals:
         mock_rag.get_recurring_thoughts_context.assert_called_once()
 
 
-# ── analyze_skill_gaps (lines 325-326) ──
+# ── skill_gap via ask() ──
 
 
-class TestAnalyzeSkillGaps:
-    def test_delegates_to_analyzer(self, engine):
-        with patch("advisor.engine.SkillGapAnalyzer") as MockAnalyzer:
-            MockAnalyzer.return_value.analyze.return_value = "gaps found"
-            result = engine.analyze_skill_gaps()
-        assert result == "gaps found"
-        MockAnalyzer.assert_called_once_with(engine.rag, engine._call_llm)
+class TestSkillGapViaAsk:
+    def test_skill_gap_advice_type(self, engine, mock_rag, mock_client):
+        result = engine.ask("What skills should I learn?", advice_type="skill_gap")
+        assert result == "Mocked LLM response"
+        mock_rag.get_profile_context.assert_called()
+        mock_rag.get_journal_context.assert_called()
 
 
 # ── generate_recommendations category="all" (lines 378-383) ──

@@ -35,7 +35,6 @@ def _get_daily_brief(args: dict) -> dict:
     brief = DailyBriefBuilder().build(
         stale_goals=stale_goals,
         recommendations=recs,
-        learning_paths=[],
         all_goals=all_goals,
         weekly_hours=weekly_hours,
     )
@@ -62,7 +61,7 @@ TOOLS = [
     (
         "get_daily_brief",
         {
-            "description": "Get a time-budgeted daily action plan based on stale goals, recommendations, and learning paths. No LLM needed — pure structured data.",
+            "description": "Get a time-budgeted daily action plan based on stale goals and recommendations. No LLM needed — pure structured data.",
             "type": "object",
             "properties": {},
             "required": [],

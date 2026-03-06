@@ -3,7 +3,6 @@
 from advisor.daily_brief import (
     DailyBriefBuilder,
     _score_intel_match,
-    _score_learning,
     _score_recommendation,
     _score_stale_goal,
 )
@@ -15,10 +14,6 @@ def _goal(title: str, days: int = 10) -> dict:
 
 def _rec(title: str, desc: str = "desc") -> dict:
     return {"title": title, "description": desc}
-
-
-def _lp(skill: str, done: int = 1, total: int = 5) -> dict:
-    return {"skill": skill, "status": "active", "completed_modules": done, "total_modules": total}
 
 
 def _intel_match(title: str = "Intel", urgency: str = "high", score: float = 0.2) -> dict:
@@ -33,7 +28,6 @@ class TestDailyBriefBuilder:
         brief = self.builder.build(
             stale_goals=[],
             recommendations=[],
-            learning_paths=[],
             all_goals=[_goal("Ship MVP")],
             weekly_hours=5,
         )
@@ -45,7 +39,6 @@ class TestDailyBriefBuilder:
         brief = self.builder.build(
             stale_goals=[],
             recommendations=[],
-            learning_paths=[],
             all_goals=[],
             weekly_hours=5,
         )
@@ -58,7 +51,6 @@ class TestDailyBriefBuilder:
         brief = self.builder.build(
             stale_goals=[_goal("Goal A", days=20)],
             recommendations=[_rec("Rec 1")],
-            learning_paths=[_lp("Rust")],
             all_goals=[],
             weekly_hours=5,
         )
@@ -70,7 +62,6 @@ class TestDailyBriefBuilder:
         brief = self.builder.build(
             stale_goals=[],
             recommendations=[_rec("Rec 1")],
-            learning_paths=[],
             all_goals=[],
             weekly_hours=10,
             intel_matches=[_intel_match("Breaking Intel", urgency="high", score=0.3)],
@@ -82,7 +73,6 @@ class TestDailyBriefBuilder:
         brief = self.builder.build(
             stale_goals=[],
             recommendations=[],
-            learning_paths=[],
             all_goals=[_goal("X")],
             weekly_hours=7,
         )
@@ -93,7 +83,6 @@ class TestDailyBriefBuilder:
         brief = self.builder.build(
             stale_goals=[_goal("A"), _goal("B"), _goal("C")],
             recommendations=[],
-            learning_paths=[],
             all_goals=[],
             weekly_hours=3,  # ~26 min/day
         )
@@ -104,7 +93,6 @@ class TestDailyBriefBuilder:
         brief = self.builder.build(
             stale_goals=[_goal("A"), _goal("B"), _goal("C"), _goal("D")],
             recommendations=[],
-            learning_paths=[],
             all_goals=[],
             weekly_hours=5,  # ~43 min/day
         )
@@ -115,55 +103,25 @@ class TestDailyBriefBuilder:
         brief = self.builder.build(
             stale_goals=[_goal("A"), _goal("B"), _goal("C")],
             recommendations=[_rec("R1"), _rec("R2")],
-            learning_paths=[_lp("Go")],
             all_goals=[],
             weekly_hours=14,  # 120 min/day
         )
         assert len(brief.items) <= 5
-
-    def test_first_item_included_even_if_over_budget(self):
-        """First item always included even if it exceeds budget."""
-        brief = self.builder.build(
-            stale_goals=[],
-            recommendations=[],
-            learning_paths=[_lp("Rust")],  # 45 min
-            all_goals=[],
-            weekly_hours=1,  # ~9 min budget
-        )
-        assert len(brief.items) == 1
-        assert brief.items[0].kind == "learning"
-        assert brief.used_minutes == 45
 
     def test_budget_stops_filling(self):
         """Stop adding items when budget exhausted."""
         brief = self.builder.build(
             stale_goals=[_goal("A")],  # 10 min
             recommendations=[_rec("R")],  # 15 min → 25 total
-            learning_paths=[_lp("Rust")],  # 45 min → 70 total
             all_goals=[],
             weekly_hours=5,  # ~43 min budget
         )
-        # learning path should NOT fit (25 + 45 > 43 and already have items)
-        assert brief.used_minutes <= brief.budget_minutes + 44  # at most one overshoot
-
-    def test_inactive_learning_paths_skipped(self):
-        brief = self.builder.build(
-            stale_goals=[],
-            recommendations=[],
-            learning_paths=[
-                {"skill": "Go", "status": "completed", "completed_modules": 5, "total_modules": 5}
-            ],
-            all_goals=[_goal("X")],
-            weekly_hours=5,
-        )
-        # Should fall through to nudge since only inactive LP
-        assert brief.items[0].kind == "nudge"
+        assert brief.used_minutes <= brief.budget_minutes + 15  # at most one overshoot
 
     def test_generated_at_is_iso(self):
         brief = self.builder.build(
             stale_goals=[],
             recommendations=[],
-            learning_paths=[],
             all_goals=[],
             weekly_hours=5,
         )
@@ -173,7 +131,6 @@ class TestDailyBriefBuilder:
         brief = self.builder.build(
             stale_goals=[_goal("A"), _goal("B")],
             recommendations=[],
-            learning_paths=[],
             all_goals=[],
             weekly_hours=5,
         )
@@ -191,7 +148,6 @@ class TestDailyBriefBuilder:
         brief = self.builder.build(
             stale_goals=[],
             recommendations=[FakeRec("Try X", "details")],
-            learning_paths=[],
             all_goals=[],
             weekly_hours=5,
         )
@@ -203,7 +159,6 @@ class TestDailyBriefBuilder:
         brief = self.builder.build(
             stale_goals=[],
             recommendations=[],
-            learning_paths=[],
             all_goals=[],
             weekly_hours=5,
             intel_matches=[_intel_match("Medium item", urgency="medium")],
@@ -215,7 +170,6 @@ class TestDailyBriefBuilder:
         brief = self.builder.build(
             stale_goals=[],
             recommendations=[],
-            learning_paths=[],
             all_goals=[_goal("X")],
             weekly_hours=5,
             intel_matches=[_intel_match("Low item", urgency="low")],
@@ -246,11 +200,6 @@ class TestScoreFunctions:
         first = _score_recommendation(0)
         third = _score_recommendation(2)
         assert first > third
-
-    def test_learning_progress_increases_score(self):
-        early = _score_learning({"completed_modules": 1, "total_modules": 10})
-        late = _score_learning({"completed_modules": 9, "total_modules": 10})
-        assert late > early
 
     def test_very_stale_goal_beats_high_intel(self):
         """A 30-day stale goal should outrank even high-urgency intel."""

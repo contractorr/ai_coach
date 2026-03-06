@@ -104,19 +104,10 @@ def init(samples: bool):
     profile_path.parent.mkdir(parents=True, exist_ok=True)
     console.print(f"[green]✓[/] profile dir: {profile_path.parent}")
 
-    # Create learning paths directory
-    lp_dir = Path(
-        config.get("learning_paths", {}).get("dir", "~/coach/learning_paths")
-    ).expanduser()
-    lp_dir.mkdir(parents=True, exist_ok=True)
-    console.print(f"[green]✓[/] learning_paths: {lp_dir}")
-
     console.print("\n[bold]Minimal setup:[/]")
     console.print("  1. Set ANTHROPIC_API_KEY (or OPENAI_API_KEY / GEMINI_API_KEY)")
     console.print("  2. Run [cyan]coach profile update[/] to set up your profile")
     console.print("  3. Run [cyan]coach journal add[/] to start journaling")
     console.print("  4. Run [cyan]coach ask 'What should I focus on?'[/]")
-    console.print(
-        "\n[dim]Free features: HN + RSS scrapers, journal, goals, trends, events, learning paths[/]"
-    )
+    console.print("\n[dim]Free features: HN + RSS scrapers, journal, goals, trends, events[/]")
     console.print("[dim]Paid features (optional): research (needs TAVILY_API_KEY)[/]")

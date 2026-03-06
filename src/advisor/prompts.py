@@ -543,6 +543,8 @@ USER PROFILE:
 JOURNAL CONTEXT (goals, reflections):
 {journal_context}
 
+USER QUESTION: {question}
+
 Provide:
 1. **Current Strengths** — What they're already good at
 2. **Critical Gaps** — Skills they need for their aspirations but lack or are weak in
@@ -736,6 +738,7 @@ Format as markdown starting with #### Deep Dive. Keep under 500 words."""
             "weekly_review": cls.WEEKLY_REVIEW,
             "goals": cls.GOAL_ANALYSIS,
             "opportunities": cls.OPPORTUNITY_DETECTION,
+            "skill_gap": cls.SKILL_GAP_ANALYSIS,
             "general": cls.GENERAL_ASK,
             "general_with_research": cls.GENERAL_ASK_WITH_RESEARCH,
             "action_plan": cls.ACTION_PLAN,

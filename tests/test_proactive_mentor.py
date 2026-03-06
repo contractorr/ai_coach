@@ -321,20 +321,23 @@ class TestEventScraper:
         assert scraper._parse_confs_tech_event(event_uk, "python") is None
 
 
-class TestSkillGapAnalyzer:
-    def test_analyze(self):
-        from advisor.rag import RAGRetriever
-        from advisor.skills import SkillGapAnalyzer
-
-        mock_rag = MagicMock(spec=RAGRetriever)
+class TestSkillGapViaAsk:
+    def test_skill_gap_advice_type(self):
+        """skill_gap advice type uses profile + journal context."""
+        mock_rag = MagicMock()
         mock_rag.get_profile_context.return_value = "Role: Backend Dev"
         mock_rag.get_journal_context.return_value = "Want to learn ML"
+        mock_rag.cache = None
 
-        def mock_llm(system, prompt, max_tokens=2000):
-            return "## Skill Gap Analysis\n- Python: 4/5 → 5/5\n- ML: 1/5 → 3/5"
+        mock_client = MagicMock()
+        resp = MagicMock()
+        resp.content = [MagicMock(text="## Skill Gap Analysis\n- Python: 4/5")]
+        mock_client.messages.create.return_value = resp
 
-        analyzer = SkillGapAnalyzer(mock_rag, mock_llm)
-        result = analyzer.analyze()
+        from advisor.engine import AdvisorEngine
+
+        engine = AdvisorEngine(rag=mock_rag, provider="claude", client=mock_client)
+        result = engine.ask("What are my skill gaps?", advice_type="skill_gap")
         assert "Skill Gap" in result
 
 

@@ -266,6 +266,18 @@ class DailyBrief(BaseModel):
     generated_at: str = ""
 
 
+class SuggestionItem(BaseModel):
+    """Unified suggestion — either from daily brief or recommendations."""
+
+    source: str = ""  # "brief" | "recommendation"
+    kind: str = ""  # "stale_goal" | "recommendation" | "nudge" | "intel_match"
+    title: str = ""
+    description: str = ""
+    action: str = ""
+    priority: int = 0
+    score: float = 0.0
+
+
 class GoalIntelMatch(BaseModel):
     id: int = 0
     goal_path: str = ""

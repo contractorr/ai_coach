@@ -5,10 +5,8 @@ from pathlib import Path
 import structlog
 from fastapi import APIRouter, Depends, Query
 
-from advisor.goals import GoalTracker
-from advisor.recommendation_storage import RecommendationStorage
-from journal.storage import JournalStorage
 from web.auth import get_current_user
+from web.briefing_data import assemble_briefing_data
 from web.deps import get_user_paths
 from web.models import (
     BriefingGoal,
@@ -29,93 +27,19 @@ logger = structlog.get_logger()
 router = APIRouter(prefix="/api/briefing", tags=["briefing"])
 
 
-def _get_storage(user_id: str) -> JournalStorage:
-    paths = get_user_paths(user_id)
-    return JournalStorage(paths["journal_dir"])
-
-
 @router.get("", response_model=BriefingResponse)
 async def get_briefing(
     max_recommendations: int = Query(default=5, ge=1, le=20),
     user: dict = Depends(get_current_user),
 ):
+    # Shared data assembly
+    data = assemble_briefing_data(user["id"])
     paths = get_user_paths(user["id"])
-    storage = _get_storage(user["id"])
 
-    # Recommendations
-    recommendations: list[dict] = []
-    try:
-        rec_dir = paths.get("recommendations_dir")
-        if rec_dir:
-            rec_storage = RecommendationStorage(rec_dir)
-            recs = rec_storage.get_top_by_score(limit=max_recommendations)
-            for r in recs:
-                meta = r.metadata or {}
-                critic = None
-                if any(meta.get(k) for k in ("confidence", "critic_challenge", "missing_context")):
-                    critic = {
-                        "confidence": meta.get("confidence", "Medium"),
-                        "confidence_rationale": meta.get("confidence_rationale", ""),
-                        "critic_challenge": meta.get("critic_challenge", ""),
-                        "missing_context": meta.get("missing_context", ""),
-                        "alternative": meta.get("alternative"),
-                        "intel_contradictions": meta.get("intel_contradictions"),
-                    }
-                recommendations.append(
-                    {
-                        "id": r.id or "",
-                        "category": r.category,
-                        "title": r.title,
-                        "description": r.description[:200] if r.description else "",
-                        "score": r.score,
-                        "status": r.status,
-                        "reasoning_trace": meta.get("reasoning_trace"),
-                        "critic": critic,
-                    }
-                )
-    except Exception as e:
-        logger.warning("briefing.recommendations_error", error=str(e))
-
-    # Goals
-    stale_goals: list[dict] = []
-    all_goals: list[dict] = []
-    try:
-        tracker = GoalTracker(storage)
-        raw_stale = tracker.get_stale_goals()
-        stale_goals = [
-            {
-                "path": str(g["path"]),
-                "title": g["title"],
-                "status": g["status"],
-                "days_since_check": g.get("days_since_check") or 0,
-            }
-            for g in raw_stale
-        ]
-        raw_all = tracker.get_goals(include_inactive=False)
-        all_goals = [
-            {
-                "path": str(g["path"]),
-                "title": g["title"],
-                "status": g["status"],
-                "days_since_check": g.get("days_since_check") or 0,
-            }
-            for g in raw_all
-        ]
-    except Exception as e:
-        logger.warning("briefing.goals_error", error=str(e))
-
-    # Goal-intel matches
-    goal_intel_matches: list[dict] = []
-    try:
-        from intelligence.goal_intel_match import GoalIntelMatchStore
-
-        db_path = paths["intel_db"]
-        match_store = GoalIntelMatchStore(db_path)
-        goal_paths = [g["path"] for g in all_goals]
-        if goal_paths:
-            goal_intel_matches = match_store.get_matches(goal_paths=goal_paths, limit=20)
-    except Exception as e:
-        logger.warning("briefing.goal_intel_matches_error", error=str(e))
+    recommendations = data["recommendations"][:max_recommendations]
+    stale_goals = data["stale_goals"]
+    all_goals = data["all_goals"]
+    goal_intel_matches = data["goal_intel_matches"]
 
     has_data = bool(recommendations or stale_goals or all_goals or goal_intel_matches)
 
@@ -140,12 +64,9 @@ async def get_briefing(
             if prof and hasattr(prof, "weekly_hours_available"):
                 weekly_hours = prof.weekly_hours_available or 5
 
-        rec_list = recommendations
-
         brief_data = DailyBriefBuilder().build(
             stale_goals=stale_goals,
-            recommendations=rec_list,
-            learning_paths=[],
+            recommendations=recommendations,
             all_goals=all_goals,
             weekly_hours=weekly_hours,
             intel_matches=goal_intel_matches,

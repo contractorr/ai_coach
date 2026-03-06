@@ -1,7 +1,6 @@
 """Greeting endpoint — cached personalized greeting for chat-first home."""
 
 import asyncio
-from pathlib import Path
 
 import structlog
 from fastapi import APIRouter, Depends
@@ -15,6 +14,7 @@ from advisor.greeting import (
     make_greeting_cache_key,
 )
 from web.auth import get_current_user
+from web.briefing_data import assemble_briefing_data
 from web.deps import get_api_key_for_user, get_user_paths
 from web.models import GreetingResponse
 
@@ -29,64 +29,26 @@ def _get_cache(user_id: str) -> ContextCache:
     return ContextCache(db_path)
 
 
-def _assemble_greeting_context(user_id: str) -> dict:
-    """Lightweight context assembly — profile name, stale goals, top recs, recent intel."""
-    paths = get_user_paths(user_id)
+def _briefing_to_greeting_context(user_id: str) -> dict:
+    """Reuse shared briefing data assembly, extract greeting-relevant subset."""
+    data = assemble_briefing_data(user_id)
     ctx: dict = {}
 
-    # Profile name
-    try:
-        from profile.storage import ProfileStorage
+    if data["name"]:
+        ctx["name"] = data["name"]
 
-        profile_path = paths.get("profile")
-        if profile_path and Path(profile_path).exists():
-            prof = ProfileStorage(profile_path).load()
-            if prof:
-                ctx["name"] = getattr(prof, "name", None) or getattr(prof, "current_role", "")
-    except Exception:
-        pass
-
-    # Stale goals (top 3)
-    try:
-        from advisor.goals import GoalTracker
-        from journal.storage import JournalStorage
-
-        storage = JournalStorage(paths["journal_dir"])
-        tracker = GoalTracker(storage)
-        stale = tracker.get_stale_goals()
+    if data["stale_goals"]:
         ctx["stale_goals"] = [
-            {
-                "title": g["title"],
-                "days_since_check": g.get("days_since_check", 0),
-            }
-            for g in stale[:3]
+            {"title": g["title"], "days_since_check": g.get("days_since_check", 0)}
+            for g in data["stale_goals"][:3]
         ]
-    except Exception:
-        pass
 
-    # Top recommendations (2)
-    try:
-        from advisor.recommendation_storage import RecommendationStorage
+    if data["recommendations"]:
+        ctx["recommendations"] = [{"title": r["title"]} for r in data["recommendations"][:2]]
 
-        rec_dir = paths.get("recommendations_dir")
-        if rec_dir and Path(rec_dir).exists():
-            rec_storage = RecommendationStorage(rec_dir)
-            recs = rec_storage.get_top_by_score(limit=2)
-            ctx["recommendations"] = [{"title": r.title} for r in recs]
-    except Exception:
-        pass
-
-    # Recent intel (2)
-    try:
-        from intelligence.scraper import IntelStorage
-
-        intel_db = paths["intel_db"]
-        if Path(intel_db).exists():
-            intel_storage = IntelStorage(intel_db)
-            items = intel_storage.get_recent(limit=2)
-            ctx["intel"] = [{"title": i.get("title", "")} for i in items]
-    except Exception:
-        pass
+    # Recent intel from goal-intel matches (top 2)
+    if data["goal_intel_matches"]:
+        ctx["intel"] = [{"title": m.get("title", "")} for m in data["goal_intel_matches"][:2]]
 
     return ctx
 
@@ -94,7 +56,7 @@ def _assemble_greeting_context(user_id: str) -> dict:
 async def _generate_and_cache_greeting(user_id: str) -> None:
     """Background task: assemble context, generate greeting, cache it."""
     try:
-        ctx = await asyncio.to_thread(_assemble_greeting_context, user_id)
+        ctx = await asyncio.to_thread(_briefing_to_greeting_context, user_id)
 
         api_key = get_api_key_for_user(user_id)
         if not api_key:

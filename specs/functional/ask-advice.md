@@ -91,9 +91,78 @@ Beyond free-form Q&A, the advisor can run:
 | Very long question (>10K chars) | Truncated or rejected at input boundary |
 | Agentic mode with no tools available | Falls back to classic RAG |
 
+---
+
+## Proactive Infrastructure: Insights & Heartbeat
+
+### Insights
+
+Unified store for all proactive system-detected items. Merges what was previously signals, patterns, and heartbeat notifications.
+
+1. System detects notable items from three sources:
+   - **Signal detectors**: goal staleness, journal gaps, topic emergence, deadlines, research triggers, recurring blockers, goal completion candidates
+   - **Pattern detectors**: blind spots (goals with no journal activity), blocker cycles (recurring negative keywords)
+   - **Heartbeat pipeline**: intel-to-goal matches that pass heuristic + LLM evaluation
+2. Each insight has a type, severity (1-10), title, detail, suggested actions, and evidence
+3. Insights auto-expire after 14 days (TTL) — no acknowledge/dismiss workflow
+4. Deduplication by content hash within TTL window prevents duplicate insights
+5. Queryable via `GET /api/insights` and `get_insights` MCP tool
+6. Engagement tracked implicitly via click-through (no explicit dismiss)
+
+### Heartbeat (invisible infrastructure)
+
+Heartbeat is an internal pipeline — no user-facing CLI, routes, or MCP tools. Output feeds into Insights.
+
+1. System periodically scans recent intel items (within lookback window, default 2 hours)
+2. Each item is scored against active goals using a composite heuristic: keyword overlap (35%), recency (35%), source affinity (30%)
+3. Items passing the heuristic threshold (default 0.3) go to an LLM evaluator (budget-capped at 5 per cycle)
+4. Items that pass LLM evaluation are saved as Insights (`type=intel_match`)
+5. Dedup by insight hash within TTL window prevents spamming
+
+### Daily brief
+
+The `DailyBriefBuilder` and `/api/briefing` endpoint are retained for MCP backward compat. The chat-first home page replaces the dashboard UI.
+
+1. User requests daily brief via MCP or API
+2. System assembles: stale goals, top recommendations, goal-intel matches
+3. Items are scored by urgency and filled within the user's weekly time budget
+4. Available on demand, not scheduled
+
+### Suggestions
+
+Unified concept merging recommendations and daily brief items — both are "things the system suggests I do."
+
+1. `GET /api/suggestions` returns a ranked list combining daily brief items (high-priority actionable nudges) and recommendations (deeper LLM-generated suggestions)
+2. Brief items appear first (already priority-ranked), followed by remaining recommendations not already in the brief
+3. Each suggestion has: source (brief/recommendation), kind, title, description, action (chat pre-fill), priority, score
+
+### Proactive Acceptance Criteria
+
+- [ ] Insights are queryable via `GET /api/insights` and `get_insights` MCP tool
+- [ ] Insights auto-expire after 14 days (no manual acknowledge)
+- [ ] Heartbeat runs on configured interval as invisible infra
+- [ ] Heuristic + LLM two-stage filter limits token usage
+- [ ] `GET /api/suggestions` merges daily brief items + recommendations
+- [ ] Engagement tracked implicitly via click-through to source
+
+### Proactive Edge Cases
+
+| Scenario | Expected Behavior |
+|----------|-------------------|
+| No goals set | Heartbeat has nothing to match against; brief shows intel-only summary |
+| No recent intel | Brief reports "no new intelligence"; heartbeat finds nothing |
+| All goals stale | Insight raised for stale goals |
+| LLM budget exhausted in heartbeat cycle | Remaining items deferred to next cycle |
+| Duplicate insight within TTL | Deduplicated by hash, not saved again |
+
+---
+
 ## Out of Scope
 
 - Real-time web search during Q&A (that's deep research)
 - Multi-user advice (comparing users)
 - Voice input/output
 - Caching of answers (context is cached, not responses)
+- Push notifications (insights are pull-only via web/MCP)
+- Custom insight rules (insights are system-defined patterns)
+- Manual acknowledge/dismiss of insights (TTL-only expiry)

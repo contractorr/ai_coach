@@ -33,7 +33,7 @@ export interface BriefingGoal {
 }
 
 export interface DailyBriefItem {
-  kind: "stale_goal" | "recommendation" | "learning" | "nudge" | "intel_match";
+  kind: "stale_goal" | "recommendation" | "nudge" | "intel_match";
   title: string;
   description: string;
   time_minutes: number;

@@ -13,8 +13,8 @@ export type TargetType =
   | "intel"
   | "journal"
   | "research"
-  | "signal"
-  | "pattern";
+  | "insight"
+  | "suggestion";
 
 export function logEngagement(
   token: string,

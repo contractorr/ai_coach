@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 
 @dataclass
 class DailyBriefItem:
-    kind: str  # "stale_goal" | "recommendation" | "learning" | "nudge" | "intel_match"
+    kind: str  # "stale_goal" | "recommendation" | "nudge" | "intel_match"
     title: str
     description: str
     time_minutes: int
@@ -27,7 +27,6 @@ class DailyBrief:
 _TIME = {
     "stale_goal": 10,
     "recommendation": 15,
-    "learning": 45,
     "nudge": 5,
     "intel_match": 5,
 }
@@ -37,7 +36,6 @@ _BASE_URGENCY = {
     "stale_goal": 0.7,
     "intel_match": 0.5,
     "recommendation": 0.4,
-    "learning": 0.3,
     "nudge": 0.1,
 }
 
@@ -74,14 +72,6 @@ def _score_recommendation(idx: int) -> float:
     return _BASE_URGENCY["recommendation"] * (1.0 - 0.1 * min(idx, 5))
 
 
-def _score_learning(lp: dict) -> float:
-    """Score a learning path — closer to completion = higher urgency."""
-    done = lp.get("completed_modules", 0)
-    total = lp.get("total_modules", 1)
-    progress = done / max(total, 1)
-    return _BASE_URGENCY["learning"] + 0.2 * progress
-
-
 class DailyBriefBuilder:
     """Build a time-budgeted daily brief from pre-gathered data (no I/O).
 
@@ -94,7 +84,6 @@ class DailyBriefBuilder:
         *,
         stale_goals: list[dict],
         recommendations: list,
-        learning_paths: list[dict],
         all_goals: list[dict],
         weekly_hours: int = 5,
         intel_matches: list[dict] | None = None,
@@ -148,22 +137,6 @@ class DailyBriefBuilder:
                     action=f"Tell me more about: {title}",
                     priority=0,
                     _rank_score=_score_recommendation(idx),
-                )
-            )
-
-        for lp in learning_paths:
-            if lp.get("status", "active") != "active":
-                continue
-            skill = lp.get("skill", "")
-            candidates.append(
-                DailyBriefItem(
-                    kind="learning",
-                    title=f"Learn: {skill}",
-                    description=f"{lp.get('completed_modules', 0)}/{lp.get('total_modules', 0)} modules done",
-                    time_minutes=_TIME["learning"],
-                    action=f"Help me make progress on learning {skill}",
-                    priority=0,
-                    _rank_score=_score_learning(lp),
                 )
             )
 
