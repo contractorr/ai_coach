@@ -23,6 +23,7 @@ export interface BriefingRecommendation {
   status: string;
   reasoning_trace?: ReasoningTrace | null;
   critic?: CriticData | null;
+  watchlist_evidence?: string[];
 }
 
 export interface BriefingGoal {

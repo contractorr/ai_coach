@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useToken } from "@/hooks/useToken";
 import {
+  Bookmark,
   ChevronDown,
   ChevronRight,
   ExternalLink,
@@ -36,6 +37,25 @@ interface IntelItem {
   tags?: string[];
   relevance_score?: number;
   match_reasons?: string[];
+  watchlist_score?: number;
+  why_this_matters?: string;
+  watchlist_matches?: {
+    watchlist_id: string;
+    label: string;
+    priority: "high" | "medium" | "low";
+    matched_terms: string[];
+    why: string;
+    score: number;
+  }[];
+  follow_up?: {
+    url: string;
+    title: string;
+    saved: boolean;
+    note: string;
+    watchlist_ids: string[];
+    created_at?: string;
+    updated_at?: string;
+  };
 }
 
 interface TrendingTopic {
@@ -323,6 +343,8 @@ export default function IntelPage() {
   const [scraping, setScraping] = useState(false);
   const [trendingKey, setTrendingKey] = useState(0);
   const [visibleCount, setVisibleCount] = useState(FEED_PAGE_SIZE);
+  const [savingUrl, setSavingUrl] = useState<string | null>(null);
+  const [notingUrl, setNotingUrl] = useState<string | null>(null);
 
   const loadRecent = () => {
     if (!token) {
@@ -370,6 +392,55 @@ export default function IntelPage() {
       toast.error((e as Error).message);
     } finally {
       setScraping(false);
+    }
+  };
+
+  const upsertFollowUp = async (item: IntelItem, saved: boolean, note: string) => {
+    if (!token) return;
+    const watchlistIds = (item.watchlist_matches || []).map((match) => match.watchlist_id);
+    const entry = await apiFetch<IntelItem["follow_up"]>(
+      "/api/intel/follow-ups",
+      {
+        method: "PUT",
+        body: JSON.stringify({
+          url: item.url,
+          title: item.title,
+          saved,
+          note,
+          watchlist_ids: watchlistIds,
+        }),
+      },
+      token
+    );
+    setItems((prev) => prev.map((existing) => (
+      existing.url === item.url ? { ...existing, follow_up: entry } : existing
+    )));
+  };
+
+  const handleSaveItem = async (item: IntelItem) => {
+    setSavingUrl(item.url);
+    try {
+      const nextSaved = !item.follow_up?.saved;
+      await upsertFollowUp(item, nextSaved, item.follow_up?.note || "");
+      toast.success(nextSaved ? "Saved for follow-up" : "Removed from saved items");
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setSavingUrl(null);
+    }
+  };
+
+  const handleNoteItem = async (item: IntelItem) => {
+    setNotingUrl(item.url);
+    try {
+      const draft = window.prompt("Add a short note for later follow-up", item.follow_up?.note || "");
+      if (draft == null) return;
+      await upsertFollowUp(item, item.follow_up?.saved ?? true, draft);
+      toast.success(draft.trim() ? "Note saved" : "Note cleared");
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setNotingUrl(null);
     }
   };
 
@@ -487,6 +558,11 @@ export default function IntelPage() {
                           {item.relevance_score != null && item.relevance_score > 0.1 && (
                             <Badge variant="default" className="text-xs bg-primary/80">For you</Badge>
                           )}
+                          {item.watchlist_matches && item.watchlist_matches.length > 0 && (
+                            <Badge variant="default" className="text-xs bg-emerald-600/90">
+                              Watchlist: {item.watchlist_matches[0].label}
+                            </Badge>
+                          )}
                           {item.published && (
                             <span>{new Date(item.published).toLocaleDateString()}</span>
                           )}
@@ -501,6 +577,14 @@ export default function IntelPage() {
                   </CardHeader>
                   <CardContent>
                     <p className="text-sm text-muted-foreground">{item.summary}</p>
+                    {item.why_this_matters && (
+                      <div className="mt-3 rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3">
+                        <p className="text-xs font-medium uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
+                          Why this matters to you
+                        </p>
+                        <p className="mt-1 text-sm text-muted-foreground">{item.why_this_matters}</p>
+                      </div>
+                    )}
                     {item.tags && item.tags.length > 0 && (
                       <div className="mt-2 flex flex-wrap gap-1">
                         {item.tags.map((t) => (
@@ -509,6 +593,37 @@ export default function IntelPage() {
                           </Badge>
                         ))}
                       </div>
+                    )}
+                    {item.watchlist_matches && item.watchlist_matches.length > 1 && (
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        {item.watchlist_matches.slice(1).map((match) => (
+                          <Badge key={match.watchlist_id} variant="outline" className="text-xs">
+                            Also matched: {match.label}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <Button
+                        size="sm"
+                        variant={item.follow_up?.saved ? "default" : "outline"}
+                        onClick={() => handleSaveItem(item)}
+                        disabled={savingUrl === item.url}
+                      >
+                        <Bookmark className="mr-1 h-3 w-3" />
+                        {savingUrl === item.url ? "Saving..." : item.follow_up?.saved ? "Saved" : "Save"}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleNoteItem(item)}
+                        disabled={notingUrl === item.url}
+                      >
+                        {notingUrl === item.url ? "Saving note..." : item.follow_up?.note ? "Edit Note" : "Add Note"}
+                      </Button>
+                    </div>
+                    {item.follow_up?.note && (
+                      <p className="mt-2 text-sm text-muted-foreground">Note: {item.follow_up.note}</p>
                     )}
                   </CardContent>
                 </Card>

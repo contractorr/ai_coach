@@ -1,5 +1,6 @@
 """Intelligence feed routes."""
 
+from pathlib import Path
 from urllib.parse import urlparse
 
 import httpx
@@ -7,8 +8,16 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
 from intelligence.scraper import IntelStorage
+from intelligence.watchlist import (
+    IntelFollowUpStore,
+    WatchlistStore,
+    annotate_items,
+    attach_follow_up_state,
+    sort_ranked_items,
+)
 from web.auth import get_current_user
-from web.deps import get_coach_paths, get_config
+from web.deps import get_coach_paths, get_config, get_user_paths
+from web.models import IntelFollowUp, WatchlistItem
 from web.user_store import (
     add_user_rss_feed,
     get_user_rss_feeds,
@@ -27,9 +36,51 @@ class RSSFeedRemove(BaseModel):
     url: str
 
 
+class WatchlistUpsert(BaseModel):
+    label: str
+    kind: str = "theme"
+    aliases: list[str] = []
+    why: str = ""
+    priority: str = "medium"
+    tags: list[str] = []
+    goal: str = ""
+    time_horizon: str = "quarter"
+    source_preferences: list[str] = []
+
+
+class FollowUpUpsert(BaseModel):
+    url: str
+    title: str
+    saved: bool = False
+    note: str = ""
+    watchlist_ids: list[str] = []
+
+
 def _get_storage() -> IntelStorage:
     paths = get_coach_paths()
     return IntelStorage(paths["intel_db"])
+
+
+def _get_watchlist_store(user_id: str) -> WatchlistStore:
+    paths = get_user_paths(user_id)
+    base = Path(paths["profile"]).parent
+    return WatchlistStore(base / "watchlist.json")
+
+
+def _get_follow_up_store(user_id: str) -> IntelFollowUpStore:
+    paths = get_user_paths(user_id)
+    base = Path(paths["profile"]).parent
+    return IntelFollowUpStore(base / "intel_follow_ups.json")
+
+
+def _apply_watchlist_state(items: list[dict], user_id: str) -> list[dict]:
+    watchlist_items = _get_watchlist_store(user_id).list_items()
+    if watchlist_items:
+        annotate_items(items, watchlist_items)
+        sort_ranked = sort_ranked_items(items)
+        items[:] = sort_ranked
+    attach_follow_up_state(items, _get_follow_up_store(user_id))
+    return items
 
 
 @router.get("/recent")
@@ -49,7 +100,6 @@ async def get_recent(
     # Personalize: score items against user profile (mirrors _personalize_trending)
     try:
         from intelligence.search import load_profile_terms, score_profile_relevance
-        from web.deps import get_user_paths
 
         profile_path = get_user_paths(user["id"])["profile"]
         terms = load_profile_terms(profile_path)
@@ -61,6 +111,8 @@ async def get_recent(
     except Exception:
         pass
 
+    _apply_watchlist_state(items, user["id"])
+
     return items
 
 
@@ -71,7 +123,51 @@ async def search_intel(
     user: dict = Depends(get_current_user),
 ):
     storage = _get_storage()
-    return storage.search(q, limit=limit)
+    items = storage.search(q, limit=limit)
+    _apply_watchlist_state(items, user["id"])
+    return items
+
+
+@router.get("/watchlist", response_model=list[WatchlistItem])
+async def list_watchlist(user: dict = Depends(get_current_user)):
+    return _get_watchlist_store(user["id"]).list_items()
+
+
+@router.post("/watchlist", response_model=WatchlistItem)
+async def create_watchlist_item(body: WatchlistUpsert, user: dict = Depends(get_current_user)):
+    item = _get_watchlist_store(user["id"]).save_item(body.model_dump())
+    return WatchlistItem(**item)
+
+
+@router.patch("/watchlist/{item_id}", response_model=WatchlistItem)
+async def update_watchlist_item(
+    item_id: str,
+    body: WatchlistUpsert,
+    user: dict = Depends(get_current_user),
+):
+    item = _get_watchlist_store(user["id"]).update_item(item_id, body.model_dump())
+    if not item:
+        raise HTTPException(status_code=404, detail="Watchlist item not found")
+    return WatchlistItem(**item)
+
+
+@router.delete("/watchlist/{item_id}")
+async def delete_watchlist_item(item_id: str, user: dict = Depends(get_current_user)):
+    deleted = _get_watchlist_store(user["id"]).delete_item(item_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Watchlist item not found")
+    return {"ok": True}
+
+
+@router.get("/follow-ups", response_model=list[IntelFollowUp])
+async def list_follow_ups(user: dict = Depends(get_current_user)):
+    return _get_follow_up_store(user["id"]).list_items()
+
+
+@router.put("/follow-ups", response_model=IntelFollowUp)
+async def save_follow_up(body: FollowUpUpsert, user: dict = Depends(get_current_user)):
+    entry = _get_follow_up_store(user["id"]).upsert(**body.model_dump())
+    return IntelFollowUp(**entry)
 
 
 @router.get("/health")

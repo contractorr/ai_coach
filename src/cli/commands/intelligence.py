@@ -8,8 +8,14 @@ from rich.table import Table
 
 from cli.utils import get_components
 from intelligence.scheduler import IntelScheduler
+from intelligence.watchlist import WatchlistStore
 
 console = Console()
+
+
+def _get_watchlist_store() -> WatchlistStore:
+    c = get_components(skip_advisor=True)
+    return WatchlistStore(c["paths"]["intel_db"].parent / "watchlist.json")
 
 
 @click.command()
@@ -253,3 +259,130 @@ def dedup_backfill(days: int, threshold: float, dry_run: bool):
 
     action = "would mark" if dry_run else "marked"
     console.print(f"[green]Done:[/] {action} {deduped}/{total} items as duplicates")
+
+
+@click.group()
+def watchlist():
+    """Manage tracked entities and themes for bespoke intel ranking."""
+
+
+@watchlist.command("list")
+def watchlist_list():
+    """List watchlist items."""
+    items = _get_watchlist_store().list_items()
+    if not items:
+        console.print("[yellow]No watchlist items yet. Add one with 'coach watchlist add'.[/]")
+        return
+
+    table = Table(show_header=True, title="Watchlist")
+    table.add_column("ID", style="dim")
+    table.add_column("Label", style="cyan")
+    table.add_column("Kind")
+    table.add_column("Priority")
+    table.add_column("Why")
+
+    for item in items:
+        table.add_row(
+            item["id"],
+            item["label"],
+            item.get("kind", "theme"),
+            item.get("priority", "medium"),
+            (item.get("why") or "")[:60],
+        )
+
+    console.print(table)
+
+
+@watchlist.command("add")
+@click.argument("label")
+@click.option("--kind", default="theme", help="Item type, e.g. company or technology")
+@click.option("--priority", default="medium", type=click.Choice(["high", "medium", "low"]))
+@click.option("--why", default="", help="Why this matters to you")
+@click.option("--alias", "aliases", multiple=True, help="Alternate term; can be repeated")
+@click.option("--tag", "tags", multiple=True, help="Tag; can be repeated")
+@click.option("--goal", default="", help="Optional linked goal")
+@click.option("--time-horizon", default="quarter", help="Optional horizon label")
+@click.option("--source", "sources", multiple=True, help="Preferred source; can be repeated")
+def watchlist_add(
+    label: str,
+    kind: str,
+    priority: str,
+    why: str,
+    aliases: tuple[str, ...],
+    tags: tuple[str, ...],
+    goal: str,
+    time_horizon: str,
+    sources: tuple[str, ...],
+):
+    """Add a watchlist item."""
+    item = _get_watchlist_store().save_item(
+        {
+            "label": label,
+            "kind": kind,
+            "priority": priority,
+            "why": why,
+            "aliases": list(aliases),
+            "tags": list(tags),
+            "goal": goal,
+            "time_horizon": time_horizon,
+            "source_preferences": list(sources),
+        }
+    )
+    console.print(f"[green]Saved[/] watchlist item {item['label']} ({item['id']})")
+
+
+@watchlist.command("update")
+@click.argument("item_id")
+@click.option("--label", default=None)
+@click.option("--kind", default=None)
+@click.option("--priority", default=None, type=click.Choice(["high", "medium", "low"]))
+@click.option("--why", default=None)
+@click.option("--aliases", default=None, help="Comma-separated aliases")
+@click.option("--tags", default=None, help="Comma-separated tags")
+@click.option("--goal", default=None)
+@click.option("--time-horizon", default=None)
+@click.option("--sources", default=None, help="Comma-separated preferred sources")
+def watchlist_update(
+    item_id: str,
+    label: str | None,
+    kind: str | None,
+    priority: str | None,
+    why: str | None,
+    aliases: str | None,
+    tags: str | None,
+    goal: str | None,
+    time_horizon: str | None,
+    sources: str | None,
+):
+    """Update a watchlist item."""
+    updates = {
+        key: value
+        for key, value in {
+            "label": label,
+            "kind": kind,
+            "priority": priority,
+            "why": why,
+            "aliases": [part.strip() for part in aliases.split(",")] if aliases is not None else None,
+            "tags": [part.strip() for part in tags.split(",")] if tags is not None else None,
+            "goal": goal,
+            "time_horizon": time_horizon,
+            "source_preferences": [part.strip() for part in sources.split(",")] if sources is not None else None,
+        }.items()
+        if value is not None
+    }
+    item = _get_watchlist_store().update_item(item_id, updates)
+    if not item:
+        console.print(f"[red]Watchlist item not found:[/] {item_id}")
+        raise SystemExit(1)
+    console.print(f"[green]Updated[/] watchlist item {item['label']} ({item['id']})")
+
+
+@watchlist.command("remove")
+@click.argument("item_id")
+def watchlist_remove(item_id: str):
+    """Remove a watchlist item."""
+    deleted = _get_watchlist_store().delete_item(item_id)
+    if not deleted:
+        console.print(f"[red]Watchlist item not found:[/] {item_id}")
+        raise SystemExit(1)
+    console.print(f"[green]Removed[/] watchlist item {item_id}")

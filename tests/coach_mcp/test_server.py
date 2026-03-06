@@ -1,6 +1,7 @@
 """Tests for MCP server init and tool listing."""
 
 import json
+from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
@@ -15,7 +16,7 @@ def mock_components():
     components = {
         "config": {"paths": {"intel_db": "/tmp/test_intel.db"}},
         "config_model": MagicMock(),
-        "paths": {"journal_dir": "/tmp/test_journal", "chroma_dir": "/tmp/test_chroma"},
+        "paths": {"journal_dir": "/tmp/test_journal", "chroma_dir": "/tmp/test_chroma", "intel_db": Path("/tmp/test_intel.db")},
         "storage": MagicMock(),
         "embeddings": MagicMock(),
         "search": MagicMock(),
@@ -36,8 +37,8 @@ def test_load_tools_returns_20(mock_components):
     from coach_mcp.server import _load_tools
 
     tools, handlers = _load_tools()
-    assert len(tools) == 37
-    assert len(handlers) == 37
+    assert len(tools) == 42
+    assert len(handlers) == 42
 
 
 def test_load_tools_names(mock_components):
@@ -65,11 +66,16 @@ def test_load_tools_names(mock_components):
         "intel_scrape_now",
         "events_upcoming",
         "intel_trending_radar",
+        "watchlist_list",
+        "watchlist_upsert",
+        "watchlist_delete",
         "recommendations_list",
         "recommendations_update_status",
         "recommendations_rate",
         "research_topics",
         "research_run",
+        "research_dossiers_list",
+        "research_dossier_create",
         "get_reflection_prompts",
         "profile_get",
         "profile_update_field",
@@ -132,4 +138,4 @@ async def test_list_tools_async(mock_components):
     from coach_mcp.server import list_tools
 
     tools = await list_tools()
-    assert len(tools) == 37
+    assert len(tools) == 42

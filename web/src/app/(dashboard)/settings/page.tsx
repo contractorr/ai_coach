@@ -56,6 +56,17 @@ interface RSSFeed {
   created_at: string;
 }
 
+interface WatchlistItem {
+  id: string;
+  label: string;
+  kind: string;
+  why: string;
+  priority: "high" | "medium" | "low";
+  tags: string[];
+  created_at: string;
+  updated_at: string;
+}
+
 interface ProfileData {
   current_role: string;
   career_stage: string;
@@ -371,6 +382,14 @@ export default function SettingsPage() {
   const [rssUrl, setRssUrl] = useState("");
   const [rssAdding, setRssAdding] = useState(false);
   const [rssRemoving, setRssRemoving] = useState<string | null>(null);
+  const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
+  const [watchLabel, setWatchLabel] = useState("");
+  const [watchWhy, setWatchWhy] = useState("");
+  const [watchTags, setWatchTags] = useState("");
+  const [watchPriority, setWatchPriority] = useState<"high" | "medium" | "low">("medium");
+  const [watchSaving, setWatchSaving] = useState(false);
+  const [watchRemoving, setWatchRemoving] = useState<string | null>(null);
+  const [editingWatchId, setEditingWatchId] = useState<string | null>(null);
 
   const isDirty = Object.keys(form).length > 0;
 
@@ -388,7 +407,18 @@ export default function SettingsPage() {
     apiFetch<RSSFeed[]>("/api/intel/rss-feeds", {}, token)
       .then(setRssFeeds)
       .catch(() => {});
+    apiFetch<WatchlistItem[]>("/api/intel/watchlist", {}, token)
+      .then(setWatchlist)
+      .catch(() => {});
   }, [token]);
+
+  const resetWatchForm = () => {
+    setWatchLabel("");
+    setWatchWhy("");
+    setWatchTags("");
+    setWatchPriority("medium");
+    setEditingWatchId(null);
+  };
 
   const handleSaveName = async () => {
     if (!token) return;
@@ -466,6 +496,61 @@ export default function SettingsPage() {
       toast.error((e as Error).message);
     } finally {
       setRssRemoving(null);
+    }
+  };
+
+  const handleSaveWatch = async () => {
+    if (!token || !watchLabel.trim()) return;
+    setWatchSaving(true);
+    try {
+      const payload = {
+        label: watchLabel.trim(),
+        why: watchWhy.trim(),
+        priority: watchPriority,
+        tags: watchTags.split(",").map((part) => part.trim()).filter(Boolean),
+      };
+      const endpoint = editingWatchId
+        ? `/api/intel/watchlist/${editingWatchId}`
+        : "/api/intel/watchlist";
+      const method = editingWatchId ? "PATCH" : "POST";
+      const saved = await apiFetch<WatchlistItem>(
+        endpoint,
+        { method, body: JSON.stringify(payload) },
+        token
+      );
+      setWatchlist((prev) => {
+        const others = prev.filter((item) => item.id !== saved.id);
+        return [saved, ...others].sort((a, b) => a.label.localeCompare(b.label));
+      });
+      resetWatchForm();
+      toast.success(editingWatchId ? "Watchlist item updated" : "Watchlist item added");
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setWatchSaving(false);
+    }
+  };
+
+  const handleEditWatch = (item: WatchlistItem) => {
+    setEditingWatchId(item.id);
+    setWatchLabel(item.label);
+    setWatchWhy(item.why || "");
+    setWatchPriority(item.priority || "medium");
+    setWatchTags((item.tags || []).join(", "));
+  };
+
+  const handleRemoveWatch = async (itemId: string) => {
+    if (!token) return;
+    setWatchRemoving(itemId);
+    try {
+      await apiFetch(`/api/intel/watchlist/${itemId}`, { method: "DELETE" }, token);
+      setWatchlist((prev) => prev.filter((item) => item.id !== itemId));
+      if (editingWatchId === itemId) resetWatchForm();
+      toast.success("Watchlist item removed");
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setWatchRemoving(null);
     }
   };
 
@@ -655,6 +740,115 @@ export default function SettingsPage() {
               {rssAdding ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Plus className="mr-1 h-3 w-3" />}
               Add
             </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Watchlist</CardTitle>
+          <CardDescription>
+            Track specific companies, technologies, roles, or themes so Radar can rank bespoke matches first.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            {watchlist.length === 0 && (
+              <p className="text-sm text-muted-foreground">
+                No watchlist items yet. Add a few themes you want me to track closely.
+              </p>
+            )}
+            {watchlist.map((item) => (
+              <div key={item.id} className="flex items-start justify-between gap-3 rounded-xl border p-3">
+                <div className="min-w-0 flex-1 space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="font-medium">{item.label}</p>
+                    <Badge variant="outline" className="text-[10px]">{item.priority}</Badge>
+                  </div>
+                  {item.why && <p className="text-sm text-muted-foreground">{item.why}</p>}
+                  {item.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1 pt-1">
+                      {item.tags.map((tag) => (
+                        <Badge key={tag} variant="secondary" className="text-[10px]">{tag}</Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => handleEditWatch(item)}>
+                    <Pencil className="h-3 w-3" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-7 w-7"
+                    disabled={watchRemoving === item.id}
+                    onClick={() => handleRemoveWatch(item.id)}
+                  >
+                    {watchRemoving === item.id
+                      ? <Loader2 className="h-3 w-3 animate-spin" />
+                      : <Trash2 className="h-3 w-3" />}
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <Separator />
+
+          <div className="space-y-3">
+            <div>
+              <Label className="text-xs text-muted-foreground">What should I watch?</Label>
+              <Input
+                value={watchLabel}
+                onChange={(e) => setWatchLabel(e.target.value)}
+                placeholder="e.g. OpenAI, AI agents, staff+ roles"
+                className="mt-1 h-8 text-sm"
+              />
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Why it matters</Label>
+              <Textarea
+                value={watchWhy}
+                onChange={(e) => setWatchWhy(e.target.value)}
+                placeholder="e.g. relevant to my next role and current product bets"
+                className="mt-1 min-h-[70px] text-sm"
+              />
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <Label className="text-xs text-muted-foreground">Priority</Label>
+                <Select value={watchPriority} onValueChange={(value) => setWatchPriority(value as "high" | "medium" | "low") }>
+                  <SelectTrigger className="mt-1 h-8 text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="high">High</SelectItem>
+                    <SelectItem value="medium">Medium</SelectItem>
+                    <SelectItem value="low">Low</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">Tags</Label>
+                <Input
+                  value={watchTags}
+                  onChange={(e) => setWatchTags(e.target.value)}
+                  placeholder="career, startup, infrastructure"
+                  className="mt-1 h-8 text-sm"
+                />
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={handleSaveWatch} disabled={watchSaving || !watchLabel.trim()}>
+                {watchSaving ? "Saving..." : editingWatchId ? "Update Watch" : "Add Watch"}
+              </Button>
+              {editingWatchId && (
+                <Button variant="ghost" onClick={resetWatchForm}>
+                  Cancel
+                </Button>
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>

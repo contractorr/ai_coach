@@ -15,6 +15,7 @@ from .intelligence import (
     scrape,
     scraper_health,
     sources,
+    watchlist,
 )
 from .journal import journal
 from .memory import memory
@@ -38,6 +39,7 @@ __all__ = [
     "intel_export",
     "radar",
     "scraper_health",
+    "watchlist",
     "daemon",
     "db",
     "research",

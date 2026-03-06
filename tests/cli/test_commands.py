@@ -171,6 +171,23 @@ class TestIntelCommands:
         result = runner.invoke(cli, ["sources"])
         assert result.exit_code == 0
 
+    def test_watchlist_add_list_remove(self, runner, patch_components):
+        add_result = runner.invoke(
+            cli,
+            ["watchlist", "add", "OpenAI", "--priority", "high", "--why", "Career relevance"],
+        )
+        assert add_result.exit_code == 0
+        assert "Saved" in add_result.output
+
+        list_result = runner.invoke(cli, ["watchlist", "list"])
+        assert list_result.exit_code == 0
+        assert "OpenAI" in list_result.output
+
+        item_id = add_result.output.strip().split("(")[-1].rstrip(")")
+        remove_result = runner.invoke(cli, ["watchlist", "remove", item_id])
+        assert remove_result.exit_code == 0
+        assert "Removed" in remove_result.output
+
 
 # -- Goals command --
 

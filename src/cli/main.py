@@ -36,6 +36,7 @@ from cli.commands import (
     threads,
     today,
     trends,
+    watchlist,
 )
 from cli.config import load_config, setup_logging
 
@@ -79,6 +80,7 @@ cli.add_command(reflect)
 cli.add_command(today)
 cli.add_command(radar)
 cli.add_command(scraper_health)
+cli.add_command(watchlist)
 cli.add_command(eval_cmd)
 cli.add_command(dedup_backfill)
 

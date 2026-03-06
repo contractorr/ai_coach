@@ -212,6 +212,7 @@ class InsightResponse(BaseModel):
     created_at: str = ""
     expires_at: Optional[str] = None
     insight_hash: str = ""
+    watchlist_evidence: list[str] = []
 
 
 class ReasoningTrace(BaseModel):
@@ -241,6 +242,32 @@ class BriefingRecommendation(BaseModel):
     status: str = ""
     reasoning_trace: Optional[ReasoningTrace] = None
     critic: Optional[CriticData] = None
+    watchlist_evidence: list[str] = []
+
+
+class WatchlistItem(BaseModel):
+    id: str = ""
+    label: str = ""
+    kind: str = "theme"
+    aliases: list[str] = []
+    why: str = ""
+    priority: str = "medium"
+    tags: list[str] = []
+    goal: str = ""
+    time_horizon: str = "quarter"
+    source_preferences: list[str] = []
+    created_at: str = ""
+    updated_at: str = ""
+
+
+class IntelFollowUp(BaseModel):
+    url: str = ""
+    title: str = ""
+    saved: bool = False
+    note: str = ""
+    watchlist_ids: list[str] = []
+    created_at: str = ""
+    updated_at: str = ""
 
 
 class BriefingGoal(BaseModel):
