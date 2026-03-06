@@ -252,7 +252,6 @@ class TestAdjustScore:
 
         s = RecommendationScorer()
         s._category_boosts = {"career": 0.5}
-        s._outcome_boosts = {"career": 0.3}
         s._rating_boosts = {"career": 0.5}
-        # 6.0 + 0.5 + 0.3 + 0.5 = 7.3
-        assert s.adjust_score(6.0, "career") == pytest.approx(7.3)
+        # 6.0 + 0.5 + 0.5 = 7.0
+        assert s.adjust_score(6.0, "career") == pytest.approx(7.0)

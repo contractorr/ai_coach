@@ -97,22 +97,6 @@ class ScoringConfig(BaseModel):
 
     min_threshold: float = 6.0
     max_per_category: int = 3
-    weights: dict = Field(
-        default_factory=lambda: {
-            "relevance": 0.3,
-            "urgency": 0.25,
-            "feasibility": 0.25,
-            "impact": 0.2,
-        }
-    )
-
-    @model_validator(mode="after")
-    def validate_weights(self):
-        """Ensure weights sum to 1.0."""
-        total = sum(self.weights.values())
-        if not 0.99 <= total <= 1.01:
-            raise ValueError(f"Scoring weights must sum to 1.0, got {total}")
-        return self
 
 
 class RAGConfig(BaseModel):

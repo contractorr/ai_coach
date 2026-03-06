@@ -1,22 +1,3 @@
-export interface BriefingSignal {
-  id: number;
-  type: string;
-  severity: number;
-  title: string;
-  detail: string;
-  suggested_actions: string[];
-  evidence: string[];
-  created_at: string;
-}
-
-export interface BriefingPattern {
-  type: string;
-  confidence: number;
-  summary: string;
-  evidence: string[];
-  coaching_prompt: string;
-}
-
 export interface ReasoningTrace {
   source_signal: string;
   profile_match: string;
@@ -82,8 +63,6 @@ export interface GoalIntelMatch {
 }
 
 export interface BriefingResponse {
-  signals: BriefingSignal[];
-  patterns: BriefingPattern[];
   recommendations: BriefingRecommendation[];
   stale_goals: BriefingGoal[];
   goals: BriefingGoal[];

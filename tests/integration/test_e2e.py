@@ -46,22 +46,6 @@ class TestConfigValidation:
             )
         assert "log level" in str(exc.value).lower()
 
-    def test_scoring_weights_must_sum_to_one(self):
-        """Test scoring weights validation."""
-        from cli.config_models import CoachConfig
-
-        with pytest.raises(ValidationError) as exc:
-            CoachConfig.from_dict(
-                {
-                    "recommendations": {
-                        "scoring": {
-                            "weights": {"relevance": 0.5, "urgency": 0.5, "feasibility": 0.5}
-                        }
-                    }
-                }
-            )
-        assert "sum to 1" in str(exc.value).lower()
-
     def test_env_var_expansion(self, monkeypatch):
         """Test environment variable expansion in API keys."""
         from cli.config_models import CoachConfig

@@ -313,7 +313,7 @@ State is process-local; multiple worker processes do not share rate limit counte
 
 ### Route Modules
 **File:** `src/web/routes/*.py`
-**Status:** Stable (settings, journal, advisor, profile, user, engagement, pageview, admin) / Experimental (goals, intel, research, briefing, recommendations, learning, heartbeat, memory, threads, predictions, onboarding)
+**Status:** Stable (settings, journal, advisor, profile, user, engagement, pageview, admin) / Experimental (goals, intel, research, briefing, recommendations, learning, insights, memory, threads, onboarding)
 
 #### Behavior
 
@@ -343,6 +343,9 @@ Each step is independent try/except; step 2 is skipped if step 1 fails (needs em
 **Admin route** (`admin.py`):
 `GET /api/admin/stats?days=30` requires `get_admin_user` (admin-only). Returns `get_usage_stats(days)`. Days param: 1–365.
 
+**Insights route** (`insights.py`):
+`GET /api/insights` — Queries `InsightStore.get_active()`. Query params: `type` (optional `InsightType`), `min_severity` (int, default 1), `limit` (int, default 20). Returns `list[InsightResponse]` where each item mirrors an `insights` table row. Backed by `InsightStore` in `~/coach/intel.db`.
+
 **Settings route** (`settings.py`):
 `GET /api/settings` — Returns `SettingsResponse` with bool mask (no raw keys exposed).
 `PUT /api/settings` — Encrypts each field via `set_user_secret`. Accepted fields: `llm_provider`, `llm_model`, `llm_api_key`, `tavily_api_key`, `github_token`, `eventbrite_token`.
@@ -366,7 +369,7 @@ Each step is independent try/except; step 2 is skipped if step 1 fails (needs em
 | `intel` | `/api/intel` | List intel items (shared DB) |
 | `research` | `/api/research` | List topics, `POST /run` |
 | `onboarding` | `/api/onboarding` | Chat interview, profile-status, feeds (see profile.md) |
-| `briefing` | `/api/briefing` | Daily briefing, signals, recommendations |
+| `briefing` | `/api/briefing` | Daily briefing, recommendations |
 | `recommendations` | `/api/recommendations` | List/get/update recommendations |
 | `engagement` | `/api/engagement` | Log events, get stats |
 | `profile` | `/api/profile` | `GET/PUT` profile |
@@ -375,10 +378,9 @@ Each step is independent try/except; step 2 is skipped if step 1 fails (needs em
 | `learning` | `/api/learning` | DEPRECATED — merged into goals (Phase 2). Routes to be removed |
 | `greeting` | `/api/greeting` | Cached personalized greeting for chat-first home |
 | `admin` | `/api/admin` | `GET /stats` (admin only) |
-| `heartbeat` | `/api/heartbeat` | Notifications, status |
+| `insights` | `/api/insights` | `GET` active insights |
 | `memory` | `/api/memory` | Facts CRUD, stats |
 | `threads` | `/api/threads` | List threads, entries, reindex |
-| `predictions` | `/api/predictions` | List, review, stats |
 
 #### Invariants
 

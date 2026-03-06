@@ -30,13 +30,11 @@ _TIME = {
     "learning": 45,
     "nudge": 5,
     "intel_match": 5,
-    "prediction": 5,
 }
 
 # Base urgency scores per kind — higher = more urgent by default
 _BASE_URGENCY = {
     "stale_goal": 0.7,
-    "prediction": 0.6,
     "intel_match": 0.5,
     "recommendation": 0.4,
     "learning": 0.3,
@@ -84,15 +82,6 @@ def _score_learning(lp: dict) -> float:
     return _BASE_URGENCY["learning"] + 0.2 * progress
 
 
-def _score_prediction(p: dict) -> float:
-    """Score a prediction — more overdue = higher urgency."""
-    try:
-        days_past = max(0, (datetime.now() - datetime.fromisoformat(p["evaluation_due"])).days)
-    except (ValueError, KeyError):
-        days_past = 0
-    return _BASE_URGENCY["prediction"] + 0.3 * min(1.0, days_past / 14)
-
-
 class DailyBriefBuilder:
     """Build a time-budgeted daily brief from pre-gathered data (no I/O).
 
@@ -109,7 +98,6 @@ class DailyBriefBuilder:
         all_goals: list[dict],
         weekly_hours: int = 5,
         intel_matches: list[dict] | None = None,
-        predictions_due: list[dict] | None = None,
     ) -> DailyBrief:
         budget = round(weekly_hours * 60 / 7)
         cap = _max_items(budget)
@@ -145,19 +133,6 @@ class DailyBriefBuilder:
                     action=f"Tell me about this and how it relates to my goal: {m.get('title', '')}",
                     priority=0,
                     _rank_score=_score_intel_match(m),
-                )
-            )
-
-        for p in predictions_due or []:
-            candidates.append(
-                DailyBriefItem(
-                    kind="prediction",
-                    title=f"Review: {p.get('claim_text', '')[:50]}",
-                    description=f"{p.get('category', '')} | {p.get('confidence_bucket', '')} confidence",
-                    time_minutes=_TIME["prediction"],
-                    action=f"Review prediction outcome: {p.get('claim_text', '')[:80]}",
-                    priority=0,
-                    _rank_score=_score_prediction(p),
                 )
             )
 

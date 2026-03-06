@@ -103,7 +103,7 @@ def client(jwt_secret, secret_key, tmp_path, users_db):
         patch("web.deps.get_user_paths", side_effect=_mock_user_paths),
         patch("web.routes.journal.get_user_paths", side_effect=_mock_user_paths),
         patch("web.routes.goals.get_user_paths", side_effect=_mock_user_paths),
-        patch("web.routes.predictions.get_user_paths", side_effect=_mock_user_paths),
+        patch("web.routes.insights.get_user_paths", side_effect=_mock_user_paths),
         patch(
             "web.routes.intel.get_coach_paths",
             return_value={

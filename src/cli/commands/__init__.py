@@ -6,7 +6,6 @@ from .daemon import daemon
 from .database import db
 from .eval_cmd import eval_cmd
 from .export import export
-from .heartbeat import heartbeat
 from .init import init
 from .intelligence import (
     brief,
@@ -19,7 +18,6 @@ from .intelligence import (
 )
 from .journal import journal
 from .memory import memory
-from .predictions import predictions
 from .profile import profile
 from .projects import projects
 from .recommend import recommend
@@ -52,9 +50,7 @@ __all__ = [
     "projects",
     "capabilities",
     "today",
-    "heartbeat",
     "memory",
-    "predictions",
     "threads",
     "eval_cmd",
     "dedup_backfill",

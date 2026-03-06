@@ -1,24 +1,19 @@
-"""Daily briefing routes — aggregates signals, patterns, recommendations, stale goals."""
+"""Daily briefing routes — aggregates recommendations, stale goals, daily brief."""
 
-import asyncio
 from pathlib import Path
 
 import structlog
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 
 from advisor.goals import GoalTracker
-from advisor.patterns import PatternDetector
 from advisor.recommendation_storage import RecommendationStorage
-from advisor.signals import SignalStore
 from journal.storage import JournalStorage
 from web.auth import get_current_user
 from web.deps import get_user_paths
 from web.models import (
     BriefingGoal,
-    BriefingPattern,
     BriefingRecommendation,
     BriefingResponse,
-    BriefingSignal,
     GoalIntelMatch,
 )
 from web.models import (
@@ -41,49 +36,11 @@ def _get_storage(user_id: str) -> JournalStorage:
 
 @router.get("", response_model=BriefingResponse)
 async def get_briefing(
-    min_signal_severity: int = Query(default=3, ge=1, le=10),
-    max_signals: int = Query(default=10, ge=1, le=50),
     max_recommendations: int = Query(default=5, ge=1, le=20),
     user: dict = Depends(get_current_user),
 ):
     paths = get_user_paths(user["id"])
     storage = _get_storage(user["id"])
-    db_path = paths["intel_db"]
-
-    # Signals
-    signals: list[dict] = []
-    try:
-        store = SignalStore(db_path)
-        signals = store.get_active(min_severity=min_signal_severity, limit=max_signals)
-    except Exception as e:
-        logger.warning("briefing.signals_error", error=str(e))
-
-    # Patterns
-    patterns: list[dict] = []
-    try:
-        embeddings = None
-        chroma_dir = paths.get("chroma_dir")
-        if chroma_dir and Path(chroma_dir).exists():
-            try:
-                from journal import EmbeddingManager
-
-                embeddings = EmbeddingManager(chroma_dir)
-            except Exception:
-                pass
-        detector = PatternDetector(storage, embeddings=embeddings)
-        raw_patterns = await asyncio.to_thread(detector.detect_all)
-        patterns = [
-            {
-                "type": p.type,
-                "confidence": p.confidence,
-                "summary": p.summary,
-                "evidence": p.evidence,
-                "coaching_prompt": p.coaching_prompt,
-            }
-            for p in raw_patterns
-        ]
-    except Exception as e:
-        logger.warning("briefing.patterns_error", error=str(e))
 
     # Recommendations
     recommendations: list[dict] = []
@@ -152,6 +109,7 @@ async def get_briefing(
     try:
         from intelligence.goal_intel_match import GoalIntelMatchStore
 
+        db_path = paths["intel_db"]
         match_store = GoalIntelMatchStore(db_path)
         goal_paths = [g["path"] for g in all_goals]
         if goal_paths:
@@ -159,21 +117,9 @@ async def get_briefing(
     except Exception as e:
         logger.warning("briefing.goal_intel_matches_error", error=str(e))
 
-    # Predictions due for review
-    predictions_due: list[dict] = []
-    try:
-        from predictions.store import PredictionStore
+    has_data = bool(recommendations or stale_goals or all_goals or goal_intel_matches)
 
-        pred_store = PredictionStore(db_path)
-        predictions_due = pred_store.get_review_due(limit=3)
-    except Exception as e:
-        logger.warning("briefing.predictions_error", error=str(e))
-
-    has_data = bool(
-        signals or patterns or recommendations or stale_goals or all_goals or goal_intel_matches
-    )
-
-    # Adaptation count — how many feedback events the user has given
+    # Adaptation count
     adaptation_count = 0
     try:
         adaptation_count = get_feedback_count(user["id"])
@@ -194,7 +140,7 @@ async def get_briefing(
             if prof and hasattr(prof, "weekly_hours_available"):
                 weekly_hours = prof.weekly_hours_available or 5
 
-        rec_list = recommendations  # already gathered above
+        rec_list = recommendations
 
         brief_data = DailyBriefBuilder().build(
             stale_goals=stale_goals,
@@ -203,7 +149,6 @@ async def get_briefing(
             all_goals=all_goals,
             weekly_hours=weekly_hours,
             intel_matches=goal_intel_matches,
-            predictions_due=predictions_due,
         )
         daily_brief = DailyBriefModel(
             items=[
@@ -225,8 +170,6 @@ async def get_briefing(
         logger.warning("briefing.daily_brief_error", error=str(e))
 
     return BriefingResponse(
-        signals=[BriefingSignal(**s) for s in signals],
-        patterns=[BriefingPattern(**p) for p in patterns],
         recommendations=[BriefingRecommendation(**r) for r in recommendations],
         stale_goals=[BriefingGoal(**g) for g in stale_goals],
         goals=[BriefingGoal(**g) for g in all_goals],
@@ -235,22 +178,3 @@ async def get_briefing(
         daily_brief=daily_brief,
         goal_intel_matches=[GoalIntelMatch(**m) for m in goal_intel_matches],
     )
-
-
-@router.post("/signals/{signal_id}/acknowledge")
-async def acknowledge_signal(
-    signal_id: int,
-    user: dict = Depends(get_current_user),
-):
-    paths = get_user_paths(user["id"])
-    try:
-        store = SignalStore(paths["intel_db"])
-        ok = store.acknowledge(signal_id)
-        if not ok:
-            raise HTTPException(status_code=404, detail="Signal not found")
-        return {"ok": True}
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("briefing.acknowledge_error", error=str(e))
-        raise HTTPException(status_code=500, detail="Failed to acknowledge signal")

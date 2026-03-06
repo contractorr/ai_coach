@@ -18,13 +18,11 @@ from cli.commands import (
     eval_cmd,
     export,
     goals,
-    heartbeat,
     init,
     intel_export,
     journal,
     memory,
     opportunities,
-    predictions,
     profile,
     projects,
     radar,
@@ -63,9 +61,7 @@ cli.add_command(export)
 cli.add_command(profile)
 cli.add_command(projects)
 cli.add_command(capabilities)
-cli.add_command(heartbeat)
 cli.add_command(memory)
-cli.add_command(predictions)
 cli.add_command(threads)
 
 # Register standalone commands

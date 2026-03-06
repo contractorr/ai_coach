@@ -56,34 +56,30 @@ def _get_proactive_context(args: dict) -> dict:
         ),
     }
 
-    # Signals
+    # Insights (signals + patterns → InsightStore, then query back)
     try:
+        from advisor.insights import InsightStore
         from advisor.signals import SignalDetector
 
         paths_config = config.get("paths", {})
         db_path = Path(paths_config.get("intel_db", "~/coach/intel.db")).expanduser()
+
+        # Run signal detection (also writes to InsightStore)
         detector = SignalDetector(storage, db_path, config)
-        signals = detector.detect_all()
-        from dataclasses import asdict
+        detector.detect_all()
 
-        result["signals"] = [
-            asdict(s) for s in sorted(signals, key=lambda s: s.severity, reverse=True)[:max_signals]
-        ]
-    except Exception as e:
-        result["signals"] = []
-        result["_signal_error"] = str(e)
-
-    # Patterns
-    try:
+        # Run pattern detection (also writes to InsightStore)
         from advisor.patterns import PatternDetector
 
-        pd = PatternDetector(storage, c.get("embeddings"), config)
-        patterns = pd.detect_all()
-        from dataclasses import asdict
+        insight_store = InsightStore(db_path)
+        pd = PatternDetector(storage, c.get("embeddings"), config, insight_store=insight_store)
+        pd.detect_all()
 
-        result["patterns"] = [asdict(p) for p in patterns]
-    except Exception:
-        result["patterns"] = []
+        # Read back from unified store
+        result["insights"] = insight_store.get_active(limit=max_signals)
+    except Exception as e:
+        result["insights"] = []
+        result["_insight_error"] = str(e)
 
     # Goals summary
     try:

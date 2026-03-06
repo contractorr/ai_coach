@@ -359,65 +359,6 @@ class ActionBriefStore:
                 )
             """)
 
-    def save_briefs(self, briefs: list[ActionBrief], cooldown_hours: int = 4) -> int:
-        """Save briefs, dedup by notification_hash within cooldown window. Returns count saved."""
-        if not briefs:
-            return 0
-        saved = 0
-        with wal_connect(self.db_path) as conn:
-            for b in briefs:
-                # Check cooldown dedup
-                existing = conn.execute(
-                    """SELECT id FROM heartbeat_notifications
-                       WHERE notification_hash = ?
-                       AND created_at > datetime('now', ?)""",
-                    (b.notification_hash, f"-{cooldown_hours} hours"),
-                ).fetchone()
-                if existing:
-                    continue
-                conn.execute(
-                    """INSERT INTO heartbeat_notifications
-                       (intel_item_id, intel_url, intel_title, intel_summary,
-                        relevance, urgency, suggested_action, reasoning,
-                        related_goal_id, notification_hash)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                    (
-                        b.intel_item_id,
-                        b.intel_url,
-                        b.intel_title,
-                        b.intel_summary,
-                        b.relevance,
-                        b.urgency,
-                        b.suggested_action,
-                        b.reasoning,
-                        b.related_goal_id,
-                        b.notification_hash,
-                    ),
-                )
-                saved += 1
-        return saved
-
-    def get_active(self, limit: int = 20) -> list[dict]:
-        """Get undismissed notifications ordered by created_at desc."""
-        with wal_connect(self.db_path) as conn:
-            conn.row_factory = sqlite3.Row
-            rows = conn.execute(
-                """SELECT * FROM heartbeat_notifications
-                   WHERE dismissed_at IS NULL
-                   ORDER BY created_at DESC LIMIT ?""",
-                (limit,),
-            ).fetchall()
-            return [dict(r) for r in rows]
-
-    def dismiss(self, notification_id: int) -> bool:
-        """Mark notification as dismissed. Returns True if found."""
-        with wal_connect(self.db_path) as conn:
-            cursor = conn.execute(
-                "UPDATE heartbeat_notifications SET dismissed_at = CURRENT_TIMESTAMP WHERE id = ?",
-                (notification_id,),
-            )
-            return cursor.rowcount > 0
-
     def log_run(self, stats: dict):
         """Record a heartbeat run."""
         with wal_connect(self.db_path) as conn:
@@ -491,7 +432,6 @@ class HeartbeatPipeline:
 
         threshold = self.config.get("heuristic_threshold", 0.3)
         budget = self.config.get("llm_budget_per_cycle", 5)
-        cooldown = self.config.get("notification_cooldown_hours", 4)
         lookback = self.config.get("lookback_hours", 2)
 
         # Weights
@@ -523,8 +463,23 @@ class HeartbeatPipeline:
         evaluator = HeartbeatEvaluator(budget=budget)
         briefs = evaluator.evaluate(scored)
 
-        # Save
-        saved = store.save_briefs(briefs, cooldown_hours=cooldown)
+        # Save to InsightStore
+        from advisor.insights import Insight, InsightStore, InsightType
+
+        insight_store = InsightStore(self.db_path)
+        saved = 0
+        for b in briefs:
+            urgency_severity = {"high": 8, "medium": 5, "low": 3}.get(b.urgency, 3)
+            insight = Insight(
+                type=InsightType.INTEL_MATCH,
+                severity=urgency_severity,
+                title=b.intel_title,
+                detail=f"{b.reasoning}\n\n{b.intel_summary}",
+                suggested_actions=[b.suggested_action] if b.suggested_action else [],
+                source_url=b.intel_url,
+            )
+            if insight_store.save(insight):
+                saved += 1
 
         finished_at = datetime.now()
         llm_used = 1 if budget > 0 and scored else 0

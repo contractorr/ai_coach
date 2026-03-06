@@ -1,10 +1,10 @@
-# Daily Brief & Signals
+# Daily Brief & Insights
 
 > **Deprecation note:** Daily Brief dashboard UI replaced by chat-first home page (see `ask-advice.md` → Proactive greeting). `DailyBriefBuilder` and `/api/briefing` endpoint retained for MCP tool backward compat.
 
 **Status:** Approved
 **Author:** —
-**Date:** 2026-03-02
+**Date:** 2026-03-06
 
 ## Problem
 
@@ -23,36 +23,36 @@ Active users with goals and configured intel sources. Most useful for users runn
 3. Brief is a concise, structured summary — not a wall of text
 4. Available on demand, not just at a fixed time
 
-### Heartbeat (proactive matching)
+### Heartbeat (invisible infrastructure)
+
+Heartbeat is an internal pipeline — no user-facing CLI, routes, or MCP tools. Output feeds into Insights.
 
 1. System periodically scans recent intel items (within lookback window, default 2 hours)
 2. Each item is scored against active goals using a composite heuristic: keyword overlap (35%), recency (35%), source affinity (30%)
 3. Items passing the heuristic threshold (default 0.3) go to an LLM evaluator (budget-capped at 5 per cycle)
-4. Items that pass LLM evaluation are saved as action briefs
-5. Notification cooldown prevents spamming (default 4 hours between notifications for same goal)
+4. Items that pass LLM evaluation are saved as Insights (`type=intel_match`)
+5. Dedup by insight hash within TTL window prevents spamming
 
-### Signals
+### Insights
 
-1. System detects notable patterns: goal-relevant intel spikes, trending topics matching interests, stale goals needing attention
-2. Signals are stored and surfaced to the user
-3. User can acknowledge signals to dismiss them
+Unified store for all proactive system-detected items. Merges what was previously signals, patterns, and heartbeat notifications.
 
-### Predictions (experimental)
-
-1. System records predictions (claims with confidence levels and evaluation dates)
-2. When evaluation date passes, user reviews outcomes: confirmed, rejected, expired, skipped
-3. System tracks accuracy statistics by category and confidence bucket
-4. Helps calibrate user's and system's forecasting ability
+1. System detects notable items from three sources:
+   - **Signal detectors**: goal staleness, journal gaps, topic emergence, deadlines, research triggers, recurring blockers, goal completion candidates
+   - **Pattern detectors**: blind spots (goals with no journal activity), blocker cycles (recurring negative keywords)
+   - **Heartbeat pipeline**: intel-to-goal matches that pass heuristic + LLM evaluation
+2. Each insight has a type, severity (1-10), title, detail, suggested actions, and evidence
+3. Insights auto-expire after 14 days (TTL) — no acknowledge/dismiss workflow
+4. Deduplication by content hash within TTL window prevents duplicate insights
 
 ## Acceptance Criteria
 
 - [ ] Daily brief includes intel highlights, goal progress, and trending topics
-- [ ] Heartbeat runs on configured interval (default 30 min)
+- [ ] Heartbeat runs on configured interval (default 30 min) as invisible infra
 - [ ] Heuristic + LLM two-stage filter limits token usage
-- [ ] Notification cooldown prevents duplicate alerts
-- [ ] Signals are surfaceable and acknowledgeable
-- [ ] Predictions trackable with outcome review workflow
-- [ ] Available via CLI, web, and MCP
+- [ ] Insights are queryable via `GET /api/insights` and `get_insights` MCP tool
+- [ ] Insights auto-expire after 14 days (no manual acknowledge needed)
+- [ ] Available via web API and MCP
 
 ## Edge Cases
 
@@ -60,13 +60,13 @@ Active users with goals and configured intel sources. Most useful for users runn
 |----------|-------------------|
 | No goals set | Heartbeat has nothing to match against; brief shows intel-only summary |
 | No recent intel | Brief reports "no new intelligence"; heartbeat finds nothing |
-| All goals stale | Signal raised for stale goals |
+| All goals stale | Insight raised for stale goals |
 | LLM budget exhausted in heartbeat cycle | Remaining items deferred to next cycle |
-| Prediction review with no past-due items | "No predictions due for review" message |
+| Duplicate insight within TTL | Deduplicated by hash, not saved again |
 
 ## Out of Scope
 
-- Push notifications to phone/email (signals are pull-only via CLI/web/MCP)
-- Custom signal rules (signals are system-defined patterns)
+- Push notifications to phone/email (insights are pull-only via web/MCP)
+- Custom insight rules (insights are system-defined patterns)
 - Brief scheduling (it's on-demand; scheduling is the daemon's job)
-- Prediction auto-evaluation (always requires user review)
+- Manual acknowledge/dismiss (TTL-only expiry)

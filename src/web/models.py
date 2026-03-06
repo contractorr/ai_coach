@@ -200,7 +200,7 @@ class GreetingResponse(BaseModel):
 # --- Briefing ---
 
 
-class BriefingSignal(BaseModel):
+class InsightResponse(BaseModel):
     id: int = 0
     type: str = ""
     severity: int = 0
@@ -208,16 +208,10 @@ class BriefingSignal(BaseModel):
     detail: str = ""
     suggested_actions: list[str] = []
     evidence: list[str] = []
+    source_url: str = ""
     created_at: str = ""
-    signal_hash: Optional[str] = None
-
-
-class BriefingPattern(BaseModel):
-    type: str = ""
-    confidence: float = 0.0
-    summary: str = ""
-    evidence: list[str] = []
-    coaching_prompt: str = ""
+    expires_at: Optional[str] = None
+    insight_hash: str = ""
 
 
 class ReasoningTrace(BaseModel):
@@ -287,8 +281,6 @@ class GoalIntelMatch(BaseModel):
 
 
 class BriefingResponse(BaseModel):
-    signals: list[BriefingSignal] = []
-    patterns: list[BriefingPattern] = []
     recommendations: list[BriefingRecommendation] = []
     stale_goals: list[BriefingGoal] = []
     goals: list[BriefingGoal] = []
@@ -366,27 +358,6 @@ class ThreadDetail(BaseModel):
     label: str = ""
     entry_count: int = 0
     entries: list[ThreadEntryItem] = []
-
-
-# --- Heartbeat ---
-
-
-class HeartbeatNotification(BaseModel):
-    id: int = 0
-    intel_url: str = ""
-    intel_title: str = ""
-    intel_summary: str = ""
-    relevance: float = 0.0
-    urgency: str = ""
-    suggested_action: str = ""
-    reasoning: str = ""
-    related_goal_id: Optional[str] = None
-    created_at: str = ""
-
-
-class HeartbeatStatus(BaseModel):
-    last_run_at: Optional[str] = None
-    active_count: int = 0
 
 
 # --- Engagement ---

@@ -471,6 +471,62 @@ def execute(self, name: str, arguments: dict) -> str   # JSON string, truncated 
 
 ---
 
+### InsightStore
+
+**File:** `src/advisor/insights.py`
+**Status:** Experimental
+
+#### Behavior
+
+SQLite-backed store for proactive insights. Persists to the `insights` table in `~/coach/intel.db`. Deduplicates on content hash at save time. TTL-based expiry (14 days default) with no acknowledge step — insights simply expire.
+
+```python
+class InsightType(str, Enum):
+    topic_emergence      = "topic_emergence"
+    goal_stale           = "goal_stale"
+    goal_complete        = "goal_complete"
+    deadline_urgent      = "deadline_urgent"
+    journal_gap          = "journal_gap"
+    learning_stalled     = "learning_stalled"
+    research_trigger     = "research_trigger"
+    recurring_blocker    = "recurring_blocker"
+    pattern_blind_spot   = "pattern_blind_spot"
+    pattern_blocker_cycle = "pattern_blocker_cycle"
+    intel_match          = "intel_match"
+```
+
+#### Inputs / Outputs
+
+```python
+def save(self, insight: dict) -> None
+# Computes SHA256 hash of (type + title + description); skips insert on collision (dedup).
+# Sets created_at = now(); expires_at = now() + ttl_days * 86400.
+
+def get_active(
+    self,
+    type: InsightType | None = None,
+    min_severity: int = 1,
+    limit: int = 20,
+) -> list[dict]
+# Returns insights where expires_at > now() and severity >= min_severity.
+# Optional type filter. Ordered by severity DESC, created_at DESC.
+```
+
+#### Invariants
+
+- No acknowledge — insights are read-only after save; removal is TTL-only.
+- Hash dedup operates on (type, title, description) only; different severity for the same insight is silently dropped.
+- `get_active()` never returns expired rows; expiry is enforced at query time via `WHERE expires_at > ?`.
+
+#### Configuration
+
+| Key | Default | Source |
+|-----|---------|--------|
+| `ttl_days` | `14` | constructor |
+| `db_path` | `~/coach/intel.db` | constructor |
+
+---
+
 ### ContextCache
 
 **File:** `src/advisor/context_cache.py`

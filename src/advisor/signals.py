@@ -25,7 +25,6 @@ class SignalType(str, Enum):
     LEARNING_STALLED = "learning_stalled"
     RESEARCH_TRIGGER = "research_trigger"
     RECURRING_BLOCKER = "recurring_blocker"
-    PREDICTION_REVIEW_DUE = "prediction_review_due"
 
 
 @dataclass
@@ -163,6 +162,10 @@ class SignalDetector:
         self.agent_config = self.config.get("agent", {}).get("signals", {})
         self.store = SignalStore(self.db_path)
 
+        from advisor.insights import InsightStore
+
+        self.insight_store = InsightStore(self.db_path)
+
     def detect_all(self) -> list[Signal]:
         """Run all detectors, persist new signals, return active list."""
         signals = []
@@ -174,7 +177,6 @@ class SignalDetector:
             self._detect_deadlines,
             self._detect_research_triggers,
             self._detect_recurring_blockers,
-            self._detect_predictions_due,
         ]
         for detector in detectors:
             try:
@@ -182,11 +184,44 @@ class SignalDetector:
             except Exception as e:
                 logger.warning("signal_detector_error", detector=detector.__name__, error=str(e))
 
-        # Persist
+        # Persist to both SignalStore (for scheduler/autonomous) and InsightStore
         for s in signals:
             self.store.save(s)
+            self._persist_as_insight(s)
 
         return sorted(signals, key=lambda s: s.severity, reverse=True)
+
+    def _persist_as_insight(self, signal: Signal):
+        """Convert Signal → Insight and save to InsightStore."""
+        from advisor.insights import Insight, InsightType
+
+        type_map = {
+            SignalType.TOPIC_EMERGENCE: InsightType.TOPIC_EMERGENCE,
+            SignalType.GOAL_STALE: InsightType.GOAL_STALE,
+            SignalType.GOAL_COMPLETE_CANDIDATE: InsightType.GOAL_COMPLETE,
+            SignalType.DEADLINE_URGENT: InsightType.DEADLINE_URGENT,
+            SignalType.JOURNAL_GAP: InsightType.JOURNAL_GAP,
+            SignalType.LEARNING_STALLED: InsightType.LEARNING_STALLED,
+            SignalType.RESEARCH_TRIGGER: InsightType.RESEARCH_TRIGGER,
+            SignalType.RECURRING_BLOCKER: InsightType.RECURRING_BLOCKER,
+        }
+        insight_type = type_map.get(signal.type)
+        if not insight_type:
+            return
+        try:
+            insight = Insight(
+                type=insight_type,
+                severity=signal.severity,
+                title=signal.title,
+                detail=signal.detail,
+                suggested_actions=signal.suggested_actions,
+                evidence=signal.evidence,
+                created_at=signal.created_at,
+                expires_at=signal.expires_at,
+            )
+            self.insight_store.save(insight)
+        except Exception as e:
+            logger.debug("signal_to_insight_error", error=str(e))
 
     # --- Detectors ---
 
@@ -438,38 +473,6 @@ class SignalDetector:
                     )
                 )
         return signals[:3]
-
-    def _detect_predictions_due(self) -> list[Signal]:
-        """Detect predictions past their evaluation_due date."""
-        try:
-            from predictions.store import PredictionStore
-
-            store = PredictionStore(self.db_path)
-            due = store.get_review_due(limit=5)
-        except Exception:
-            return []
-
-        signals = []
-        for pred in due:
-            try:
-                due_dt = datetime.fromisoformat(pred["evaluation_due"])
-                days_past = (datetime.now() - due_dt).days
-            except (ValueError, KeyError):
-                days_past = 0
-            signals.append(
-                Signal(
-                    type=SignalType.PREDICTION_REVIEW_DUE,
-                    severity=min(7, 3 + days_past),
-                    title=f"Prediction review due: {pred['claim_text'][:60]}",
-                    detail=f"Category: {pred['category']}, confidence: {pred['confidence_bucket']}, {days_past}d past due",
-                    suggested_actions=[
-                        "Review this prediction outcome",
-                        "Run: coach predictions review",
-                    ],
-                    expires_at=datetime.now() + timedelta(days=7),
-                )
-            )
-        return signals
 
     def _detect_recurring_blockers(self) -> list[Signal]:
         """Detect same negative keywords appearing in 3+ entries within 14 days."""

@@ -17,7 +17,7 @@ Users with a completed profile and some journal history. Recommendations improve
 ### Generation
 
 1. System periodically generates recommendations by analyzing user profile, journal patterns, goals, and recent intel
-2. Each recommendation is scored on three weighted dimensions: relevance (50%), impact (30%), feasibility (20%). Note: `ScoringConfig.weights` in config has a different 4-dimension scheme (`relevance:0.3, urgency:0.25, feasibility:0.25, impact:0.2`) but this is only used by `RecommendationScorer.adjust_score()`, not the raw LLM scoring formula
+2. Each recommendation is scored on three weighted dimensions: relevance (50%), impact (30%), feasibility (20%)
 3. Recommendations below a minimum score threshold (default 6.0) are filtered out
 4. At most 3 recommendations per category are kept to avoid overload
 5. Recommendations are deduplicated against recent ones (exact content-hash match over a 30-day window)
@@ -31,7 +31,7 @@ Users with a completed profile and some journal history. Recommendations improve
 ### Feedback
 
 1. User can rate a recommendation on a 1–5 numeric scale with an optional comment
-2. Rating feeds back into the scoring system via three boost components (engagement, outcome, rating) for future relevance tuning
+2. Rating feeds back into the scoring system via two boost components (engagement, rating) for future relevance tuning
 3. User can dismiss a recommendation to remove it from active list
 
 ### Delivery

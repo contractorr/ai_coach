@@ -56,7 +56,7 @@ RAG-based personal AI advisor. Journal entries + external intelligence scrapers 
 - **profile/** — `UserProfile` Pydantic model (YAML-backed). `ProfileInterviewer` for LLM-driven onboarding (5-7 turns, force-extraction fallback). Two rendering modes: `summary()` (compact) and `structured_summary()` (multi-section XML)
 - **cli/** — Click CLI (`coach` command). Pydantic config validation. Structlog logging
 - **web/** — FastAPI backend: JWT auth (python-jose), Fernet-encrypted secret storage, per-user data isolation at `~/coach/users/{safe_user_id}/`. Global intel DB stays shared. 20 route modules. `get_or_create_user()` auto-registers on first request
-- **coach_mcp/** — 48 MCP tools across 15 modules (journal, goals, intel, recommendations, research, reflect, profile, learning, projects, signals, brief, heartbeat, memory, threads, predictions)
+- **coach_mcp/** — 37 MCP tools across 12 modules (journal, goals, intel, recommendations, research, reflect, profile, projects, insights, brief, memory, threads)
 
 ### Advisor deep dive
 
@@ -92,21 +92,21 @@ Two-tier system under `specs/`. See [`specs/README.md`](specs/README.md) for ful
 - **`specs/functional/`** — PM-authored, user-facing: problem, desired behavior, acceptance criteria, edge cases. No code.
 - **`specs/technical/`** — Implementation reference: component signatures, invariants, error paths, config.
 
-**Workflow for new features / changes:**
+**Workflow for ALL changes (mandatory order):**
 
-1. Write or update a functional spec in `specs/functional/`
-2. Claude reads functional spec + relevant technical specs + codebase → produces technical spec + implementation plan
-3. Review → implement
+1. Update or create the functional spec in `specs/functional/` first
+2. Update or create the technical spec in `specs/technical/` second
+3. Implement code changes last
 
-When modifying existing behavior, check the relevant functional spec for acceptance criteria and edge cases before changing code.
+Never skip steps or reorder. Even small changes must flow: functional spec → technical spec → code. When modifying existing behavior, update the relevant functional spec for acceptance criteria and edge cases before touching technical spec or code.
 
 ## Feature Freeze
 
 Core loop stabilization in progress. Do NOT add new features.
 
 Core (stable): journal, intelligence scrapers, RAG retrieval, advisor Q&A, recommendations
-Experimental: goal tracking, deep research, trend clustering, learning paths, memory, threads, signals, heartbeat
-Removed: mood analysis, burnout detection, momentum detection
+Experimental: goal tracking, deep research, trend clustering, learning paths, memory, threads, insights
+Removed: mood analysis, burnout detection, momentum detection, predictions, signals (merged into insights), heartbeat UI (now invisible infra)
 
 ## Adding a new intelligence source
 
@@ -118,7 +118,7 @@ Removed: mood analysis, burnout detection, momentum detection
 
 ## MCP Server
 
-`src/coach_mcp/` exposes 48 tools across 15 modules. Claude Code does the reasoning; MCP server provides data + context retrieval only — no LLM calls in the MCP layer. Tool convention: `TOOLS = [(name, schema_dict, handler_fn), ...]` per module, loaded lazily and cached in `server.py`.
+`src/coach_mcp/` exposes 37 tools across 12 modules. Claude Code does the reasoning; MCP server provides data + context retrieval only — no LLM calls in the MCP layer. Tool convention: `TOOLS = [(name, schema_dict, handler_fn), ...]` per module, loaded lazily and cached in `server.py`.
 
 ```bash
 python -m coach_mcp  # stdio transport, configured in .mcp.json for auto-discovery

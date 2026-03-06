@@ -21,10 +21,13 @@ class Pattern:
 class PatternDetector:
     """Detects high-level behavioral patterns from journal + goals data."""
 
-    def __init__(self, journal_storage, embeddings=None, config: Optional[dict] = None):
+    def __init__(
+        self, journal_storage, embeddings=None, config: Optional[dict] = None, insight_store=None
+    ):
         self.storage = journal_storage
         self.embeddings = embeddings
         self.config = config or {}
+        self.insight_store = insight_store
 
     def detect_all(self, lookback_days: int = 30) -> list[Pattern]:
         """Run all pattern detectors and return findings."""
@@ -40,7 +43,35 @@ class PatternDetector:
                     patterns.append(result)
             except Exception as e:
                 logger.warning("pattern_detector_error", detector=detector.__name__, error=str(e))
+        # Persist to InsightStore if available
+        if self.insight_store:
+            for p in patterns:
+                self._persist_as_insight(p)
+
         return sorted(patterns, key=lambda p: p.confidence, reverse=True)
+
+    def _persist_as_insight(self, pattern: Pattern):
+        """Convert Pattern → Insight and save to InsightStore."""
+        from advisor.insights import Insight, InsightType
+
+        type_map = {
+            "blind_spot": InsightType.PATTERN_BLIND_SPOT,
+            "blocker_cycle": InsightType.PATTERN_BLOCKER_CYCLE,
+        }
+        insight_type = type_map.get(pattern.type)
+        if not insight_type:
+            return
+        try:
+            insight = Insight(
+                type=insight_type,
+                severity=round(pattern.confidence * 10),
+                title=pattern.summary,
+                detail=pattern.coaching_prompt,
+                evidence=pattern.evidence,
+            )
+            self.insight_store.save(insight)
+        except Exception as e:
+            logger.debug("pattern_to_insight_error", error=str(e))
 
     def _detect_blind_spots(self, lookback_days: int) -> Optional[Pattern]:
         """Active goals with zero related journal entries (low embedding similarity)."""

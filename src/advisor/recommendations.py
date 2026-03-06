@@ -556,15 +556,6 @@ class RecommendationEngine:
         self.storage = storage
         self.config = config or {}
 
-        self._prediction_store = None
-        if intel_db_path:
-            try:
-                from predictions.store import PredictionStore
-
-                self._prediction_store = PredictionStore(intel_db_path)
-            except Exception:
-                pass
-
         scoring_config = self.config.get("scoring", {})
         self.scorer = RecommendationScorer(
             min_threshold=scoring_config.get("min_threshold", 6.0),
@@ -603,12 +594,6 @@ class RecommendationEngine:
         if save:
             for rec in recs:
                 rec.id = self.storage.save(rec)
-                try:
-                    from predictions.recorder import record_from_recommendation
-
-                    record_from_recommendation(rec, self._prediction_store)
-                except Exception:
-                    pass
 
         return recs
 
