@@ -1,14 +1,11 @@
 """Profile view/edit API routes."""
 
-from profile.storage import ProfileStorage, Skill
-
 import structlog
 from fastapi import APIRouter, Depends, HTTPException
 
-from journal.embeddings import EmbeddingManager
-from shared_types import CareerStage
+from services.profile import get_profile_payload, update_profile_fields
 from web.auth import get_current_user
-from web.deps import get_user_paths
+from web.deps import get_profile_embedding_manager, get_profile_storage
 from web.models import ProfileResponse, ProfileUpdate
 
 logger = structlog.get_logger()
@@ -19,8 +16,7 @@ router = APIRouter(prefix="/api/profile", tags=["profile"])
 def _embed_profile(user_id: str, profile) -> None:
     """Re-embed profile in ChromaDB after update."""
     try:
-        paths = get_user_paths(user_id)
-        em = EmbeddingManager(paths["chroma_dir"], collection_name="profile")
+        em = get_profile_embedding_manager(user_id)
         parts = [profile.summary()]
         if profile.goals_short_term:
             parts.append(f"Short-term goals: {profile.goals_short_term}")
@@ -38,18 +34,11 @@ def _embed_profile(user_id: str, profile) -> None:
 
 @router.get("", response_model=ProfileResponse)
 async def get_profile(user: dict = Depends(get_current_user)):
-    paths = get_user_paths(user["id"])
-    storage = ProfileStorage(paths["profile"])
-    profile = storage.load()
-    if not profile:
+    storage = get_profile_storage(user["id"])
+    payload = get_profile_payload(storage)
+    if not payload["exists"]:
         return ProfileResponse()
-
-    data = profile.model_dump()
-    data["career_stage"] = str(data["career_stage"])
-    data["skills"] = [{"name": s["name"], "proficiency": s["proficiency"]} for s in data["skills"]]
-    data["summary"] = profile.summary()
-    data["is_stale"] = profile.is_stale()
-    return ProfileResponse(**data)
+    return ProfileResponse(**payload["profile"])
 
 
 @router.patch("")
@@ -57,24 +46,18 @@ async def update_profile(
     body: ProfileUpdate,
     user: dict = Depends(get_current_user),
 ):
-    paths = get_user_paths(user["id"])
-    storage = ProfileStorage(paths["profile"])
-    profile = storage.get_or_empty()
-
+    storage = get_profile_storage(user["id"])
     updates = body.model_dump(exclude_none=True)
-    if not updates:
-        raise HTTPException(status_code=400, detail="No fields to update")
 
-    for field, value in updates.items():
-        if field == "skills" and isinstance(value, list):
-            value = [Skill(**s) if isinstance(s, dict) else s for s in value]
-        if field == "career_stage" and isinstance(value, str):
-            value = CareerStage(value)
-        if not hasattr(profile, field):
-            raise HTTPException(status_code=400, detail=f"Unknown field: {field}")
-        setattr(profile, field, value)
+    try:
+        profile, updated_fields = update_profile_fields(
+            storage,
+            updates,
+            embed_callback=lambda profile: _embed_profile(user["id"], profile),
+        )
+    except ValueError as exc:
+        detail = str(exc)
+        status_code = 400
+        raise HTTPException(status_code=status_code, detail=detail)
 
-    storage.save(profile)
-    _embed_profile(user["id"], profile)
-
-    return {"ok": True, "updated_fields": list(updates.keys())}
+    return {"ok": True, "updated_fields": updated_fields}

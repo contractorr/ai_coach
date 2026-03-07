@@ -1,20 +1,16 @@
-"""Thread routes — journal recurrence detection."""
+"""Thread routes ? journal recurrence detection."""
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 
 from web.auth import get_current_user
-from web.deps import get_user_paths
+from web.deps import get_thread_store
 from web.models import ThreadDetail, ThreadEntryItem, ThreadSummary
 
 router = APIRouter(prefix="/api/threads", tags=["threads"])
 
 
 def _get_store(user_id: str):
-    from journal.thread_store import ThreadStore
-
-    paths = get_user_paths(user_id)
-    db_path = paths["data_dir"] / "threads.db"
-    return ThreadStore(db_path)
+    return get_thread_store(user_id)
 
 
 @router.get("", response_model=list[ThreadSummary])
@@ -50,8 +46,6 @@ async def get_thread(
     store = _get_store(user["id"])
     thread = await store.get_thread(thread_id)
     if not thread:
-        from fastapi import HTTPException
-
         raise HTTPException(status_code=404, detail="Thread not found")
 
     entries = await store.get_thread_entries(thread_id)

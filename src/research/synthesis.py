@@ -4,8 +4,8 @@ from typing import Optional
 
 import structlog
 
-from cli.retry import llm_retry
 from llm import LLMError, LLMRateLimitError, create_llm_provider
+from retry_utils import llm_retry
 
 from .web_search import SearchResult
 

@@ -7,7 +7,7 @@ from pathlib import Path
 import structlog
 from fastapi import Depends, HTTPException
 
-from cli.config import get_paths, load_config_model
+from coach_config import get_paths, load_config_model
 from storage_access import (
     create_follow_up_store,
     create_insight_store,

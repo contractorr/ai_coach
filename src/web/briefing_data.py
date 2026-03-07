@@ -1,9 +1,12 @@
 """Shared briefing data assembly used by both /api/briefing and /api/greeting."""
 
-from pathlib import Path
-
 import structlog
 
+from storage_access import (
+    create_goal_intel_match_store,
+    create_profile_storage,
+    create_recommendation_storage,
+)
 from web.deps import get_user_paths
 
 logger = structlog.get_logger()
@@ -26,13 +29,9 @@ def assemble_briefing_data(user_id: str) -> dict:
 
     # Profile name
     try:
-        from profile.storage import ProfileStorage
-
-        profile_path = paths.get("profile")
-        if profile_path and Path(profile_path).exists():
-            prof = ProfileStorage(profile_path).load()
-            if prof:
-                data["name"] = getattr(prof, "name", None) or getattr(prof, "current_role", "")
+        prof = create_profile_storage(paths).load()
+        if prof:
+            data["name"] = getattr(prof, "name", None) or getattr(prof, "current_role", "")
     except Exception:
         pass
 
@@ -68,11 +67,9 @@ def assemble_briefing_data(user_id: str) -> dict:
 
     # Recommendations
     try:
-        from advisor.recommendation_storage import RecommendationStorage
-
         rec_dir = paths.get("recommendations_dir")
         if rec_dir:
-            rec_storage = RecommendationStorage(rec_dir)
+            rec_storage = create_recommendation_storage(paths)
             recs = rec_storage.get_top_by_score(limit=5)
             for r in recs:
                 meta = r.metadata or {}
@@ -103,10 +100,7 @@ def assemble_briefing_data(user_id: str) -> dict:
 
     # Goal-intel matches
     try:
-        from intelligence.goal_intel_match import GoalIntelMatchStore
-
-        db_path = paths["intel_db"]
-        match_store = GoalIntelMatchStore(db_path)
+        match_store = create_goal_intel_match_store(paths)
         goal_paths = [g["path"] for g in data["all_goals"]]
         if goal_paths:
             data["goal_intel_matches"] = match_store.get_matches(goal_paths=goal_paths, limit=20)

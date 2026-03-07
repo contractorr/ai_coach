@@ -1,60 +1,21 @@
 """Daily brief MCP tool."""
 
-from coach_mcp.bootstrap import get_components
+from coach_mcp.bootstrap import get_components, get_recommendation_storage
+from services.daily_brief import build_daily_brief_payload, collect_daily_brief_inputs
 
 
 def _get_daily_brief(args: dict) -> dict:
     """Build time-budgeted daily action plan."""
-    from advisor.daily_brief import DailyBriefBuilder
-    from advisor.goals import GoalTracker
-    from advisor.recommendation_storage import RecommendationStorage
-    from cli.utils import get_profile_storage, get_rec_db_path
+    from cli.utils import get_profile_storage
 
     c = get_components()
 
-    tracker = GoalTracker(c["storage"])
-    stale_goals = tracker.get_stale_goals(days_threshold=7)
-    all_goals = tracker.get_goals(include_inactive=False)
-
-    recs = []
-    try:
-        rec_dir = get_rec_db_path(c["config"])
-        if rec_dir.exists():
-            recs = RecommendationStorage(rec_dir).get_top_by_score(limit=5)
-    except Exception:
-        pass
-
-    weekly_hours = 5
-    try:
-        prof = get_profile_storage(c["config"]).load()
-        if prof and hasattr(prof, "weekly_hours_available"):
-            weekly_hours = prof.weekly_hours_available or 5
-    except Exception:
-        pass
-
-    brief = DailyBriefBuilder().build(
-        stale_goals=stale_goals,
-        recommendations=recs,
-        all_goals=all_goals,
-        weekly_hours=weekly_hours,
+    brief_inputs = collect_daily_brief_inputs(
+        c["storage"],
+        profile_storage=get_profile_storage(c["config"], storage_paths=c.get("storage_paths")),
+        recommendation_storage=get_recommendation_storage(),
     )
-
-    return {
-        "items": [
-            {
-                "kind": item.kind,
-                "title": item.title,
-                "description": item.description,
-                "time_minutes": item.time_minutes,
-                "action": item.action,
-                "priority": item.priority,
-            }
-            for item in brief.items
-        ],
-        "budget_minutes": brief.budget_minutes,
-        "used_minutes": brief.used_minutes,
-        "generated_at": brief.generated_at,
-    }
+    return build_daily_brief_payload(**brief_inputs)
 
 
 TOOLS = [

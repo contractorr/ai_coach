@@ -11,6 +11,18 @@ from intelligence.watchlist import (
     find_evidence_for_text,
     sort_ranked_items,
 )
+from services.recommendation_actions import (
+    build_weekly_plan as build_weekly_action_plan,
+)
+from services.recommendation_actions import (
+    create_action_item as create_tracked_action,
+)
+from services.recommendation_actions import (
+    list_action_items as list_tracked_actions,
+)
+from services.recommendation_actions import (
+    update_action_item as update_tracked_action,
+)
 from web.auth import get_current_user
 from web.deps import (
     get_intel_storage,
@@ -80,14 +92,27 @@ def _shape_action_item(payload: dict | None) -> RecommendationActionItem | None:
 
 
 def _shape_action_record(record) -> TrackedRecommendationAction:
+    payload = (
+        record
+        if isinstance(record, dict)
+        else {
+            "recommendation_id": record.recommendation_id,
+            "recommendation_title": record.recommendation_title,
+            "category": record.category,
+            "score": record.score,
+            "recommendation_status": record.recommendation_status,
+            "created_at": record.created_at or "",
+            "action_item": record.action_item,
+        }
+    )
     return TrackedRecommendationAction(
-        recommendation_id=record.recommendation_id,
-        recommendation_title=record.recommendation_title,
-        category=record.category,
-        score=record.score,
-        recommendation_status=record.recommendation_status,
-        created_at=record.created_at or "",
-        action_item=RecommendationActionItem(**record.action_item),
+        recommendation_id=payload["recommendation_id"],
+        recommendation_title=payload["recommendation_title"],
+        category=payload["category"],
+        score=payload["score"],
+        recommendation_status=payload["recommendation_status"],
+        created_at=payload.get("created_at") or "",
+        action_item=RecommendationActionItem(**payload["action_item"]),
     )
 
 
@@ -131,8 +156,13 @@ async def list_action_items(
 ):
     storage = _get_storage(user["id"])
     resolved_goal_path, _goal_title = _resolve_goal_link(goal_path, user["id"]) if goal_path else (None, None)
-    records = storage.list_action_items(status=status_filter, goal_path=resolved_goal_path, limit=limit)
-    return [_shape_action_record(record) for record in records]
+    result = list_tracked_actions(
+        storage,
+        status=status_filter,
+        goal_path=resolved_goal_path,
+        limit=limit,
+    )
+    return [_shape_action_record(record) for record in result["actions"]]
 
 
 @router.get("/weekly-plan", response_model=WeeklyPlanResponse)
@@ -143,7 +173,11 @@ async def weekly_plan(
 ):
     storage = _get_storage(user["id"])
     resolved_goal_path, _goal_title = _resolve_goal_link(goal_path, user["id"]) if goal_path else (None, None)
-    plan = storage.build_weekly_plan(capacity_points=capacity_points, goal_path=resolved_goal_path)
+    plan = build_weekly_action_plan(
+        storage,
+        capacity_points=capacity_points,
+        goal_path=resolved_goal_path,
+    )
     return WeeklyPlanResponse(
         items=[_shape_action_record(record) for record in plan["items"]],
         capacity_points=plan["capacity_points"],
@@ -234,7 +268,8 @@ async def create_action_item(
     goal_path, goal_title = (
         _resolve_goal_link(goal_path_value, user["id"]) if goal_path_value else (None, None)
     )
-    action_item = storage.create_action_item(
+    result = create_tracked_action(
+        storage,
         rec_id,
         goal_path=goal_path,
         goal_title=goal_title,
@@ -245,12 +280,11 @@ async def create_action_item(
         blockers=payload.get("blockers"),
         success_criteria=payload.get("success_criteria"),
     )
-    if not action_item:
+    if not result["success"]:
         raise HTTPException(status_code=404, detail="Recommendation not found")
-    record = storage.get_action_item(rec_id)
-    if not record:
+    if not result["persisted"] or not result["record"]:
         raise HTTPException(status_code=500, detail="Action item was not persisted")
-    return _shape_action_record(record)
+    return _shape_action_record(result["record"])
 
 
 @router.put("/{rec_id}/action-item", response_model=TrackedRecommendationAction)
@@ -266,7 +300,8 @@ async def update_action_item(
     if goal_path_value is not None:
         goal_path, goal_title = _resolve_goal_link(goal_path_value, user["id"])
 
-    action_item = storage.update_action_item(
+    result = update_tracked_action(
+        storage,
         rec_id,
         status=payload.get("status"),
         effort=payload.get("effort"),
@@ -278,9 +313,8 @@ async def update_action_item(
         goal_path=goal_path,
         goal_title=goal_title,
     )
-    if not action_item:
+    if not result["success"]:
         raise HTTPException(status_code=404, detail="Tracked action not found")
-    record = storage.get_action_item(rec_id)
-    if not record:
+    if not result["persisted"] or not result["record"]:
         raise HTTPException(status_code=500, detail="Tracked action was not persisted")
-    return _shape_action_record(record)
+    return _shape_action_record(result["record"])

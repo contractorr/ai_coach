@@ -12,8 +12,8 @@ COLLECTIONS = ("journal", "intel")
 def _get_db_components(collection: str):
     """Lightweight init of embedding + search components for given collection."""
     from cli.config import get_paths, load_config
+    from cli.utils import get_intel_storage, get_storage_paths
     from intelligence.embeddings import IntelEmbeddingManager
-    from intelligence.scraper import IntelStorage
     from intelligence.search import IntelSearch
     from journal import EmbeddingManager, JournalSearch, JournalStorage
 
@@ -39,7 +39,7 @@ def _get_db_components(collection: str):
     if collection in ("intel", "all"):
         import sqlite3
 
-        intel_storage = IntelStorage(paths["intel_db"])
+        intel_storage = get_intel_storage(config, storage_paths=get_storage_paths(config=config, paths=paths))
         intel_embeddings = IntelEmbeddingManager(paths["chroma_dir"] / "intel")
         intel_search = IntelSearch(intel_storage, intel_embeddings)
         # Count rows directly — IntelStorage has no count() method

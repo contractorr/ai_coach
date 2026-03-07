@@ -91,7 +91,7 @@ def test_get_agent_injects_user_tavily_key(client, auth_headers, secret_key):
         patch(_AGENT_CLASS, FakeAgent),
         patch("journal.storage.JournalStorage"),
         patch("journal.embeddings.EmbeddingManager"),
-        patch("intelligence.scraper.IntelStorage"),
+        patch("web.routes.research.get_intel_storage"),
         patch("web.user_store.get_user_secret", return_value="tvly-test-key-456"),
         patch("web.deps.get_secret_key", return_value=secret_key),
     ):

@@ -8,9 +8,9 @@ import httpx
 import structlog
 from bs4 import BeautifulSoup
 
-from cli.retry import http_retry
 from intelligence.scraper import BaseScraper, IntelItem, IntelStorage
 from llm.factory import create_cheap_provider
+from retry_utils import http_retry
 from shared_types import IntelSource
 
 logger = structlog.get_logger().bind(source="ai_capabilities")

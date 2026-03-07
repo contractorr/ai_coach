@@ -9,6 +9,7 @@ import click
 from rich.console import Console
 
 from cli.config import get_paths, load_config
+from cli.utils import get_rec_db_path
 
 console = Console()
 
@@ -37,11 +38,11 @@ def export_all(output: str, fmt: str):
 
     with console.status("Exporting..."):
         if fmt == "zip":
-            _export_zip(paths, output_path)
+            _export_zip(config, paths, output_path)
         elif fmt == "json":
-            _export_json(paths, output_path)
+            _export_json(config, paths, output_path)
         elif fmt == "markdown":
-            _export_markdown(paths, output_path)
+            _export_markdown(config, paths, output_path)
 
     console.print(f"[green]Exported to {output_path}[/]")
 
@@ -72,7 +73,7 @@ def backup(backup_dir: str):
             shutil.copy2(intel_db, snapshot_dir / "intel.db")
 
         # Copy recommendations
-        rec_dir = intel_db.parent / "recommendations"
+        rec_dir = get_rec_db_path(config)
         if rec_dir.exists():
             shutil.copytree(rec_dir, snapshot_dir / "recommendations")
 
@@ -98,9 +99,17 @@ def backup(backup_dir: str):
     console.print(f"  Recommendations: {'yes' if manifest['has_recommendations'] else 'no'}")
 
 
-def _export_zip(paths: dict, output_path: Path):
+def _export_zip(config_or_paths: dict, paths_or_output, output_path: Path | None = None):
     """Export everything as a zip file."""
     import tempfile
+
+    if output_path is None:
+        config = {"paths": {"intel_db": str(config_or_paths["intel_db"])}}
+        paths = config_or_paths
+        output_path = paths_or_output
+    else:
+        config = config_or_paths
+        paths = paths_or_output
 
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp) / "coach_export"
@@ -117,7 +126,7 @@ def _export_zip(paths: dict, output_path: Path):
             shutil.copy2(intel_db, tmp_path / "intel.db")
 
         # Recommendations
-        rec_dir = intel_db.parent / "recommendations"
+        rec_dir = get_rec_db_path(config)
         if rec_dir.exists():
             shutil.copytree(rec_dir, tmp_path / "recommendations")
 
@@ -126,9 +135,17 @@ def _export_zip(paths: dict, output_path: Path):
         shutil.make_archive(output_stem, "zip", tmp, "coach_export")
 
 
-def _export_json(paths: dict, output_path: Path):
+def _export_json(config_or_paths: dict, paths_or_output, output_path: Path | None = None):
     """Export journal + recommendations as JSON."""
     import frontmatter
+
+    if output_path is None:
+        config = {"paths": {"intel_db": str(config_or_paths["intel_db"])}}
+        paths = config_or_paths
+        output_path = paths_or_output
+    else:
+        config = config_or_paths
+        paths = paths_or_output
 
     data = {"journal": [], "recommendations": []}
 
@@ -147,7 +164,7 @@ def _export_json(paths: dict, output_path: Path):
             except Exception:
                 continue
 
-    rec_dir = paths["intel_db"].parent / "recommendations"
+    rec_dir = get_rec_db_path(config)
     if rec_dir.exists():
         for f in sorted(rec_dir.glob("*.md")):
             try:
@@ -165,9 +182,17 @@ def _export_json(paths: dict, output_path: Path):
     output_path.write_text(json.dumps(data, indent=2, default=str))
 
 
-def _export_markdown(paths: dict, output_path: Path):
+def _export_markdown(config_or_paths: dict, paths_or_output, output_path: Path | None = None):
     """Export as combined markdown file."""
     import frontmatter
+
+    if output_path is None:
+        config = {"paths": {"intel_db": str(config_or_paths["intel_db"])}}
+        paths = config_or_paths
+        output_path = paths_or_output
+    else:
+        config = config_or_paths
+        paths = paths_or_output
 
     sections = []
 
@@ -183,7 +208,7 @@ def _export_markdown(paths: dict, output_path: Path):
             except Exception:
                 continue
 
-    rec_dir = paths["intel_db"].parent / "recommendations"
+    rec_dir = get_rec_db_path(config)
     if rec_dir.exists():
         sections.append("\n# Recommendations\n")
         for f in sorted(rec_dir.glob("*.md")):

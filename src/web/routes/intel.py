@@ -1,22 +1,21 @@
 """Intelligence feed routes."""
 
-from pathlib import Path
 from urllib.parse import urlparse
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
-from intelligence.scraper import IntelStorage
-from intelligence.watchlist import (
-    IntelFollowUpStore,
-    WatchlistStore,
-    annotate_items,
-    attach_follow_up_state,
-    sort_ranked_items,
-)
+from intelligence.watchlist import annotate_items, attach_follow_up_state, sort_ranked_items
 from web.auth import get_current_user
-from web.deps import get_coach_paths, get_config, get_user_paths
+from web.deps import (
+    get_coach_paths,
+    get_config,
+    get_follow_up_store,
+    get_intel_storage,
+    get_profile_path,
+    get_watchlist_store,
+)
 from web.models import IntelFollowUp, WatchlistItem
 from web.user_store import (
     add_user_rss_feed,
@@ -56,21 +55,16 @@ class FollowUpUpsert(BaseModel):
     watchlist_ids: list[str] = []
 
 
-def _get_storage() -> IntelStorage:
-    paths = get_coach_paths()
-    return IntelStorage(paths["intel_db"])
+def _get_storage():
+    return get_intel_storage()
 
 
-def _get_watchlist_store(user_id: str) -> WatchlistStore:
-    paths = get_user_paths(user_id)
-    base = Path(paths["profile"]).parent
-    return WatchlistStore(base / "watchlist.json")
+def _get_watchlist_store(user_id: str):
+    return get_watchlist_store(user_id)
 
 
-def _get_follow_up_store(user_id: str) -> IntelFollowUpStore:
-    paths = get_user_paths(user_id)
-    base = Path(paths["profile"]).parent
-    return IntelFollowUpStore(base / "intel_follow_ups.json")
+def _get_follow_up_store(user_id: str):
+    return get_follow_up_store(user_id)
 
 
 def _apply_watchlist_state(items: list[dict], user_id: str) -> list[dict]:
@@ -101,7 +95,7 @@ async def get_recent(
     try:
         from intelligence.search import load_profile_terms, score_profile_relevance
 
-        profile_path = get_user_paths(user["id"])["profile"]
+        profile_path = get_profile_path(user["id"])
         terms = load_profile_terms(profile_path)
         if not terms.is_empty:
             for item in items:
@@ -263,9 +257,7 @@ def _personalize_trending(snapshot: dict, user_id: str) -> dict:
     """Re-rank trending topics by profile relevance."""
     try:
         from intelligence.search import load_profile_terms, score_profile_relevance
-        from web.deps import get_user_paths
-
-        profile_path = get_user_paths(user_id)["profile"]
+        profile_path = get_profile_path(user_id)
         terms = load_profile_terms(profile_path)
         if terms.is_empty:
             snapshot["personalized"] = False

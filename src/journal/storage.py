@@ -1,5 +1,6 @@
 """Markdown journal CRUD operations."""
 
+import json
 import re
 from datetime import datetime
 from pathlib import Path
@@ -13,6 +14,8 @@ ALLOWED_ENTRY_TYPES = tuple(EntryType)
 MAX_CONTENT_LENGTH = 100_000  # 100KB
 MAX_TAG_LENGTH = 50
 MAX_TAGS = 20
+STORE_VERSION = 1
+STORE_META_FILENAME = ".stewardme-journal.json"
 
 
 def _sanitize_slug(text: str) -> str:
@@ -33,6 +36,22 @@ class JournalStorage:
     def __init__(self, journal_dir: str | Path):
         self.journal_dir = Path(journal_dir).expanduser().resolve()
         self.journal_dir.mkdir(parents=True, exist_ok=True)
+        self._init_store_metadata()
+
+    def _init_store_metadata(self) -> None:
+        """Ensure a simple metadata marker exists for the journal store."""
+        metadata_path = self.journal_dir / STORE_META_FILENAME
+        if metadata_path.exists():
+            return
+        metadata_path.write_text(
+            json.dumps({"store": "journal", "version": STORE_VERSION}, indent=2),
+            encoding="utf-8",
+        )
+
+    def get_store_metadata(self) -> dict:
+        """Read the journal store metadata marker."""
+        metadata_path = self.journal_dir / STORE_META_FILENAME
+        return json.loads(metadata_path.read_text(encoding="utf-8"))
 
     def _generate_filename(self, entry_type: str, title: str) -> str:
         """Generate filename from type, date, and title."""

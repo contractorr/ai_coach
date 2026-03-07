@@ -3,7 +3,7 @@
 import structlog
 
 from advisor.context_cache import ContextCache
-from web.deps import safe_user_id
+from storage_paths import safe_user_id
 
 logger = structlog.get_logger()
 

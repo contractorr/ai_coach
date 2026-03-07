@@ -6,16 +6,15 @@ import click
 from rich.console import Console
 from rich.table import Table
 
-from cli.utils import get_components
+from cli.utils import get_components, get_watchlist_store
 from intelligence.scheduler import IntelScheduler
-from intelligence.watchlist import WatchlistStore
 
 console = Console()
 
 
-def _get_watchlist_store() -> WatchlistStore:
+def _get_watchlist_store():
     c = get_components(skip_advisor=True)
-    return WatchlistStore(c["paths"]["intel_db"].parent / "watchlist.json")
+    return get_watchlist_store(c["config"], c.get("storage_paths"))
 
 
 @click.command()

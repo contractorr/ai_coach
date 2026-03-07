@@ -57,3 +57,46 @@ __all__ = [
     "eval_cmd",
     "dedup_backfill",
 ]
+
+
+COMMAND_GROUPS = (
+    journal,
+    daemon,
+    db,
+    research,
+    recommend,
+    export,
+    profile,
+    projects,
+    capabilities,
+    memory,
+    threads,
+)
+
+STANDALONE_COMMANDS = (
+    ask,
+    review,
+    opportunities,
+    goals,
+    scrape,
+    brief,
+    sources,
+    intel_export,
+    init,
+    trends,
+    reflect,
+    today,
+    radar,
+    scraper_health,
+    watchlist,
+    eval_cmd,
+    dedup_backfill,
+)
+
+
+def register_all(cli):
+    """Register all command groups and standalone commands on the CLI root."""
+    for command in COMMAND_GROUPS:
+        cli.add_command(command)
+    for command in STANDALONE_COMMANDS:
+        cli.add_command(command)

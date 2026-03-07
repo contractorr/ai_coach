@@ -1,15 +1,22 @@
 """Recommendations MCP tools — list, execution actions, update status, rate."""
 
-from coach_mcp.bootstrap import get_components
+from coach_mcp.bootstrap import get_recommendation_storage
+from services.recommendation_actions import (
+    build_weekly_plan as build_weekly_action_plan,
+)
+from services.recommendation_actions import (
+    create_action_item as create_tracked_action,
+)
+from services.recommendation_actions import (
+    list_action_items as list_tracked_actions,
+)
+from services.recommendation_actions import (
+    update_action_item as update_tracked_action,
+)
 
 
 def _get_rec_storage():
-    from advisor.recommendation_storage import RecommendationStorage
-    from cli.utils import get_rec_db_path
-
-    c = get_components()
-    db_path = get_rec_db_path(c["config"])
-    return RecommendationStorage(db_path)
+    return get_recommendation_storage()
 
 
 def _list_recs(args: dict) -> dict:
@@ -47,7 +54,8 @@ def _create_action(args: dict) -> dict:
     """Create a tracked action item from a recommendation."""
     rec_storage = _get_rec_storage()
     rec_id = args["rec_id"]
-    action_item = rec_storage.create_action_item(
+    result = create_tracked_action(
+        rec_storage,
         rec_id,
         goal_path=args.get("goal_path"),
         goal_title=args.get("goal_title"),
@@ -56,11 +64,10 @@ def _create_action(args: dict) -> dict:
         next_step=args.get("next_step"),
         success_criteria=args.get("success_criteria"),
     )
-    record = rec_storage.get_action_item(rec_id) if action_item else None
     return {
-        "success": bool(action_item),
+        "success": result["success"],
         "rec_id": rec_id,
-        "action_item": record.action_item if record else None,
+        "action_item": result["action_item"],
     }
 
 
@@ -68,7 +75,8 @@ def _update_action(args: dict) -> dict:
     """Update a tracked recommendation action item."""
     rec_storage = _get_rec_storage()
     rec_id = args["rec_id"]
-    action_item = rec_storage.update_action_item(
+    result = update_tracked_action(
+        rec_storage,
         rec_id,
         status=args.get("status"),
         effort=args.get("effort"),
@@ -80,13 +88,14 @@ def _update_action(args: dict) -> dict:
         goal_path=args.get("goal_path"),
         goal_title=args.get("goal_title"),
     )
-    return {"success": bool(action_item), "rec_id": rec_id, "action_item": action_item}
+    return {"success": result["success"], "rec_id": rec_id, "action_item": result["action_item"]}
 
 
 def _list_actions(args: dict) -> dict:
     """List tracked recommendation action items."""
     rec_storage = _get_rec_storage()
-    actions = rec_storage.list_action_items(
+    result = list_tracked_actions(
+        rec_storage,
         status=args.get("status"),
         goal_path=args.get("goal_path"),
         limit=args.get("limit", 20),
@@ -94,34 +103,35 @@ def _list_actions(args: dict) -> dict:
     return {
         "actions": [
             {
-                "rec_id": action.recommendation_id,
-                "title": action.recommendation_title,
-                "category": action.category,
-                "score": action.score,
-                "recommendation_status": action.recommendation_status,
-                "action_item": action.action_item,
+                "rec_id": action["recommendation_id"],
+                "title": action["recommendation_title"],
+                "category": action["category"],
+                "score": action["score"],
+                "recommendation_status": action["recommendation_status"],
+                "action_item": action["action_item"],
             }
-            for action in actions
+            for action in result["actions"]
         ],
-        "count": len(actions),
+        "count": result["count"],
     }
 
 
 def _weekly_plan(args: dict) -> dict:
     """Build a weekly plan from accepted action items."""
     rec_storage = _get_rec_storage()
-    plan = rec_storage.build_weekly_plan(
+    plan = build_weekly_action_plan(
+        rec_storage,
         capacity_points=args.get("capacity_points", 6),
         goal_path=args.get("goal_path"),
     )
     return {
         "items": [
             {
-                "rec_id": action.recommendation_id,
-                "title": action.recommendation_title,
-                "category": action.category,
-                "score": action.score,
-                "action_item": action.action_item,
+                "rec_id": action["recommendation_id"],
+                "title": action["recommendation_title"],
+                "category": action["category"],
+                "score": action["score"],
+                "action_item": action["action_item"],
             }
             for action in plan["items"]
         ],

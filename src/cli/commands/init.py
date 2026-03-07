@@ -7,6 +7,7 @@ import yaml
 from rich.console import Console
 
 from cli.config import get_paths, load_config
+from cli.utils import get_profile_path, get_rec_db_path
 
 console = Console()
 
@@ -73,7 +74,7 @@ def init(samples: bool):
         console.print(f"[green]✓[/] {name}: {path}")
 
     # Create recommendations directory
-    rec_dir = paths["intel_db"].parent / "recommendations"
+    rec_dir = get_rec_db_path(config)
     rec_dir.mkdir(parents=True, exist_ok=True)
     console.print(f"[green]✓[/] recommendations: {rec_dir}")
 
@@ -106,7 +107,7 @@ def init(samples: bool):
             console.print(f"[green]✓[/] Sample: {filepath.name}")
 
     # Create profile directory
-    profile_path = Path(config.get("profile", {}).get("path", "~/coach/profile.yaml")).expanduser()
+    profile_path = Path(get_profile_path(config)).expanduser()
     try:
         profile_path.parent.mkdir(parents=True, exist_ok=True)
         console.print(f"[green]✓[/] profile dir: {profile_path.parent}")

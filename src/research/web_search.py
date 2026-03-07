@@ -7,7 +7,7 @@ from typing import Optional
 import httpx
 import structlog
 
-from cli.rate_limit import TokenBucketRateLimiter
+from rate_limit import TokenBucketRateLimiter
 
 logger = structlog.get_logger()
 

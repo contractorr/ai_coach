@@ -1,12 +1,10 @@
 """Intelligence MCP tools — search, recent items, trigger scrape."""
 
-from coach_mcp.bootstrap import get_components
-from intelligence.watchlist import WatchlistStore
+from coach_mcp.bootstrap import get_components, get_profile_storage, get_watchlist_store
 
 
-def _get_watchlist_store() -> WatchlistStore:
-    c = get_components()
-    return WatchlistStore(c["paths"]["intel_db"].parent / "watchlist.json")
+def _get_watchlist_store():
+    return get_watchlist_store()
 
 
 def _search(args: dict) -> dict:
@@ -95,11 +93,7 @@ def _events_upcoming(args: dict) -> dict:
 
     profile = None
     try:
-        from profile.storage import ProfileStorage
-
-        profile_path = c["config"].get("profile", {}).get("path", "~/coach/profile.yaml")
-        ps = ProfileStorage(profile_path)
-        profile = ps.load()
+        profile = get_profile_storage().load()
     except Exception:
         pass
 

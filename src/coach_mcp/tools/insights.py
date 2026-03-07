@@ -1,20 +1,11 @@
 """Insights MCP tool — unified view of signals, patterns, and heartbeat output."""
 
-from pathlib import Path
-
-from coach_mcp.bootstrap import get_components
+from coach_mcp.bootstrap import get_insight_store
 
 
 def _get_insights(args: dict) -> dict:
     """Query active insights (unexpired, filtered by type/severity)."""
-    c = get_components()
-    config = c.get("config", {})
-    paths_config = config.get("paths", {})
-    db_path = Path(paths_config.get("intel_db", "~/coach/intel.db")).expanduser()
-
-    from advisor.insights import InsightStore
-
-    store = InsightStore(db_path)
+    store = get_insight_store()
     rows = store.get_active(
         insight_type=args.get("type"),
         min_severity=args.get("min_severity", 1),

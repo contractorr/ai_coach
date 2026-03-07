@@ -202,7 +202,7 @@ class TestGoalsCommands:
 
 class TestRecommendActionCommands:
     def test_action_create(self, runner, patch_components, tmp_path):
-        with patch("cli.commands.recommend.RecommendationStorage") as cls:
+        with patch("cli.commands.recommend.get_recommendation_storage") as cls:
             storage = cls.return_value
             storage.create_action_item.return_value = {"status": "accepted"}
             storage.get_action_item.return_value = MagicMock(
@@ -222,7 +222,7 @@ class TestRecommendActionCommands:
         assert "Tracked action created" in result.output
 
     def test_action_list(self, runner, patch_components):
-        with patch("cli.commands.recommend.RecommendationStorage") as cls:
+        with patch("cli.commands.recommend.get_recommendation_storage") as cls:
             storage = cls.return_value
             storage.list_action_items.return_value = [
                 MagicMock(
@@ -241,7 +241,7 @@ class TestRecommendActionCommands:
         assert "Ship MVP" in result.output
 
     def test_action_update(self, runner, patch_components):
-        with patch("cli.commands.recommend.RecommendationStorage") as cls:
+        with patch("cli.commands.recommend.get_recommendation_storage") as cls:
             storage = cls.return_value
             storage.update_action_item.return_value = {"status": "completed"}
             storage.get_action_item.return_value = MagicMock(
@@ -265,7 +265,7 @@ class TestRecommendActionCommands:
         assert "Updated tracked action" in result.output
 
     def test_action_weekly_plan(self, runner, patch_components):
-        with patch("cli.commands.recommend.RecommendationStorage") as cls:
+        with patch("cli.commands.recommend.get_recommendation_storage") as cls:
             storage = cls.return_value
             storage.build_weekly_plan.return_value = {
                 "capacity_points": 6,

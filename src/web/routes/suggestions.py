@@ -1,13 +1,12 @@
 """Unified Suggestions endpoint — merges recommendations + daily brief items."""
 
-from pathlib import Path
-
 import structlog
 from fastapi import APIRouter, Depends, Query
 
+from services.daily_brief import build_daily_brief_payload, load_weekly_hours
 from web.auth import get_current_user
 from web.briefing_data import assemble_briefing_data
-from web.deps import get_user_paths
+from web.deps import get_profile_storage
 from web.models import SuggestionItem
 
 logger = structlog.get_logger()
@@ -22,39 +21,28 @@ async def get_suggestions(
 ):
     """Return a unified list of suggestions combining daily brief items and recommendations."""
     data = assemble_briefing_data(user["id"])
-    paths = get_user_paths(user["id"])
 
     suggestions: list[SuggestionItem] = []
 
     # Build daily brief items as high-priority suggestions
     try:
-        from profile.storage import ProfileStorage
-
-        from advisor.daily_brief import DailyBriefBuilder
-
-        weekly_hours = 5
-        profile_path = paths.get("profile")
-        if profile_path and Path(profile_path).exists():
-            prof = ProfileStorage(profile_path).load()
-            if prof and hasattr(prof, "weekly_hours_available"):
-                weekly_hours = prof.weekly_hours_available or 5
-
-        brief = DailyBriefBuilder().build(
+        weekly_hours = load_weekly_hours(get_profile_storage(user["id"]))
+        brief = build_daily_brief_payload(
             stale_goals=data["stale_goals"],
             recommendations=data["recommendations"],
             all_goals=data["all_goals"],
             weekly_hours=weekly_hours,
-            intel_matches=data["goal_intel_matches"],
+            goal_intel_matches=data["goal_intel_matches"],
         )
-        for item in brief.items:
+        for item in brief["items"]:
             suggestions.append(
                 SuggestionItem(
                     source="brief",
-                    kind=item.kind,
-                    title=item.title,
-                    description=item.description,
-                    action=item.action,
-                    priority=item.priority,
+                    kind=item["kind"],
+                    title=item["title"],
+                    description=item["description"],
+                    action=item["action"],
+                    priority=item["priority"],
                     score=0.0,
                 )
             )

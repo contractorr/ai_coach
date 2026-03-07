@@ -2,15 +2,14 @@
 
 from unittest.mock import patch
 
+import web.deps as web_deps
 from memory.models import FactCategory, FactSource, StewardFact
 from memory.store import FactStore
 
 
 def _seed_store(user_id: str):
-    from web.routes import memory as memory_routes
-
-    paths = memory_routes.get_user_paths(user_id)
-    return FactStore(paths["data_dir"] / "memory.db", chroma_dir=None)
+    paths = web_deps.get_user_paths(user_id)
+    return FactStore(paths["memory_db"], chroma_dir=None)
 
 
 def _route_store(user_id: str):

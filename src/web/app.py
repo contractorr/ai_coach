@@ -7,54 +7,13 @@ import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from web.routes import (
-    admin,
-    advisor,
-    briefing,
-    engagement,
-    goals,
-    greeting,
-    insights,
-    intel,
-    journal,
-    memory,
-    onboarding,
-    pageview,
-    profile,
-    projects,
-    recommendations,
-    research,
-    settings,
-    suggestions,
-    threads,
-    user,
-)
-from web.user_store import init_db
+from crypto_utils import decrypt_value, encrypt_value
+from user_state_store import init_db
+from web.routes import ROUTERS
 
 logger = structlog.get_logger()
 
-ROUTERS = (
-    settings.router,
-    journal.router,
-    advisor.router,
-    goals.router,
-    intel.router,
-    research.router,
-    onboarding.router,
-    briefing.router,
-    greeting.router,
-    recommendations.router,
-    engagement.router,
-    profile.router,
-    projects.router,
-    user.router,
-    pageview.router,
-    admin.router,
-    insights.router,
-    suggestions.router,
-    memory.router,
-    threads.router,
-)
+
 
 
 def _env_flag(name: str, default: bool = False) -> bool:
@@ -71,8 +30,6 @@ def _verify_secret_key() -> None:
     if not key:
         logger.critical("SECRET_KEY env var not set")
         raise RuntimeError("SECRET_KEY required")
-    from web.crypto import decrypt_value, encrypt_value
-
     canary = "canary-check"
     enc = encrypt_value(key, canary)
     dec = decrypt_value(key, enc, key_name="canary")
@@ -90,15 +47,11 @@ def _start_intel_scheduler():
 
     try:
         from intelligence.scheduler import IntelScheduler
-        from web.deps import get_coach_paths, get_config
+        from web.deps import get_config, get_intel_storage
 
         config = get_config()
         full = config.to_dict()
-        paths = get_coach_paths()
-
-        from intelligence.scraper import IntelStorage
-
-        storage = IntelStorage(paths["intel_db"])
+        storage = get_intel_storage()
 
         scheduler = IntelScheduler(
             storage=storage,

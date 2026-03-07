@@ -35,11 +35,13 @@ specs/
 | [research-dossiers](functional/research-dossiers.md) | Experimental | Persistent research topics, timeline updates, advisor retrieval |
 | [goal-tracking](functional/goal-tracking.md) | Experimental | Goals, milestones, check-ins |
 | [memory-threads](functional/memory-threads.md) | Experimental | Persistent facts, recurring topic detection |
+| [library-reports](functional/library-reports.md) | Draft | Library workspace for durable AI-generated reports, save-from-chat, refresh, collections |
 
 ## Technical Specs (modules)
 
 | Spec | Covers |
 |------|--------|
+| [architecture](technical/architecture.md) | System topology, module boundaries, dependency graph, weak points |
 | [advisor](technical/advisor.md) | AdvisorEngine, RAG retrieval, agentic orchestrator, prompts |
 | [journal](technical/journal.md) | Storage, embeddings, search, FTS, threads, trends, sentiment |
 | [intelligence](technical/intelligence.md) | Scrapers, IntelStorage, scheduler, dedup, trending radar |
@@ -59,3 +61,4 @@ specs/
 - **Technical specs**: Reference the functional spec they implement. Include component signatures, invariants, error paths.
 - One functional spec per feature. One technical spec per module (may cover multiple features).
 - Functional specs map to user-facing features; technical specs map to code modules. The mapping is many-to-many (e.g., journaling touches `journal`, `web`, `cli`, and `mcp` technical specs).
+

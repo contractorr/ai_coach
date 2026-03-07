@@ -23,7 +23,7 @@ logger = structlog.get_logger()
 
 # Retry decorator for LLM calls
 try:
-    from cli.retry import llm_retry
+    from retry_utils import llm_retry
 
     _llm_retry = llm_retry(
         max_attempts=3,

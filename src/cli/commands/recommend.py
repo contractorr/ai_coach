@@ -8,8 +8,19 @@ from rich.markdown import Markdown
 from rich.table import Table
 
 from advisor.engine import LLMError
-from advisor.recommendation_storage import RecommendationStorage
-from cli.utils import get_components, get_rec_db_path
+from cli.utils import get_components, get_rec_db_path, get_recommendation_storage
+from services.recommendation_actions import (
+    build_weekly_plan as build_weekly_action_plan,
+)
+from services.recommendation_actions import (
+    create_action_item as create_tracked_action,
+)
+from services.recommendation_actions import (
+    list_action_items as list_tracked_actions,
+)
+from services.recommendation_actions import (
+    update_action_item as update_tracked_action,
+)
 
 console = Console()
 
@@ -19,10 +30,9 @@ ACTION_ITEM_EFFORTS = ["small", "medium", "large"]
 ACTION_ITEM_DUE_WINDOWS = ["today", "this_week", "later"]
 
 
-def _get_storage() -> RecommendationStorage:
+def _get_storage():
     c = get_components(skip_advisor=True)
-    rec_path = get_rec_db_path(c["config"])
-    return RecommendationStorage(rec_path)
+    return get_recommendation_storage(c["config"], storage_paths=c.get("storage_paths"))
 
 
 def _display_action_item(action: dict):
@@ -125,8 +135,7 @@ def recommend_brief(limit: int, save: bool):
 def recommend_history(limit: int, category: str, status: str):
     """View recommendation history."""
     c = get_components(skip_advisor=True)
-    rec_path = get_rec_db_path(c["config"])
-    storage = RecommendationStorage(rec_path)
+    storage = get_recommendation_storage(c["config"], storage_paths=c.get("storage_paths"))
 
     if category:
         recs = storage.list_by_category(category, status=status, limit=limit)
@@ -184,28 +193,29 @@ def recommend_action_create(
 ):
     """Convert a recommendation into a tracked action item."""
     storage = _get_storage()
-    action_item = storage.create_action_item(
+    result = create_tracked_action(
+        storage,
         rec_id,
         goal_path=goal_path,
         goal_title=goal_title,
         effort=effort,
         due_window=due_window,
     )
-    if not action_item:
+    if not result["success"]:
         console.print(f"[red]Recommendation {rec_id} not found[/]")
         return
 
-    record = storage.get_action_item(rec_id)
-    if not record:
+    record = result["record"]
+    if not result["persisted"] or not record:
         console.print(f"[red]Failed to load tracked action for {rec_id}[/]")
         return
 
     console.print(f"[green]Tracked action created for recommendation {rec_id}[/]")
     _display_action_item(
         {
-            "recommendation_title": record.recommendation_title,
-            "category": record.category,
-            "action_item": record.action_item,
+            "recommendation_title": record["recommendation_title"],
+            "category": record["category"],
+            "action_item": record["action_item"],
         }
     )
 
@@ -217,7 +227,8 @@ def recommend_action_create(
 def recommend_action_list(limit: int, status: str | None, goal_path: str | None):
     """List tracked recommendation action items."""
     storage = _get_storage()
-    actions = storage.list_action_items(status=status, goal_path=goal_path, limit=limit)
+    result = list_tracked_actions(storage, status=status, goal_path=goal_path, limit=limit)
+    actions = result["actions"]
     if not actions:
         console.print("[yellow]No tracked actions found.[/]")
         return
@@ -231,10 +242,10 @@ def recommend_action_list(limit: int, status: str | None, goal_path: str | None)
     table.add_column("Goal", style="dim")
 
     for action in actions:
-        item = action.action_item
+        item = action["action_item"]
         table.add_row(
-            action.recommendation_id,
-            action.recommendation_title[:42],
+            action["recommendation_id"],
+            action["recommendation_title"][:42],
             item.get("status", ""),
             item.get("effort", ""),
             item.get("due_window", ""),
@@ -263,25 +274,26 @@ def recommend_action_update(
 ):
     """Update a tracked action item."""
     storage = _get_storage()
-    action_item = storage.update_action_item(
+    result = update_tracked_action(
+        storage,
         rec_id,
         status=status,
         effort=effort,
         due_window=due_window,
         review_notes=review_notes,
     )
-    if not action_item:
+    if not result["success"]:
         console.print(f"[red]Tracked action for recommendation {rec_id} not found[/]")
         return
 
-    record = storage.get_action_item(rec_id)
+    record = result["record"]
     console.print(f"[green]Updated tracked action for recommendation {rec_id}[/]")
     if record:
         _display_action_item(
             {
-                "recommendation_title": record.recommendation_title,
-                "category": record.category,
-                "action_item": record.action_item,
+                "recommendation_title": record["recommendation_title"],
+                "category": record["category"],
+                "action_item": record["action_item"],
             }
         )
 
@@ -292,7 +304,7 @@ def recommend_action_update(
 def recommend_action_weekly_plan(capacity: int, goal_path: str | None):
     """Assemble a weekly plan from accepted tracked actions."""
     storage = _get_storage()
-    plan = storage.build_weekly_plan(capacity_points=capacity, goal_path=goal_path)
+    plan = build_weekly_action_plan(storage, capacity_points=capacity, goal_path=goal_path)
     console.print(
         f"[cyan bold]Weekly plan[/] [dim]({plan['used_points']}/{plan['capacity_points']} points used)[/]"
     )
@@ -303,9 +315,9 @@ def recommend_action_weekly_plan(capacity: int, goal_path: str | None):
     for action in plan["items"]:
         _display_action_item(
             {
-                "recommendation_title": action.recommendation_title,
-                "category": action.category,
-                "action_item": action.action_item,
+                "recommendation_title": action["recommendation_title"],
+                "category": action["category"],
+                "action_item": action["action_item"],
             }
         )
 
@@ -322,8 +334,7 @@ def recommend_action_weekly_plan(capacity: int, goal_path: str | None):
 def recommend_update(rec_id: str, status: str):
     """Update recommendation status."""
     c = get_components(skip_advisor=True)
-    rec_path = get_rec_db_path(c["config"])
-    storage = RecommendationStorage(rec_path)
+    storage = get_recommendation_storage(c["config"], storage_paths=c.get("storage_paths"))
 
     if storage.update_status(rec_id, status):
         console.print(f"[green]Updated recommendation {rec_id} to {status}[/]")
@@ -336,8 +347,7 @@ def recommend_update(rec_id: str, status: str):
 def recommend_view(rec_id: str):
     """View a specific recommendation."""
     c = get_components(skip_advisor=True)
-    rec_path = get_rec_db_path(c["config"])
-    storage = RecommendationStorage(rec_path)
+    storage = get_recommendation_storage(c["config"], storage_paths=c.get("storage_paths"))
 
     rec = storage.get(rec_id)
     if not rec:
@@ -376,8 +386,7 @@ def recommend_view(rec_id: str):
 def recommend_rate(rec_id: str, rating: int, comment: str):
     """Rate a recommendation's usefulness."""
     c = get_components(skip_advisor=True)
-    rec_path = get_rec_db_path(c["config"])
-    storage = RecommendationStorage(rec_path)
+    storage = get_recommendation_storage(c["config"], storage_paths=c.get("storage_paths"))
 
     if storage.add_feedback(rec_id, rating, comment):
         stars = "★" * rating + "☆" * (5 - rating)

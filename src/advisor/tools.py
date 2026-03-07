@@ -553,7 +553,7 @@ class ToolRegistry:
             return
 
         def intel_list_rss_feeds(args: dict) -> dict:
-            from web.user_store import get_user_rss_feeds
+            from user_state_store import get_user_rss_feeds
 
             feeds = get_user_rss_feeds(user_id)
             return {
@@ -580,7 +580,7 @@ class ToolRegistry:
 
             import httpx
 
-            from web.user_store import add_user_rss_feed
+            from user_state_store import add_user_rss_feed
 
             url = args["url"]
             name = args.get("name")

@@ -3,14 +3,13 @@
 import asyncio
 from datetime import datetime
 
+import web.deps as web_deps
 from journal.thread_store import ThreadStore
 
 
 def test_list_threads_and_get_detail(client, auth_headers):
-    from web.routes import threads as threads_routes
-
-    paths = threads_routes.get_user_paths("user-123")
-    store = ThreadStore(paths["data_dir"] / "threads.db")
+    paths = web_deps.get_user_paths("user-123")
+    store = ThreadStore(paths["threads_db"])
 
     thread = asyncio.run(store.create_thread("Weekly planning"))
     asyncio.run(store.add_entry(thread.id, "entry-1", 0.9876, datetime(2026, 3, 1)))
@@ -50,10 +49,8 @@ def test_get_thread_not_found(client, auth_headers):
 
 
 def test_threads_are_isolated_per_user(client, auth_headers, auth_headers_b):
-    from web.routes import threads as threads_routes
-
-    paths = threads_routes.get_user_paths("user-123")
-    store = ThreadStore(paths["data_dir"] / "threads.db")
+    paths = web_deps.get_user_paths("user-123")
+    store = ThreadStore(paths["threads_db"])
 
     thread = asyncio.run(store.create_thread("Private thread"))
     asyncio.run(store.add_entry(thread.id, "entry-1", 0.9, datetime(2026, 3, 2)))

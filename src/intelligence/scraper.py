@@ -14,9 +14,11 @@ import httpx
 import structlog
 from bs4 import BeautifulSoup
 
-from db import wal_connect
+from db import ensure_schema_version, wal_connect
 
 logger = structlog.get_logger().bind(source="intel_storage")
+
+SCHEMA_VERSION = 3
 
 _ALLOWED_SCHEMES = {"http", "https"}
 _INTERNAL_SCHEMES = {"research"}
@@ -158,6 +160,7 @@ class IntelStorage:
                 FROM intel_items
                 WHERE id NOT IN (SELECT rowid FROM intel_fts)
             """)
+            ensure_schema_version(conn, SCHEMA_VERSION)
 
     def save(self, item: IntelItem) -> int | None:
         """Save intel item, skip if URL invalid/exists or content hash exists.

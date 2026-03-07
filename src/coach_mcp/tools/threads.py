@@ -1,21 +1,16 @@
 """Thread MCP tools — list, search, and manage journal recurrence threads."""
 
 import asyncio
-from pathlib import Path
 
-from coach_mcp.bootstrap import get_components
+from coach_mcp.bootstrap import get_components, get_thread_store
 
 
 def _list_threads(args: dict) -> dict:
     """List active threads with entry count and date range."""
-    c = get_components()
+    get_components()
     min_entries = args.get("min_entries", 2)
 
-    from journal.thread_store import ThreadStore
-
-    paths = c.get("paths", {})
-    intel_db = Path(paths.get("intel_db", "~/coach/intel.db")).expanduser()
-    store = ThreadStore(intel_db.parent / "threads.db")
+    store = get_thread_store()
 
     loop = asyncio.get_event_loop()
     threads = loop.run_until_complete(store.get_active_threads(min_entries=min_entries))
@@ -40,14 +35,10 @@ def _list_threads(args: dict) -> dict:
 
 def _get_thread_entries(args: dict) -> dict:
     """Get all entries in a specific thread."""
-    c = get_components()
+    get_components()
     thread_id = args["thread_id"]
 
-    from journal.thread_store import ThreadStore
-
-    paths = c.get("paths", {})
-    intel_db = Path(paths.get("intel_db", "~/coach/intel.db")).expanduser()
-    store = ThreadStore(intel_db.parent / "threads.db")
+    store = get_thread_store()
 
     loop = asyncio.get_event_loop()
     thread = loop.run_until_complete(store.get_thread(thread_id))
@@ -76,15 +67,12 @@ def _reindex_threads(args: dict) -> dict:
     """Rebuild all threads from scratch."""
     c = get_components()
 
-    from journal.thread_store import ThreadStore
     from journal.threads import ThreadDetector
 
     config_model = c.get("config_model")
     threads_cfg = config_model.threads if config_model else None
 
-    paths = c.get("paths", {})
-    intel_db = Path(paths.get("intel_db", "~/coach/intel.db")).expanduser()
-    store = ThreadStore(intel_db.parent / "threads.db")
+    store = get_thread_store()
     detector = ThreadDetector(
         c["embeddings"],
         store,

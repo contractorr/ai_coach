@@ -11,7 +11,7 @@ from rich.console import Console
 from rich.markdown import Markdown
 from rich.table import Table
 
-from cli.utils import get_components
+from cli.utils import get_components, get_thread_store
 
 console = Console()
 logger = structlog.get_logger()
@@ -62,11 +62,9 @@ def _run_thread_detection(c: dict, entry_id: str) -> None:
         except Exception:
             pass
 
-        from journal.thread_store import ThreadStore
         from journal.threads import ThreadDetector
 
-        db_path = c["paths"]["intel_db"].parent / "threads.db"
-        store = ThreadStore(db_path)
+        store = get_thread_store(c["config"], c.get("storage_paths"))
         detector = ThreadDetector(
             c["embeddings"],
             store,

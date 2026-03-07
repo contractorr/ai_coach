@@ -237,7 +237,7 @@ class IntelScheduler:
         intel_embedding_mgr = None
         if self.config.get("semantic_dedup", False):
             try:
-                from cli.config import get_paths
+                from coach_config import get_paths
                 from intelligence.embeddings import IntelEmbeddingManager
 
                 paths = get_paths(self.full_config)
@@ -269,7 +269,7 @@ class IntelScheduler:
 
         # Merge user-added RSS feeds
         try:
-            from web.user_store import get_all_user_rss_feeds
+            from user_state_store import get_all_user_rss_feeds
 
             for feed in get_all_user_rss_feeds():
                 if feed["url"] not in config_rss_urls:
@@ -514,7 +514,7 @@ class IntelScheduler:
                         items_deduped=deduped_count,
                     )
                     try:
-                        from web.user_store import log_event
+                        from user_state_store import log_event
 
                         log_event(
                             "scraper_run", metadata={"source": source, "items_added": new_count}
@@ -976,9 +976,9 @@ class IntelScheduler:
     def run_weekly_summary(self):
         """Generate and write a weekly usage summary to logs dir."""
         try:
-            from web.user_store import get_usage_stats
+            from user_state_store import get_usage_stats
         except ImportError:
-            logger.warning("weekly_summary.skip: web.user_store not available")
+            logger.warning("weekly_summary.skip: user_state_store not available")
             return
 
         try:
