@@ -717,20 +717,20 @@ export default function GoalsPage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-6 p-4 md:p-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1">
           <h1 className="text-2xl font-semibold">Focus</h1>
           <p className="text-sm text-muted-foreground">
             See your best next moves, keep active goals moving, and turn opportunities into progress.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" asChild>
+        <div className="flex shrink-0 items-center gap-2">
+          <Button variant="outline" size="sm" asChild>
             <Link href="/projects">More opportunities</Link>
           </Button>
           <Sheet open={createOpen} onOpenChange={setCreateOpen}>
             <SheetTrigger asChild>
-              <Button>
+              <Button size="sm">
                 <Plus className="mr-2 h-4 w-4" /> New Goal
               </Button>
             </SheetTrigger>
