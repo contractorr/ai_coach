@@ -1,5 +1,6 @@
 """Tests for AgenticOrchestrator and agentic engine integration."""
 
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
@@ -11,20 +12,40 @@ from llm.base import GenerateResponse, ToolCall
 
 @pytest.fixture
 def mock_components(tmp_path):
-    from advisor.rag import RAGRetriever
-    from intelligence.scraper import IntelStorage
-    from journal.embeddings import EmbeddingManager
-    from journal.search import JournalSearch
+    from pathlib import Path
+
     from journal.storage import JournalStorage
 
     journal_dir = tmp_path / "journal"
     journal_dir.mkdir()
 
     storage = JournalStorage(journal_dir)
-    embeddings = EmbeddingManager(tmp_path / "chroma", collection_name="test")
-    intel_storage = IntelStorage(tmp_path / "intel.db")
-    journal_search = JournalSearch(storage, embeddings)
-    rag = RAGRetriever(journal_search=journal_search, intel_db_path=tmp_path / "intel.db")
+    embeddings = MagicMock(name="embeddings")
+    embeddings.query.return_value = []
+    embeddings.add_entry.return_value = None
+    embeddings.sync_from_storage.return_value = None
+
+    intel_db = tmp_path / "intel.db"
+    intel_storage = MagicMock(name="intel_storage")
+    intel_storage.db_path = intel_db
+    intel_storage.search.return_value = []
+    intel_storage.get_recent.return_value = []
+
+    rag = MagicMock(name="rag")
+    rag.cache = None
+    rag.intel_db_path = Path(intel_db)
+    rag.get_profile_context.return_value = ""
+    rag.get_recent_entries.return_value = ""
+    rag.get_journal_context.return_value = ""
+    rag.get_research_context.return_value = ""
+    rag.get_combined_context.return_value = ("", "")
+    rag.build_context_for_ask.return_value = SimpleNamespace(
+        journal="",
+        intel="",
+        profile="",
+        memory="",
+        thoughts="",
+    )
 
     return {
         "storage": storage,

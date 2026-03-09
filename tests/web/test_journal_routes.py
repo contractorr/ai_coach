@@ -1,6 +1,6 @@
 """Tests for journal API routes."""
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 
 def test_list_empty(client, auth_headers):
@@ -60,32 +60,32 @@ def test_delete_entry(client, auth_headers):
 
 def test_create_fires_post_hooks(client, auth_headers):
     """POST /api/journal triggers embed + thread + memory hooks."""
-    mock_hooks = AsyncMock()
-    with patch("web.routes.journal._run_post_create_hooks", mock_hooks):
+    mock_schedule = MagicMock()
+    with patch("web.routes.journal._schedule_post_create_hooks", mock_schedule):
         res = client.post(
             "/api/journal",
             headers=auth_headers,
             json={"content": "Hook test", "entry_type": "daily", "title": "Hooks"},
         )
     assert res.status_code == 201
-    mock_hooks.assert_called_once()
-    args = mock_hooks.call_args[0]
+    mock_schedule.assert_called_once()
+    args = mock_schedule.call_args[0]
     assert args[0] == "user-123"  # user_id
     assert args[2] == "Hook test"  # content
 
 
 def test_quick_capture_fires_post_hooks(client, auth_headers):
     """POST /api/journal/quick triggers embed + thread + memory hooks."""
-    mock_hooks = AsyncMock()
-    with patch("web.routes.journal._run_post_create_hooks", mock_hooks):
+    mock_schedule = MagicMock()
+    with patch("web.routes.journal._schedule_post_create_hooks", mock_schedule):
         res = client.post(
             "/api/journal/quick",
             headers=auth_headers,
             json={"content": "Quick hook test"},
         )
     assert res.status_code == 201
-    mock_hooks.assert_called_once()
-    args = mock_hooks.call_args[0]
+    mock_schedule.assert_called_once()
+    args = mock_schedule.call_args[0]
     assert args[0] == "user-123"
 
 
@@ -103,6 +103,8 @@ def test_post_hooks_embed_and_memory(tmp_path):
     user_paths = {
         "journal_dir": tmp_path / "journal",
         "chroma_dir": tmp_path / "chroma",
+        "memory_db": tmp_path / "memory.db",
+        "threads_db": tmp_path / "threads.db",
         "intel_db": tmp_path / "intel.db",
     }
 
@@ -110,7 +112,6 @@ def test_post_hooks_embed_and_memory(tmp_path):
         patch("web.routes.journal.get_user_paths", return_value=user_paths),
         patch("journal.embeddings.EmbeddingManager", return_value=mock_em),
         patch("web.routes.journal.get_config") as mock_cfg,
-        patch("memory.store.FactStore"),
         patch("memory.pipeline.MemoryPipeline", return_value=mock_pipeline),
     ):
         mock_cfg.return_value.threads.enabled = True

@@ -7,8 +7,10 @@ import { useSession } from "next-auth/react";
 import {
   BookOpen,
   Brain,
+  FileText,
   HelpCircle,
   Home,
+  Lightbulb,
   Newspaper,
   Settings,
   Target,
@@ -35,6 +37,8 @@ const primaryNav = [
 const discoverNav = [
   { href: "/advisor", label: "Conversations", icon: Brain },
   { href: "/intel", label: "Radar", icon: Newspaper },
+  { href: "/projects", label: "Projects", icon: Lightbulb },
+  { href: "/library", label: "Library", icon: FileText },
 ];
 
 function NavItem({

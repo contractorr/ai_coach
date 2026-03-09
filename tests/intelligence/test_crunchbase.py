@@ -6,7 +6,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 import pytest
 
-from intelligence.scraper import IntelStorage
 from intelligence.sources.crunchbase import CrunchbaseScraper
 from shared_types import IntelSource
 
@@ -42,9 +41,9 @@ SAMPLE_RESPONSE = {
 
 
 class TestCrunchbaseScraper:
-    @pytest.fixture
-    def storage(self, tmp_path):
-        return IntelStorage(tmp_path / "intel.db")
+    @pytest.fixture(scope="class")
+    def storage(self):
+        return MagicMock(name="intel_storage")
 
     @pytest.fixture
     def scraper(self, storage):

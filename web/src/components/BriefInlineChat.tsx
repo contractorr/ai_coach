@@ -3,17 +3,15 @@
 import { useRef, useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
+import { ChatAttachmentBadges, ChatPdfAttachmentPicker } from "@/components/ChatPdfAttachments";
 import { MessageRenderer } from "@/components/MessageRenderer";
 import { ExternalLink, Send, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useChatPdfAttachments } from "@/hooks/useChatPdfAttachments";
 import { Textarea } from "@/components/ui/textarea";
 import { apiFetchSSE } from "@/lib/api";
 import { TOOL_LABELS } from "@/lib/constants";
-
-interface Message {
-  role: "user" | "assistant";
-  content: string;
-}
+import type { ChatMessage } from "@/types/chat";
 
 export function BriefInlineChat({
   token,
@@ -24,7 +22,7 @@ export function BriefInlineChat({
   initialQuestion: string;
   onDismiss: () => void;
 }) {
-  const [messages, setMessages] = useState<Message[]>([
+  const [messages, setMessages] = useState<ChatMessage[]>([
     { role: "user", content: initialQuestion },
   ]);
   const [input, setInput] = useState("");
@@ -34,9 +32,11 @@ export function BriefInlineChat({
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const sentInitial = useRef(false);
+  const { attachments, addFiles, removeAttachment, uploadPending, uploading } =
+    useChatPdfAttachments(token);
 
   const sendMessage = useCallback(
-    async (question: string, convId: string | null) => {
+    async (question: string, convId: string | null, attachmentIds: string[] = []) => {
       setLoading(true);
       setToolStatus(null);
 
@@ -49,6 +49,7 @@ export function BriefInlineChat({
               question,
               advice_type: "general",
               conversation_id: convId,
+              attachment_ids: attachmentIds,
             }),
           },
           token,
@@ -109,9 +110,33 @@ export function BriefInlineChat({
     if (!input.trim() || loading) return;
     const question = input.trim();
     setInput("");
-    setMessages((prev) => [...prev, { role: "user", content: question }]);
-    sendMessage(question, conversationId);
-  }, [input, loading, conversationId, sendMessage]);
+    setLoading(true);
+    setToolStatus(attachments.length ? "Uploading PDFs..." : null);
+    try {
+      const uploaded = await uploadPending();
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "user",
+          content: question,
+          attachments: uploaded.map((item) => ({
+            library_item_id: item.attachment_id,
+            file_name: item.file_name,
+            mime_type: item.mime_type,
+          })),
+        },
+      ]);
+      sendMessage(
+        question,
+        conversationId,
+        uploaded.map((item) => item.attachment_id),
+      );
+    } catch (e) {
+      toast.error((e as Error).message);
+      setLoading(false);
+      setToolStatus(null);
+    }
+  }, [input, loading, conversationId, sendMessage, uploadPending, attachments.length]);
 
   return (
     <div className="mx-auto max-w-2xl rounded-lg border bg-card">
@@ -147,10 +172,11 @@ export function BriefInlineChat({
                 ? "ml-12 rounded-2xl rounded-br-sm bg-primary/10 px-4 py-2.5"
                 : "mr-4 rounded-2xl rounded-bl-sm px-4 py-2.5"
             }
-          >
-            {msg.role === "assistant" ? (
-              <MessageRenderer
-                content={msg.content}
+            >
+              {msg.role === "user" && <ChatAttachmentBadges attachments={msg.attachments} />}
+              {msg.role === "assistant" ? (
+                <MessageRenderer
+                  content={msg.content}
                 onAction={(text) => {
                   setInput(text);
                   setTimeout(() => textareaRef.current?.focus(), 100);
@@ -177,28 +203,36 @@ export function BriefInlineChat({
 
       {/* Input */}
       <div className="border-t px-3 py-2">
-        <div className="flex gap-2">
-          <Textarea
-            ref={textareaRef}
-            rows={1}
-            placeholder="Follow up..."
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                handleSend();
-              }
-            }}
-            className="flex-1 resize-none"
+        <div className="space-y-3">
+          <ChatPdfAttachmentPicker
+            attachments={attachments}
+            disabled={loading || uploading}
+            onAddFiles={addFiles}
+            onRemove={removeAttachment}
           />
-          <Button
-            onClick={handleSend}
-            disabled={loading || !input.trim()}
-            className="self-end"
-          >
-            <Send className="h-4 w-4" />
-          </Button>
+          <div className="flex gap-2">
+            <Textarea
+              ref={textareaRef}
+              rows={1}
+              placeholder="Follow up..."
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSend();
+                }
+              }}
+              className="flex-1 resize-none"
+            />
+            <Button
+              onClick={handleSend}
+              disabled={loading || uploading || !input.trim()}
+              className="self-end"
+            >
+              <Send className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </div>
     </div>

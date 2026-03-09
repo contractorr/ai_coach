@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 import httpx
 import pytest
 
-from research.web_search import SearchResult, WebSearchClient
+from research.web_search import AsyncWebSearchClient, SearchResult, WebSearchClient
 
 
 @pytest.fixture
@@ -112,3 +112,25 @@ class TestWebSearchClient:
         """Test client works as context manager."""
         with WebSearchClient(api_key="test") as client:
             assert client.api_key == "test"
+
+    def test_close_is_idempotent(self):
+        """Closing twice should be a no-op on the underlying client."""
+        client = WebSearchClient(api_key="test")
+
+        with patch.object(client.client, "close") as mock_close:
+            client.close()
+            client.close()
+
+        mock_close.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_async_close_is_idempotent():
+    """Async close should only close the underlying client once."""
+    client = AsyncWebSearchClient(api_key="test")
+
+    with patch.object(client.client, "aclose") as mock_aclose:
+        await client.close()
+        await client.close()
+
+    mock_aclose.assert_awaited_once()

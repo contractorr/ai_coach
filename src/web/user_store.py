@@ -17,8 +17,21 @@ logger = structlog.get_logger()
 _DEFAULT_DB_PATH = Path(os.environ.get("COACH_HOME", Path.home() / "coach")) / "users.db"
 
 
+def get_default_db_path() -> Path:
+    """Resolve the default users DB path from the current environment."""
+    explicit_path = os.environ.get("COACH_USERS_DB_PATH")
+    if explicit_path:
+        return Path(explicit_path).expanduser()
+
+    coach_home = os.environ.get("COACH_HOME")
+    if coach_home:
+        return Path(coach_home).expanduser() / "users.db"
+
+    return _DEFAULT_DB_PATH
+
+
 def _get_conn(db_path: Path | None = None) -> sqlite3.Connection:
-    path = db_path or _DEFAULT_DB_PATH
+    path = db_path or get_default_db_path()
     path.parent.mkdir(parents=True, exist_ok=True)
     conn = wal_connect(path, row_factory=True)
     conn.execute("PRAGMA foreign_keys=ON")
@@ -61,6 +74,16 @@ def init_db(db_path: Path | None = None) -> None:
                 FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
             );
             CREATE INDEX IF NOT EXISTS idx_msg_conv ON conversation_messages(conversation_id, created_at ASC);
+            CREATE TABLE IF NOT EXISTS conversation_message_attachments (
+                id TEXT PRIMARY KEY,
+                message_id TEXT NOT NULL,
+                library_item_id TEXT NOT NULL,
+                file_name TEXT,
+                mime_type TEXT,
+                created_at TIMESTAMP NOT NULL,
+                FOREIGN KEY (message_id) REFERENCES conversation_messages(id) ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS idx_msg_attachment_message ON conversation_message_attachments(message_id);
 
             CREATE TABLE IF NOT EXISTS onboarding_responses (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -639,10 +662,10 @@ def get_feedback_count(
     days: int = 30,
     db_path: Path | None = None,
 ) -> int:
-    """Count feedback events (useful + irrelevant) in the last N days."""
+    """Count binary and numeric feedback events in the last N days."""
     conn = _get_conn(db_path)
     try:
-        row = conn.execute(
+        engagement_row = conn.execute(
             """
             SELECT COUNT(*) as cnt FROM engagement_events
             WHERE user_id = ?
@@ -651,6 +674,17 @@ def get_feedback_count(
             """,
             (user_id, f"-{days} days"),
         ).fetchone()
-        return row["cnt"] if row else 0
+        recommendation_row = conn.execute(
+            """
+            SELECT COUNT(*) as cnt FROM usage_events
+            WHERE user_id = ?
+              AND event = 'recommendation_feedback'
+              AND created_at >= datetime('now', ?)
+            """,
+            (user_id, f"-{days} days"),
+        ).fetchone()
+        engagement_count = engagement_row["cnt"] if engagement_row else 0
+        recommendation_count = recommendation_row["cnt"] if recommendation_row else 0
+        return engagement_count + recommendation_count
     finally:
         conn.close()

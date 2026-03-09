@@ -1,6 +1,6 @@
 # {Feature Name}
 
-**Status:** Draft | Ready for Review | Approved | Implemented
+**Status:** Draft | Ready for Review | Approved | Partially Implemented | Implemented
 **Author:** {name}
 **Date:** {YYYY-MM-DD}
 
@@ -14,7 +14,7 @@
 
 ## Desired Behavior
 
-{Describe what the user sees and does, step by step. Use numbered steps for flows, bullet points for standalone behaviors. No implementation details — write from the user's perspective.}
+{Describe what the user sees and does, step by step. Use numbered steps for flows, bullet points for standalone behaviors. No implementation details - write from the user's perspective.}
 
 1. User does X
 2. System shows Y
@@ -30,7 +30,7 @@
 
 ## Edge Cases
 
-{User-facing edge cases the implementation must handle. Not internal error paths — things a user could actually encounter.}
+{User-facing edge cases the implementation must handle. Not internal error paths - things a user could actually encounter.}
 
 | Scenario | Expected Behavior |
 |----------|-------------------|

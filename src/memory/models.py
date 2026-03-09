@@ -19,6 +19,8 @@ class FactSource(str, Enum):
     FEEDBACK = "feedback"
     PROFILE = "profile"
     GOAL = "goal"
+    DOCUMENT = "document"
+    ASSUMPTION = "assumption"
 
 
 @dataclass

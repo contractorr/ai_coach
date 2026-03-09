@@ -105,5 +105,5 @@ class TestJournalExportMarkdown:
         out = tmp_path / "unicode.md"
         count = exporter.export_markdown(out)
         assert count == 1
-        content = out.read_text()
+        content = out.read_text(encoding="utf-8")
         assert "\u2603" in content

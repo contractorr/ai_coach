@@ -14,8 +14,10 @@ from llm import create_llm_provider
 from web.auth import get_current_user
 from web.deps import (
     SHARED_LLM_MODEL,
+    enforce_onboarding_shared_key_usage_limit,
     get_api_key_with_source,
     get_config,
+    get_profile_storage,
     get_user_paths,
 )
 from web.feed_catalog import FEED_CATALOG, feeds_for_categories, match_categories_to_profile
@@ -27,7 +29,6 @@ from web.models import (
     OnboardingResponse,
     ProfileStatus,
 )
-from web.rate_limit import check_shared_key_rate_limit
 from web.user_store import (
     add_user_rss_feed,
     clear_onboarding_responses,
@@ -198,11 +199,10 @@ def _save_results(user_id: str, data: dict) -> int:
 
     # Save profile
     from profile.interview import _build_profile
-    from profile.storage import ProfileStorage
 
     profile_data = data.get("profile", {})
     profile = _build_profile(profile_data)
-    storage = ProfileStorage(paths["profile"])
+    storage = get_profile_storage(user_id)
     storage.save(profile)
     logger.info("onboarding.profile_saved", user_id=user_id, skills=len(profile.skills))
 
@@ -251,13 +251,11 @@ def _strip_json_block(text: str) -> str:
 
 
 @router.post("/start", response_model=OnboardingResponse)
-async def start_onboarding(user: dict = Depends(get_current_user)):
+async def start_onboarding(
+    user: dict = Depends(get_current_user),
+    _rate_limit: None = Depends(enforce_onboarding_shared_key_usage_limit),
+):
     user_id = user["id"]
-
-    # Rate limit shared-key users (separate onboarding budget)
-    _key, _src = get_api_key_with_source(user_id)
-    if _src == "shared":
-        check_shared_key_rate_limit(user_id, onboarding=True)
 
     # Clear previous onboarding responses for re-onboarding
     try:
@@ -293,13 +291,9 @@ async def start_onboarding(user: dict = Depends(get_current_user)):
 async def chat_onboarding(
     body: OnboardingChat,
     user: dict = Depends(get_current_user),
+    _rate_limit: None = Depends(enforce_onboarding_shared_key_usage_limit),
 ):
     user_id = user["id"]
-
-    # Rate limit shared-key users (separate onboarding budget)
-    _key, _src = get_api_key_with_source(user_id)
-    if _src == "shared":
-        check_shared_key_rate_limit(user_id, onboarding=True)
 
     session = _sessions.get(user_id)
     if not session:
@@ -391,12 +385,7 @@ Now output ONLY the JSON block with profile and goals based on everything discus
 async def get_feed_categories(user: dict = Depends(get_current_user)):
     """Return all feed categories with pre-selections based on user profile."""
     user_id = user["id"]
-    paths = get_user_paths(user_id)
-
-    from profile.storage import ProfileStorage
-
-    storage = ProfileStorage(paths["profile"])
-    profile = storage.load()
+    profile = get_profile_storage(user_id).load()
 
     if profile:
         preselected = set(
@@ -448,12 +437,7 @@ async def set_onboarding_feeds(
 async def get_profile_status(user: dict = Depends(get_current_user)):
     """Check if user has a profile, if it's stale, and if they have an API key."""
     user_id = user["id"]
-    paths = get_user_paths(user_id)
-
-    from profile.storage import ProfileStorage
-
-    storage = ProfileStorage(paths["profile"])
-    profile = storage.load()
+    profile = get_profile_storage(user_id).load()
 
     _key, source = get_api_key_with_source(user_id)
 

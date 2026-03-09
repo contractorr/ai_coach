@@ -131,4 +131,4 @@ class TestIntelExportMarkdown:
         out = tmp_path / "unicode.md"
         count = exporter.export_markdown(out)
         assert count == 1
-        assert "\u2603" in out.read_text()
+        assert "\u2603" in out.read_text(encoding="utf-8")

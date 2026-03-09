@@ -2,11 +2,11 @@
 
 ## Overview
 
-The `coach_mcp` package exposes 42 tools across 15 modules via a stdio-transport MCP server named `"stewardme"` (post Phase 2: 37 tools across 14 modules — 5 learning tools removed). Tools are loaded lazily on first use and dispatched synchronously. The server enforces a strict no-LLM-in-MCP-layer rule: all reasoning is delegated to the calling Claude Code instance; the MCP layer only retrieves data and returns raw context. The one exception is `research_run`, which transitively invokes an LLM inside the research module's synthesis step (not in the MCP layer itself). Bootstrap initializes shared components once as a singleton, skipping advisor/LLM setup entirely via `skip_advisor=True`.
+The `coach_mcp` package exposes 40 tools across 12 modules via a stdio-transport MCP server named `"stewardme"`. Tools are loaded lazily on first use and dispatched synchronously. The server enforces a strict no-LLM-in-MCP-layer rule: all reasoning is delegated to the calling Claude Code instance; the MCP layer only retrieves data and returns raw context. The one exception is `research_run`, which transitively invokes an LLM inside the research module's synthesis step (not in the MCP layer itself). Bootstrap initializes shared components once as a singleton, skipping advisor/LLM setup entirely via `skip_advisor=True`.
 
 ## Dependencies
 
-**Depends on:** `journal` (JournalStorage, EmbeddingManager, JournalSearch), `intelligence` (IntelStorage, IntelScheduler, TrendingRadar, GoalIntelMatchStore), `advisor` (RAGRetriever, GoalTracker, InsightStore), `memory` (FactStore), `research` (via IntelScheduler.run_research_now), `profile` (ProfileStorage, LearningPathStorage), `cli.utils` (get_components bootstrap), `mcp` SDK
+**Depends on:** `journal` (JournalStorage, EmbeddingManager, JournalSearch), `intelligence` (IntelStorage, IntelScheduler, TrendingRadar, GoalIntelMatchStore), `advisor` (RAGRetriever, GoalTracker, InsightStore), `memory` (FactStore), `research` (via IntelScheduler.run_research_now), `profile` (ProfileStorage), `cli.utils` (get_components bootstrap), `mcp` SDK
 
 **Depended on by:** Claude Code (external MCP client via stdio transport)
 
@@ -21,7 +21,7 @@ The `coach_mcp` package exposes 42 tools across 15 modules via a stdio-transport
 
 - Creates a single `Server("stewardme")` instance at module load time.
 - Two module-level cache globals: `_tool_defs: list[Tool] | None` and `_handlers: dict | None`, both `None` until first use.
-- `_load_tools()` imports all 15 tool modules in this order: `journal, goals, intelligence, recommendations, research, reflect, profile, learning, projects, insights, brief, memory, threads`. Post Phase 2: `learning` removed (14 modules). For each module it iterates `TOOLS` (a list of `(name, schema, handler)` tuples) and builds a `Tool(name=name, description=schema["description"], inputSchema=schema)` object plus a `handlers[name] = handler` entry.
+- `_load_tools()` imports 12 tool modules in this order: `journal, goals, intelligence, recommendations, research, reflect, profile, projects, insights, brief, memory, threads`. For each module it iterates `TOOLS` (a list of `(name, schema, handler)` tuples) and builds a `Tool(name=name, description=schema["description"], inputSchema=schema)` object plus a `handlers[name] = handler` entry.
 - `list_tools()` — async, `@app.list_tools()` decorated. Calls `_load_tools()` on first invocation; returns cached `_tool_defs` subsequently.
 - `call_tool(name, arguments)` — async, `@app.call_tool()` decorated. Triggers lazy load if `_handlers` is `None`. Dispatches to `handler(arguments)` synchronously. Serializes result with `json.dumps(result, default=str)`. Returns `list[TextContent]`.
 - `run()` — async. Opens stdio streams via `stdio_server()`, runs `app.run(read_stream, write_stream, app.create_initialization_options())`.
@@ -150,7 +150,7 @@ Note: `shared_types.EntryType` also defines `quick`, but it is intentionally exc
 | Tool | Required args | Optional args (defaults) | Description |
 |---|---|---|---|
 | `goals_list` | — | `include_inactive` (False) | Lists goals with staleness info, progress, milestones. Returns `{goals: [...], count}`. Each goal includes `path`, `filename`, `title`, `status`, `created`, `last_checked`, `check_in_days`, `days_since_check`, `is_stale`, `tags`, `progress`, `preview` |
-| `goals_add` | `title` | `description`, `check_days` (14), `tags`, `type` (`"general"`) | Creates goal via `journal._create` with `entry_type="goal"`. Writes `check_in_days` to frontmatter only if `check_days != 14`. `type` field: `career`, `learning`, `project`, `general` (Phase 2) |
+| `goals_add` | `title` | `description`, `check_days` (14), `tags`, `type` (`"general"`) | Creates goal via `journal._create` with `entry_type="goal"`. Writes `check_in_days` to frontmatter only if `check_days != 14`. `type` field: `career`, `learning`, `project`, `general` |
 | `goals_check_in` | `goal_path` | `notes` | Records check-in timestamp. Returns `{success, goal_path}` |
 | `goals_update_status` | `goal_path`, `status` | — | `status` enum: `active`, `paused`, `completed`, `abandoned`. Returns `{success, goal_path, status}` |
 | `goals_add_milestone` | `goal_path`, `title` | — | Adds milestone. Returns `{success, goal_path, progress}` |
@@ -169,6 +169,9 @@ Note: `shared_types.EntryType` also defines `quick`, but it is intentionally exc
 | `intel_scrape_now` | — | — | Runs all configured scrapers via `IntelScheduler.run_now()`, then syncs intel embeddings. Returns `{scrape_results, embeddings_synced: {added, removed}}` |
 | `events_upcoming` | — | `days` (90), `limit` (20) | Upcoming tech events ranked by profile relevance. Loads profile best-effort (silently ignores failure). Returns `{events: [...], count}` with `title`, `url`, `score`, `event_date`, `location`, `cfp_deadline`, `online` |
 | `intel_trending_radar` | — | `days` (7), `min_sources` (2), `max_topics` (15) | Cross-source trending topics via `TrendingRadar`. Truncates to top-1 item per topic for MCP context budget. Returns the `snapshot` dict directly |
+| `watchlist_list` | — | — | Lists watchlist items from the single-user watchlist store. Returns `{items, count}` |
+| `watchlist_upsert` | `label` | `item_id`, `kind`, `aliases`, `why`, `priority`, `tags`, `goal`, `time_horizon`, `source_preferences` | Creates or updates a watchlist item. Returns `{item}` |
+| `watchlist_delete` | `item_id` | — | Deletes a watchlist item. Returns `{success, item_id}` |
 
 ---
 
@@ -220,23 +223,7 @@ Note: `shared_types.EntryType` also defines `quick`, but it is intentionally exc
 
 ---
 
-### 8. Learning
-**File:** `src/coach_mcp/tools/learning.py`
-**Status:** DEPRECATED — all 5 tools to be removed in Phase 2 (learning paths merged into goals). Skill gap detection becomes an advisor prompt mode; learning progress tracked via goal milestones.
-
-| Tool | Required args | Optional args (defaults) | Description |
-|---|---|---|---|
-| `learning_gaps` | — | — | Returns `{profile, journal_context, instruction}`. Journal query: `"skills goals career aspirations learning"`, `max_entries=8`, `max_chars=4000`. Profile loaded best-effort. `instruction` = `"Analyze skill gaps between current skills and aspirations. Identify critical gaps and recommend priority order."` No LLM in MCP layer |
-| `learning_paths_list` | — | `status` (`"active"` or `"completed"`) | Lists paths with progress. Returns `{paths: [...], count}` |
-| `learning_path_get` | `path_id` | — | Returns full path dict or `{"error": "Learning path not found"}` |
-| `learning_path_progress` | `path_id`, `completed_modules` (int) | — | Updates completed module count. Returns `{success: True, path: ...}` or `{success: False, error: "Learning path not found"}` |
-| `learning_check_in` | `path_id`, `action` | `module_number` | `action` enum: `continue`, `deepen`, `skip`. `module_number` defaults to `completed_modules + 1` if omitted. Returns `{success, path, action, module_number, needs_deep_dive, instruction}`. `needs_deep_dive=True` when `action="deepen"` |
-
-**LearningPathStorage dir config:** `config["learning_paths"]["dir"]`, default `~/coach/learning_paths`
-
----
-
-### 9. Projects
+### 8. Projects
 **File:** `src/coach_mcp/tools/projects.py`
 **Status:** Stable
 
@@ -248,7 +235,7 @@ Note: `shared_types.EntryType` also defines `quick`, but it is intentionally exc
 
 ---
 
-### 10. Insights
+### 9. Insights
 **File:** `src/coach_mcp/tools/insights.py`
 **Status:** Experimental
 
@@ -262,13 +249,13 @@ Note: `shared_types.EntryType` also defines `quick`, but it is intentionally exc
 
 ---
 
-### 11. Brief
+### 10. Brief
 **File:** `src/coach_mcp/tools/brief.py`
 **Status:** Stable
 
 | Tool | Required args | Optional args (defaults) | Description |
 |---|---|---|---|
-| `get_daily_brief` | — | — | Time-budgeted daily action plan. Fetches stale goals (threshold=7 days), top 5 recs by score, active learning paths. `weekly_hours` from profile, default `5`. Returns `{items: [...], budget_minutes, used_minutes, generated_at}` |
+| `get_daily_brief` | — | — | Time-budgeted daily action plan. Fetches stale goals (threshold=7 days), top 5 recs by score, and uses profile weekly-hours context (default `5`). Returns `{items: [...], budget_minutes, used_minutes, generated_at}` |
 
 Each item has: `kind`, `title`, `description`, `time_minutes`, `action`, `priority`.
 
@@ -276,7 +263,7 @@ Each item has: `kind`, `title`, `description`, `time_minutes`, `action`, `priori
 
 ---
 
-### 13. Memory
+### 11. Memory
 **File:** `src/coach_mcp/tools/memory.py`
 **Status:** Stable
 
@@ -293,7 +280,7 @@ Each item has: `kind`, `title`, `description`, `time_minutes`, `action`, `priori
 
 ---
 
-### 14. Threads
+### 12. Threads
 **File:** `src/coach_mcp/tools/threads.py`
 **Status:** Stable
 
@@ -329,11 +316,11 @@ _components = _get(skip_advisor=True)
 
 `skip_advisor=True` causes `cli.utils.get_components` to skip all LLM provider and `AdvisorEngine` initialization. No LLM instance is available to any tool handler.
 
-Tools that need reasoning-intensive outputs (skill gap analysis, project ideas, reflection prompts, learning check-ins) instead return raw context plus an `"instruction"` string:
+Tools that need reasoning-intensive outputs (project ideas, reflection prompts, and similar context-first helpers) instead return raw context plus an `"instruction"` string:
 
 ```python
-# learning.py comment:
-# "Return raw context for Claude Code to reason over (no LLM in MCP layer)"
+# Context-first MCP tools return raw data plus an instruction string
+# for Claude Code to reason over.
 ```
 
 The calling Claude Code instance receives the raw data and the instruction, then performs the reasoning itself.
@@ -355,8 +342,7 @@ The calling Claude Code instance receives the raw data and the instruction, then
 | Invalid enum value | `memory_list_facts` (category) | Returns `{"error": "Invalid category: <value>"}` inline |
 | Empty required string | `memory_search_facts` (query), `memory_delete_fact` (fact_id) | Returns `{"error": "query is required"}` / `{"error": "fact_id is required"}` |
 | Sub-component failure in proactive brief | `journal_get_context` mode=proactive | Each section (signals, patterns, goals, journal health) wrapped individually; returns empty list/dict + optional `_signal_error` key on failure |
-| Profile load failure | `events_upcoming`, `projects_discover`, `projects_ideas`, `learning_gaps`, `get_daily_brief` | Profile loaded best-effort inside `try/except`; handler continues with `profile=None` or empty string |
-| Learning path not found | `learning_path_get`, `learning_path_progress`, `learning_check_in` (DEPRECATED — Phase 2) | Returns `{"error": "Learning path not found"}` or `{"success": False, "error": "Learning path not found"}` |
+| Profile load failure | `events_upcoming`, `projects_discover`, `projects_ideas`, `get_daily_brief` | Profile loaded best-effort inside `try/except`; handler continues with `profile=None` or empty string |
 | Thread not found | `threads_get_entries` | Returns `{"error": "Thread not found: <thread_id>"}` |
 | Profile field ValueError | `profile_update_field` | Returns `{"success": False, "error": str(e)}` |
 | Thread detection failure | `journal_create` (post-write) | `_detect_thread` catches all exceptions, logs debug, returns `None`; entry creation still succeeds |
@@ -367,10 +353,9 @@ The calling Claude Code instance receives the raw data and the instruction, then
 
 | Config key | Default | Used by |
 |---|---|---|
-| `config["profile"]["path"]` | `~/coach/profile.yaml` | `profile_get`, `profile_update_field`, `learning_gaps`, `projects_discover`, `projects_ideas`, `events_upcoming` |
+| `config["profile"]["path"]` | `~/coach/profile.yaml` | `profile_get`, `profile_update_field`, `projects_discover`, `projects_ideas`, `events_upcoming` |
 | `config["paths"]["intel_db"]` | `~/coach/intel.db` | `get_insights`, `memory_*`, `threads_*` |
 | `config["paths"]["chroma_dir"]` | `~/coach/chroma` | `memory_list_facts`, `memory_search_facts`, `memory_delete_fact`, `memory_get_stats` |
-| `config["learning_paths"]["dir"]` | `~/coach/learning_paths` | DEPRECATED — `learning_paths_list`, `learning_path_get`, `learning_path_progress`, `learning_check_in` (removed in Phase 2) |
 | `journal_weight` arg default | `0.7` | `journal_get_context` (rag mode) |
 | `max_chars` arg default | `8000` | `journal_get_context` (rag mode) |
 | `config_model.threads.similarity_threshold` | `0.78` | `threads_reindex`, `journal_create` thread detection |
@@ -392,7 +377,7 @@ Tools marked `[Experimental]` carry the prefix in their MCP description string. 
 | Status | Tools |
 |---|---|
 | Experimental | `goals_list`, `goals_add`, `goals_check_in`, `goals_update_status`, `goals_add_milestone`, `goals_complete_milestone`, `research_topics`, `research_run`, `get_insights` |
-| Stable | All remaining 33 tools across `journal`, `intelligence`, `recommendations`, `reflect`, `profile`, `learning` (DEPRECATED), `projects`, `brief`, `memory`, `threads` |
+| Stable | All remaining 28 tools across `journal`, `intelligence`, `recommendations`, `reflect`, `profile`, `projects`, `brief`, `memory`, `threads` |
 ---
 
 ## Test Expectations

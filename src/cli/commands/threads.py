@@ -6,14 +6,14 @@ import click
 from rich.console import Console
 from rich.table import Table
 
-from cli.utils import get_components
+from cli.utils import get_components, get_thread_store
 
 console = Console()
 
 
 @click.group()
 def threads():
-    """Journal recurrence detection — view and manage topic threads."""
+    """Journal recurrence detection ? view and manage topic threads."""
     pass
 
 
@@ -22,11 +22,7 @@ def threads():
 def threads_list(limit: int):
     """List active threads with entry count and timespan."""
     c = get_components(skip_advisor=True)
-
-    from journal.thread_store import ThreadStore
-
-    db_path = c["paths"]["intel_db"].parent / "threads.db"
-    store = ThreadStore(db_path)
+    store = get_thread_store(c["config"], c.get("storage_paths"))
 
     loop = asyncio.get_event_loop()
     active = loop.run_until_complete(store.get_active_threads(min_entries=2))
@@ -56,12 +52,10 @@ def threads_reindex():
     """Rebuild all threads from scratch using current similarity threshold."""
     c = get_components(skip_advisor=True)
 
-    from journal.thread_store import ThreadStore
     from journal.threads import ThreadDetector
 
     threads_cfg = c["config_model"].threads
-    db_path = c["paths"]["intel_db"].parent / "threads.db"
-    store = ThreadStore(db_path)
+    store = get_thread_store(c["config"], c.get("storage_paths"))
     detector = ThreadDetector(
         c["embeddings"],
         store,

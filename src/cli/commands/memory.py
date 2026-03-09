@@ -6,17 +6,13 @@ import click
 from rich.console import Console
 from rich.table import Table
 
-from cli.utils import get_components
+from cli.utils import get_components, get_memory_store
 
 console = Console()
 
 
-def _get_store(config):
-    from memory.store import FactStore
-
-    db_path = Path(config["paths"]["intel_db"]).expanduser()
-    chroma_dir = Path(config["paths"].get("chroma_dir", "~/coach/chroma")).expanduser()
-    return FactStore(db_path, chroma_dir)
+def _get_store(c):
+    return get_memory_store(c["config"], storage_paths=c.get("storage_paths"))
 
 
 @click.group()

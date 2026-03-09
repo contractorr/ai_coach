@@ -70,6 +70,7 @@ class AdvisorAsk(BaseModel):
     question: str = Field(..., max_length=5000)
     advice_type: str = "general"
     conversation_id: str | None = None
+    attachment_ids: list[str] = Field(default_factory=list)
 
 
 class AdvisorResponse(BaseModel):
@@ -78,10 +79,17 @@ class AdvisorResponse(BaseModel):
     conversation_id: str
 
 
+class ConversationAttachment(BaseModel):
+    library_item_id: str
+    file_name: str | None = None
+    mime_type: str | None = None
+
+
 class ConversationMessage(BaseModel):
     role: str
     content: str
     created_at: str
+    attachments: list[ConversationAttachment] = Field(default_factory=list)
 
 
 class ConversationListItem(BaseModel):
@@ -195,6 +203,7 @@ class GreetingResponse(BaseModel):
     text: str
     cached: bool = False
     stale: bool = False
+    return_brief: Optional[dict] = None
 
 
 # --- Briefing ---
@@ -212,6 +221,7 @@ class InsightResponse(BaseModel):
     created_at: str = ""
     expires_at: Optional[str] = None
     insight_hash: str = ""
+    watchlist_evidence: list[str] = []
 
 
 class ReasoningTrace(BaseModel):
@@ -241,6 +251,105 @@ class BriefingRecommendation(BaseModel):
     status: str = ""
     reasoning_trace: Optional[ReasoningTrace] = None
     critic: Optional[CriticData] = None
+    watchlist_evidence: list[str] = []
+    action_item: Optional["RecommendationActionItem"] = None
+    user_rating: Optional[int] = Field(None, ge=1, le=5)
+    feedback_comment: Optional[str] = None
+    feedback_at: Optional[str] = None
+    why_now: list[dict] = []
+    harvested_outcome: Optional[dict] = None
+
+
+class RecommendationActionItem(BaseModel):
+    objective: str = ""
+    next_step: str = ""
+    effort: str = Field("medium", pattern=r"^(small|medium|large)$")
+    due_window: str = Field("this_week", pattern=r"^(today|this_week|later)$")
+    blockers: list[str] = Field(default_factory=list)
+    success_criteria: str = ""
+    status: str = Field("accepted", pattern=r"^(accepted|deferred|blocked|completed|abandoned)$")
+    review_notes: Optional[str] = None
+    goal_path: Optional[str] = None
+    goal_title: Optional[str] = None
+    created_at: str = ""
+    updated_at: str = ""
+
+
+class RecommendationActionCreate(BaseModel):
+    goal_path: Optional[str] = None
+    objective: Optional[str] = Field(None, max_length=200)
+    next_step: Optional[str] = Field(None, max_length=500)
+    effort: Optional[str] = Field(None, pattern=r"^(small|medium|large)$")
+    due_window: Optional[str] = Field(None, pattern=r"^(today|this_week|later)$")
+    blockers: Optional[list[str]] = None
+    success_criteria: Optional[str] = Field(None, max_length=500)
+
+
+class RecommendationActionUpdate(BaseModel):
+    status: Optional[str] = Field(
+        None, pattern=r"^(accepted|deferred|blocked|completed|abandoned)$"
+    )
+    effort: Optional[str] = Field(None, pattern=r"^(small|medium|large)$")
+    due_window: Optional[str] = Field(None, pattern=r"^(today|this_week|later)$")
+    blockers: Optional[list[str]] = None
+    review_notes: Optional[str] = Field(None, max_length=5000)
+    next_step: Optional[str] = Field(None, max_length=500)
+    success_criteria: Optional[str] = Field(None, max_length=500)
+    goal_path: Optional[str] = None
+
+
+class RecommendationFeedbackRequest(BaseModel):
+    rating: int = Field(..., ge=1, le=5)
+    comment: Optional[str] = Field(None, max_length=2000)
+
+
+class TrackedRecommendationAction(BaseModel):
+    recommendation_id: str = ""
+    recommendation_title: str = ""
+    category: str = ""
+    score: float = 0.0
+    recommendation_status: str = ""
+    created_at: str = ""
+    action_item: RecommendationActionItem
+
+
+class WeeklyPlanResponse(BaseModel):
+    items: list[TrackedRecommendationAction] = Field(default_factory=list)
+    capacity_points: int = 0
+    used_points: int = 0
+    remaining_points: int = 0
+    generated_at: str = ""
+
+
+class WatchlistItem(BaseModel):
+    id: str = ""
+    label: str = ""
+    kind: str = "theme"
+    aliases: list[str] = []
+    why: str = ""
+    priority: str = "medium"
+    tags: list[str] = []
+    goal: str = ""
+    time_horizon: str = "quarter"
+    source_preferences: list[str] = []
+    domain: str = ""
+    github_org: str = ""
+    ticker: str = ""
+    topics: list[str] = []
+    geographies: list[str] = []
+    linked_dossier_ids: list[str] = []
+    created_at: str = ""
+    updated_at: str = ""
+
+
+class IntelFollowUp(BaseModel):
+    url: str = ""
+    title: str = ""
+    saved: bool = False
+    note: str = ""
+    watchlist_ids: list[str] = []
+    created_at: str = ""
+    updated_at: str = ""
 
 
 class BriefingGoal(BaseModel):
@@ -269,13 +378,15 @@ class DailyBrief(BaseModel):
 class SuggestionItem(BaseModel):
     """Unified suggestion — either from daily brief or recommendations."""
 
-    source: str = ""  # "brief" | "recommendation"
-    kind: str = ""  # "stale_goal" | "recommendation" | "nudge" | "intel_match"
+    source: str = ""  # "brief" | "recommendation" | "assumption_alert" | ...
+    kind: str = ""  # "stale_goal" | "recommendation" | "nudge" | "intel_match" | ...
     title: str = ""
     description: str = ""
     action: str = ""
     priority: int = 0
     score: float = 0.0
+    why_now: Optional[list[dict]] = None
+    payload: Optional[dict] = None
 
 
 class GoalIntelMatch(BaseModel):
@@ -300,6 +411,11 @@ class BriefingResponse(BaseModel):
     adaptation_count: int = 0
     daily_brief: Optional[DailyBrief] = None
     goal_intel_matches: list[GoalIntelMatch] = []
+    dossier_escalations: list["DossierEscalationResponse"] = []
+    company_movements: list["CompanyMovementResponse"] = []
+    hiring_signals: list["HiringSignalResponse"] = []
+    regulatory_alerts: list["RegulatoryAlertResponse"] = []
+    assumptions: list["AssumptionAlertResponse"] = []
 
 
 # --- Trends ---
@@ -359,6 +475,14 @@ class ThreadSummary(BaseModel):
     status: str = "active"
 
 
+class ThreadInboxSummary(ThreadSummary):
+    inbox_state: str = "active"
+    linked_goal_path: Optional[str] = None
+    linked_dossier_id: Optional[str] = None
+    last_action: str = ""
+    recent_snippets: list[str] = []
+
+
 class ThreadEntryItem(BaseModel):
     entry_id: str = ""
     entry_date: str = ""
@@ -370,6 +494,27 @@ class ThreadDetail(BaseModel):
     label: str = ""
     entry_count: int = 0
     entries: list[ThreadEntryItem] = []
+
+
+class ThreadInboxDetail(ThreadDetail):
+    first_date: str = ""
+    last_date: str = ""
+    status: str = "active"
+    inbox_state: str = "active"
+    linked_goal_path: Optional[str] = None
+    linked_dossier_id: Optional[str] = None
+    last_action: str = ""
+    recent_snippets: list[str] = []
+    available_actions: dict = {}
+
+
+class ThreadInboxStateUpdate(BaseModel):
+    inbox_state: str = Field(
+        ..., pattern=r"^(active|dismissed|goal_created|research_started|dossier_started|dormant)$"
+    )
+    linked_goal_path: Optional[str] = None
+    linked_dossier_id: Optional[str] = None
+    last_action: str = ""
 
 
 # --- Engagement ---
@@ -445,3 +590,183 @@ class ProfileUpdate(BaseModel):
     constraints: Optional[dict] = None
     fears_risks: Optional[list[str]] = None
     active_projects: Optional[list[str]] = None
+
+
+# --- Library ---
+
+
+class LibraryReportCreate(BaseModel):
+    prompt: str = Field(..., min_length=10, max_length=10000)
+    report_type: str = Field(
+        "custom", pattern=r"^(crash_course|overview|memo|plan|custom|document)$"
+    )
+    title: Optional[str] = Field(None, max_length=200)
+    collection: Optional[str] = Field(None, max_length=100)
+
+
+class LibraryReportUpdate(BaseModel):
+    title: Optional[str] = Field(None, max_length=200)
+    content: Optional[str] = Field(None, max_length=100_000)
+    collection: Optional[str] = Field(None, max_length=100)
+
+
+class LibraryReportListItem(BaseModel):
+    id: str
+    title: str
+    report_type: str
+    status: str
+    collection: Optional[str] = None
+    prompt: str = ""
+    source_kind: str = "generated"
+    created: str = ""
+    updated: str = ""
+    last_generated_at: str = ""
+    preview: str = ""
+    file_name: Optional[str] = None
+    file_size: Optional[int] = None
+    mime_type: Optional[str] = None
+    has_attachment: bool = False
+    extraction_status: Optional[str] = None
+    has_extracted_text: bool = False
+    origin_surface: str = "library"
+    visibility_state: str = "saved"
+    index_status: Optional[str] = None
+    extracted_chars: int = 0
+
+
+class LibraryReportResponse(LibraryReportListItem):
+    content: str = ""
+
+
+class ChatAttachmentResponse(BaseModel):
+    attachment_id: str
+    file_name: Optional[str] = None
+    mime_type: Optional[str] = None
+    index_status: str = "ready"
+    visibility_state: str = "hidden"
+    extracted_chars: int = 0
+    warning: Optional[str] = None
+
+
+class ExtractionReceiptEnvelope(BaseModel):
+    status: str = "pending"
+    receipt: Optional[dict] = None
+
+
+class DossierEscalationResponse(BaseModel):
+    escalation_id: str = ""
+    topic_key: str = ""
+    topic_label: str = ""
+    score: float = 0.0
+    state: str = "active"
+    evidence: dict = {}
+    payload: dict = {}
+    created_at: str = ""
+    updated_at: str = ""
+    snoozed_until: Optional[str] = None
+    dismissed_at: Optional[str] = None
+    accepted_dossier_id: Optional[str] = None
+
+
+class DossierEscalationSnoozeRequest(BaseModel):
+    until: Optional[str] = None
+
+
+class RecommendationOutcomeOverrideRequest(BaseModel):
+    state: str = Field(..., pattern=r"^(positive|negative|unresolved|conflicted)$")
+    note: str = Field("", max_length=2000)
+
+
+class RecommendationOutcomeResponse(BaseModel):
+    state: str = "unresolved"
+    confidence: float = 0.0
+    source_summary: str = ""
+    user_overridden: bool = False
+    evidence: list[dict] = []
+
+
+class CompanyMovementResponse(BaseModel):
+    id: int = 0
+    company_key: str = ""
+    company_label: str = ""
+    movement_type: str = ""
+    title: str = ""
+    summary: str = ""
+    significance: float = 0.0
+    source_url: str = ""
+    source_family: str = ""
+    observed_at: str = ""
+    metadata: dict = {}
+
+
+class HiringSignalResponse(BaseModel):
+    id: int = 0
+    entity_key: str = ""
+    entity_label: str = ""
+    signal_type: str = ""
+    title: str = ""
+    summary: str = ""
+    strength: float = 0.0
+    source_url: str = ""
+    observed_at: str = ""
+    metadata: dict = {}
+
+
+class RegulatoryAlertResponse(BaseModel):
+    id: int = 0
+    target_key: str = ""
+    title: str = ""
+    summary: str = ""
+    source_family: str = ""
+    change_type: str = ""
+    urgency: str = ""
+    relevance: float = 0.0
+    effective_date: Optional[str] = None
+    source_url: str = ""
+    observed_at: str = ""
+    metadata: dict = {}
+
+
+class AssumptionAlertResponse(BaseModel):
+    id: str = ""
+    title: str = ""
+    detail: str = ""
+    status: str = "active"
+    updated_at: Optional[str] = None
+
+
+class AssumptionCreate(BaseModel):
+    statement: str = Field(..., min_length=3, max_length=500)
+    status: str = Field(
+        "active", pattern=r"^(suggested|active|confirmed|invalidated|resolved|archived)$"
+    )
+    source_type: str = "manual"
+    source_id: str = "manual"
+    extraction_confidence: Optional[float] = None
+    linked_goal_path: Optional[str] = None
+    linked_dossier_id: Optional[str] = None
+    linked_entities: list[str] = []
+
+
+class AssumptionUpdate(BaseModel):
+    status: Optional[str] = Field(
+        None, pattern=r"^(suggested|active|confirmed|invalidated|resolved|archived)$"
+    )
+    latest_evidence_summary: Optional[str] = Field(None, max_length=500)
+
+
+class AssumptionResponse(BaseModel):
+    id: str = ""
+    statement: str = ""
+    status: str = "active"
+    source_type: str = "manual"
+    source_id: str = ""
+    extraction_confidence: Optional[float] = None
+    linked_goal_path: Optional[str] = None
+    linked_dossier_id: Optional[str] = None
+    linked_entities: list[str] = []
+    latest_evidence_summary: str = ""
+    last_evaluated_at: Optional[str] = None
+    created_at: str = ""
+    updated_at: str = ""
+    evidence: list[dict] = []

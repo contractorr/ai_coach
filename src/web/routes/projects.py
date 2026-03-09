@@ -5,8 +5,17 @@ import asyncio
 import structlog
 from fastapi import APIRouter, Depends, HTTPException
 
+from services.projects import discover_matching_project_issues, generate_project_ideas
 from web.auth import get_current_user
-from web.deps import get_api_key_for_user, get_config, get_user_paths, safe_user_id
+from web.deps import (
+    get_api_key_for_user,
+    get_config,
+    get_intel_storage,
+    get_profile_path,
+    get_profile_storage,
+    get_user_paths,
+    safe_user_id,
+)
 
 logger = structlog.get_logger()
 
@@ -21,38 +30,16 @@ async def get_issues(
 ):
     """Get GitHub issues matching user profile."""
     try:
-        from advisor.projects import get_matching_issues
-        from intelligence.scraper import IntelStorage
-
-        paths = get_user_paths(user["id"])
-        intel = IntelStorage(paths["intel_db"])
+        intel = get_intel_storage()
 
         profile = None
         try:
-            from profile.storage import ProfileStorage
-
-            ps = ProfileStorage(paths["profile"])
-            profile = ps.load()
+            profile = get_profile_storage(user["id"]).load()
         except Exception:
             pass
 
-        results = get_matching_issues(intel, profile, limit=limit, days=days)
-        # Normalize output
-        return [
-            {
-                "title": r.get("title", ""),
-                "url": r.get("url", ""),
-                "summary": r.get("summary", ""),
-                "tags": (
-                    r.get("tags", "").split(",")
-                    if isinstance(r.get("tags"), str)
-                    else r.get("tags", [])
-                ),
-                "source": r.get("source", ""),
-                "match_score": r.get("_match_score", 0),
-            }
-            for r in results
-        ]
+        payload = discover_matching_project_issues(intel, profile=profile, limit=limit, days=days)
+        return payload["issues"]
     except Exception as e:
         logger.error("projects.issues_error", error=str(e))
         return []
@@ -70,7 +57,6 @@ async def generate_ideas(
         raise HTTPException(status_code=400, detail="No LLM API key configured")
 
     try:
-        from advisor.projects import ProjectIdeaGenerator
         from advisor.rag import RAGRetriever
         from journal.embeddings import EmbeddingManager
         from journal.fts import JournalFTSIndex
@@ -90,7 +76,7 @@ async def generate_ideas(
         rag = RAGRetriever(
             journal_search=journal_search,
             intel_db_path=paths["intel_db"],
-            profile_path=str(paths["profile"]),
+            profile_path=str(get_profile_path(user_id)),
         )
 
         provider = create_llm_provider(
@@ -102,8 +88,7 @@ async def generate_ideas(
         def llm_caller(system, prompt, max_tokens=2000):
             return provider.generate(system=system, prompt=prompt, max_tokens=max_tokens)
 
-        gen = ProjectIdeaGenerator(rag, llm_caller)
-        ideas = await asyncio.to_thread(gen.generate_ideas)
+        ideas = await asyncio.to_thread(generate_project_ideas, rag, llm_caller)
         return {"ideas": ideas}
     except HTTPException:
         raise

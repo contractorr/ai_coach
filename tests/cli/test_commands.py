@@ -171,6 +171,23 @@ class TestIntelCommands:
         result = runner.invoke(cli, ["sources"])
         assert result.exit_code == 0
 
+    def test_watchlist_add_list_remove(self, runner, patch_components):
+        add_result = runner.invoke(
+            cli,
+            ["watchlist", "add", "OpenAI", "--priority", "high", "--why", "Career relevance"],
+        )
+        assert add_result.exit_code == 0
+        assert "Saved" in add_result.output
+
+        list_result = runner.invoke(cli, ["watchlist", "list"])
+        assert list_result.exit_code == 0
+        assert "OpenAI" in list_result.output
+
+        item_id = add_result.output.strip().split("(")[-1].rstrip(")")
+        remove_result = runner.invoke(cli, ["watchlist", "remove", item_id])
+        assert remove_result.exit_code == 0
+        assert "Removed" in remove_result.output
+
 
 # -- Goals command --
 
@@ -181,7 +198,96 @@ class TestGoalsCommands:
             cli, ["goals", "add", "-t", "Learn Rust", "-d", "Systems programming"]
         )
         assert result.exit_code == 0
-        assert "Created goal" in result.output
+
+
+class TestRecommendActionCommands:
+    def test_action_create(self, runner, patch_components, tmp_path):
+        with patch("cli.commands.recommend.get_recommendation_storage") as cls:
+            storage = cls.return_value
+            storage.create_action_item.return_value = {"status": "accepted"}
+            storage.get_action_item.return_value = MagicMock(
+                recommendation_title="Ship MVP",
+                category="projects",
+                action_item={
+                    "status": "accepted",
+                    "effort": "medium",
+                    "due_window": "this_week",
+                    "objective": "Ship MVP",
+                    "next_step": "Outline scope",
+                    "success_criteria": "Working prototype",
+                },
+            )
+            result = runner.invoke(cli, ["recommend", "action", "create", "abc123"])
+        assert result.exit_code == 0
+        assert "Tracked action created" in result.output
+
+    def test_action_list(self, runner, patch_components):
+        with patch("cli.commands.recommend.get_recommendation_storage") as cls:
+            storage = cls.return_value
+            storage.list_action_items.return_value = [
+                MagicMock(
+                    recommendation_id="abc123",
+                    recommendation_title="Ship MVP",
+                    action_item={
+                        "status": "accepted",
+                        "effort": "medium",
+                        "due_window": "this_week",
+                        "goal_title": "Launch side project",
+                    },
+                )
+            ]
+            result = runner.invoke(cli, ["recommend", "action", "list"])
+        assert result.exit_code == 0
+        assert "Ship MVP" in result.output
+
+    def test_action_update(self, runner, patch_components):
+        with patch("cli.commands.recommend.get_recommendation_storage") as cls:
+            storage = cls.return_value
+            storage.update_action_item.return_value = {"status": "completed"}
+            storage.get_action_item.return_value = MagicMock(
+                recommendation_title="Ship MVP",
+                category="projects",
+                action_item={
+                    "status": "completed",
+                    "effort": "medium",
+                    "due_window": "this_week",
+                    "objective": "Ship MVP",
+                    "next_step": "Ship it",
+                    "success_criteria": "Working prototype",
+                    "review_notes": "Done",
+                },
+            )
+            result = runner.invoke(
+                cli,
+                ["recommend", "action", "update", "abc123", "--status", "completed"],
+            )
+        assert result.exit_code == 0
+        assert "Updated tracked action" in result.output
+
+    def test_action_weekly_plan(self, runner, patch_components):
+        with patch("cli.commands.recommend.get_recommendation_storage") as cls:
+            storage = cls.return_value
+            storage.build_weekly_plan.return_value = {
+                "capacity_points": 6,
+                "used_points": 2,
+                "items": [
+                    MagicMock(
+                        recommendation_title="Ship MVP",
+                        category="projects",
+                        action_item={
+                            "status": "accepted",
+                            "effort": "medium",
+                            "due_window": "this_week",
+                            "objective": "Ship MVP",
+                            "next_step": "Outline scope",
+                            "success_criteria": "Working prototype",
+                        },
+                    )
+                ],
+            }
+            result = runner.invoke(cli, ["recommend", "action", "weekly-plan"])
+        assert result.exit_code == 0
+        assert "Weekly plan" in result.output
 
     def test_list(self, runner, patch_components):
         with patch("advisor.goals.GoalTracker") as cls:

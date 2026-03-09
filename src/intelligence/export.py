@@ -44,7 +44,7 @@ class IntelExporter:
         output_path = Path(output_path)
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        with open(output_path, "w") as f:
+        with open(output_path, "w", encoding="utf-8") as f:
             json.dump(export_data, f, indent=2, default=str)
 
         return len(items)
@@ -74,7 +74,7 @@ class IntelExporter:
 
         fieldnames = ["id", "source", "title", "url", "summary", "published", "scraped_at", "tags"]
 
-        with open(output_path, "w", newline="") as f:
+        with open(output_path, "w", newline="", encoding="utf-8") as f:
             writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
             writer.writeheader()
             for item in items:
@@ -138,7 +138,7 @@ class IntelExporter:
             lines.append("---")
             lines.append("")
 
-        with open(output_path, "w") as f:
+        with open(output_path, "w", encoding="utf-8") as f:
             f.write("\n".join(lines))
 
         return len(items)

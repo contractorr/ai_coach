@@ -13,9 +13,12 @@ from advisor.greeting import (
     get_cached_greeting,
     make_greeting_cache_key,
 )
+from advisor.return_brief import ReturnBriefBuilder
+from research.escalation import DossierEscalationEngine
 from web.auth import get_current_user
 from web.briefing_data import assemble_briefing_data
-from web.deps import get_api_key_for_user, get_user_paths
+from web.deps import get_api_key_for_user, get_dossier_escalation_store, get_user_paths
+from web.dossier_escalation_context import load_dossier_escalation_context
 from web.models import GreetingResponse
 
 logger = structlog.get_logger()
@@ -46,9 +49,19 @@ def _briefing_to_greeting_context(user_id: str) -> dict:
     if data["recommendations"]:
         ctx["recommendations"] = [{"title": r["title"]} for r in data["recommendations"][:2]]
 
-    # Recent intel from goal-intel matches (top 2)
-    if data["goal_intel_matches"]:
-        ctx["intel"] = [{"title": m.get("title", "")} for m in data["goal_intel_matches"][:2]]
+    intel_items = [{"title": m.get("title", "")} for m in data["goal_intel_matches"][:2]]
+    intel_items.extend(
+        {"title": item.get("title", "")} for item in (data.get("company_movements") or [])[:1]
+    )
+    intel_items.extend(
+        {"title": item.get("title", "")} for item in (data.get("hiring_signals") or [])[:1]
+    )
+    intel_items.extend(
+        {"title": item.get("title", "")} for item in (data.get("regulatory_alerts") or [])[:1]
+    )
+    intel_items = [item for item in intel_items if item.get("title")]
+    if intel_items:
+        ctx["intel"] = intel_items[:4]
 
     return ctx
 
@@ -82,14 +95,57 @@ async def _generate_and_cache_greeting(user_id: str) -> None:
             pass
 
 
+def _schedule_greeting_refresh(user_id: str):
+    """Schedule greeting generation without blocking the current request."""
+    return asyncio.create_task(_generate_and_cache_greeting(user_id))
+
+
 @router.get("", response_model=GreetingResponse)
 async def get_greeting(user: dict = Depends(get_current_user)):
     cache = _get_cache(user["id"])
     cached_text = get_cached_greeting(user["id"], cache)
+    return_brief = None
+
+    try:
+        data = assemble_briefing_data(user["id"])
+        escalation_context = await load_dossier_escalation_context(
+            user["id"], goals=data.get("all_goals") or [], thread_limit=3, intel_limit=20
+        )
+        thread_rows = escalation_context.get("threads") or []
+        escalation_rows = DossierEscalationEngine(get_dossier_escalation_store(user["id"])).refresh(
+            escalation_context
+        )
+        builder = ReturnBriefBuilder(
+            data_provider=lambda _user_id: {
+                "intel_matches": data.get("goal_intel_matches") or [],
+                "company_movements": data.get("company_movements") or [],
+                "hiring_signals": data.get("hiring_signals") or [],
+                "regulatory_alerts": data.get("regulatory_alerts") or [],
+                "threads": thread_rows,
+                "dossiers": [
+                    {
+                        "id": row.get("escalation_id"),
+                        "title": row.get("topic_label") or "Dossier escalation",
+                        "detail": "Recurring topic now has enough momentum to deserve a dossier.",
+                        "score": row.get("score"),
+                    }
+                    for row in escalation_rows
+                ],
+                "stale_goals": data.get("stale_goals") or [],
+                "assumptions": data.get("assumptions") or [],
+            }
+        )
+        return_brief = builder.build(user["id"])
+    except Exception:
+        return_brief = None
 
     if cached_text:
-        return GreetingResponse(text=cached_text, cached=True, stale=False)
+        return GreetingResponse(
+            text=cached_text, cached=True, stale=False, return_brief=return_brief
+        )
 
     # No cache — return fallback and generate in background
-    asyncio.create_task(_generate_and_cache_greeting(user["id"]))
-    return GreetingResponse(text=STATIC_FALLBACK, cached=False, stale=True)
+    _schedule_greeting_refresh(user["id"])
+    return GreetingResponse(
+        text=STATIC_FALLBACK, cached=False, stale=True, return_brief=return_brief
+    )

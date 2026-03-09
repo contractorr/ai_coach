@@ -8,6 +8,8 @@ from rich.markdown import Markdown
 
 from advisor.engine import LLMError
 from cli.utils import get_components
+from services.advice import run_advice
+from services.daily_brief import build_daily_brief, collect_daily_brief_inputs
 
 console = Console()
 
@@ -18,39 +20,19 @@ def today():
 
     from rich.table import Table
 
-    from advisor.daily_brief import DailyBriefBuilder
-    from advisor.goals import GoalTracker
-    from advisor.recommendation_storage import RecommendationStorage
-    from cli.utils import get_profile_storage, get_rec_db_path
+    from cli.utils import get_profile_storage, get_recommendation_storage
 
     c = get_components(skip_advisor=True)
 
-    tracker = GoalTracker(c["storage"])
-    stale_goals = tracker.get_stale_goals(days_threshold=7)
-    all_goals = tracker.get_goals(include_inactive=False)
-
-    recs = []
-    try:
-        rec_dir = get_rec_db_path(c["config"])
-        if rec_dir.exists():
-            recs = RecommendationStorage(rec_dir).get_top_by_score(limit=5)
-    except Exception:
-        pass
-
-    weekly_hours = 5
-    try:
-        prof = get_profile_storage(c["config"]).load()
-        if prof and hasattr(prof, "weekly_hours_available"):
-            weekly_hours = prof.weekly_hours_available or 5
-    except Exception:
-        pass
-
-    brief = DailyBriefBuilder().build(
-        stale_goals=stale_goals,
-        recommendations=recs,
-        all_goals=all_goals,
-        weekly_hours=weekly_hours,
+    brief_inputs = collect_daily_brief_inputs(
+        c["storage"],
+        profile_storage=get_profile_storage(c["config"], storage_paths=c.get("storage_paths")),
+        recommendation_storage=get_recommendation_storage(
+            c["config"],
+            storage_paths=c.get("storage_paths"),
+        ),
     )
+    brief = build_daily_brief(**brief_inputs)
 
     if not brief.items:
         console.print("[yellow]Nothing for today.[/]")
@@ -92,9 +74,9 @@ def ask(question: str, advice_type: str):
 
     try:
         with console.status("Thinking..."):
-            response = c["advisor"].ask(question, advice_type=advice_type)
+            result = run_advice(c["advisor"], question, advice_type=advice_type)
         console.print()
-        console.print(Markdown(response))
+        console.print(Markdown(result["answer"]))
     except LLMError as e:
         console.print(f"[red]Error:[/] {e}")
         sys.exit(1)

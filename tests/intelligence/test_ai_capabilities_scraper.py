@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from intelligence.scraper import IntelItem, IntelStorage
+from intelligence.scraper import IntelItem
 from intelligence.sources.ai_capabilities import AICapabilitiesScraper
 from shared_types import IntelSource
 
@@ -12,9 +12,9 @@ from shared_types import IntelSource
 class TestAICapabilitiesScraper:
     """Test AICapabilitiesScraper parsing and behavior."""
 
-    @pytest.fixture
-    def storage(self, tmp_path):
-        return IntelStorage(tmp_path / "intel.db")
+    @pytest.fixture(scope="class")
+    def storage(self):
+        return MagicMock(name="intel_storage")
 
     @pytest.fixture
     def scraper(self, storage):

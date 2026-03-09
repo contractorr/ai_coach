@@ -264,6 +264,51 @@ class TrendingRadarConfig(BaseModel):
     interval_hours: int = 6
 
 
+class CompanyMovementConfig(BaseModel):
+    """Company-movement pipeline configuration."""
+
+    enabled: bool = False
+    min_significance: float = 0.45
+    run_cron: str = "0 */6 * * *"
+    lookback_days: int = 14
+
+    @field_validator("run_cron")
+    @classmethod
+    def validate_schedule(cls, v: str) -> str:
+        return validate_cron(v)
+
+
+class HiringPipelineConfig(BaseModel):
+    """Hiring-activity pipeline configuration."""
+
+    enabled: bool = False
+    spike_multiplier: float = 2.0
+    min_post_count: int = 5
+    min_family_count: int = 3
+    min_geo_count: int = 3
+    run_cron: str = "0 */12 * * *"
+    lookback_days: int = 14
+
+    @field_validator("run_cron")
+    @classmethod
+    def validate_schedule(cls, v: str) -> str:
+        return validate_cron(v)
+
+
+class RegulatoryPipelineConfig(BaseModel):
+    """Regulatory-change pipeline configuration."""
+
+    enabled: bool = False
+    min_relevance: float = 0.5
+    run_cron: str = "0 */12 * * *"
+    lookback_days: int = 30
+
+    @field_validator("run_cron")
+    @classmethod
+    def validate_schedule(cls, v: str) -> str:
+        return validate_cron(v)
+
+
 class CoachConfig(BaseModel):
     """Main configuration model."""
 
@@ -282,6 +327,9 @@ class CoachConfig(BaseModel):
     memory: MemoryConfig = Field(default_factory=MemoryConfig)
     threads: ThreadsConfig = Field(default_factory=ThreadsConfig)
     trending_radar: TrendingRadarConfig = Field(default_factory=TrendingRadarConfig)
+    company_movement: CompanyMovementConfig = Field(default_factory=CompanyMovementConfig)
+    hiring: HiringPipelineConfig = Field(default_factory=HiringPipelineConfig)
+    regulatory: RegulatoryPipelineConfig = Field(default_factory=RegulatoryPipelineConfig)
 
     @model_validator(mode="after")
     def expand_env_vars(self):

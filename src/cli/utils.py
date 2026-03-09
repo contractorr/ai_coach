@@ -6,6 +6,21 @@ from pathlib import Path
 import structlog
 from rich.console import Console
 
+from storage_access import (
+    create_insight_store,
+    create_intel_storage,
+    create_memory_store,
+    create_profile_storage,
+    create_recommendation_storage,
+    create_thread_store,
+    create_watchlist_store,
+    get_recommendations_dir,
+)
+from storage_access import (
+    get_profile_path as resolve_profile_path,
+)
+from storage_paths import get_single_user_paths
+
 console = Console()
 logger = structlog.get_logger()
 
@@ -13,7 +28,7 @@ logger = structlog.get_logger()
 def warn_experimental(feature: str):
     import click
 
-    click.echo(f"[EXPERIMENTAL] {feature} — may change or be removed", err=True)
+    click.echo(f"[EXPERIMENTAL] {feature} - may change or be removed", err=True)
 
 
 def get_components(skip_advisor: bool = False):
@@ -26,7 +41,6 @@ def get_components(skip_advisor: bool = False):
     from advisor.engine import AdvisorEngine, APIKeyMissingError
     from cli.config import get_paths, load_config, load_config_model
     from intelligence.embeddings import IntelEmbeddingManager
-    from intelligence.scraper import IntelStorage
     from intelligence.search import IntelSearch
     from journal import EmbeddingManager, JournalSearch, JournalStorage
     from journal.fts import JournalFTSIndex
@@ -35,9 +49,10 @@ def get_components(skip_advisor: bool = False):
     config_model = load_config_model()
 
     paths = get_paths(config)
+    storage_paths = get_storage_paths(config=config, paths=paths)
 
     storage = JournalStorage(paths["journal_dir"])
-    intel_storage = IntelStorage(paths["intel_db"])
+    intel_storage = create_intel_storage(storage_paths)
 
     try:
         embeddings = EmbeddingManager(paths["chroma_dir"])
@@ -46,7 +61,7 @@ def get_components(skip_advisor: bool = False):
         err = str(e).lower()
         if "dimension" in err or "mismatch" in err:
             console.print(
-                "[red]ChromaDB dimension mismatch — embedding model may have changed.[/]\n"
+                "[red]ChromaDB dimension mismatch - embedding model may have changed.[/]\n"
                 "Run [bold]coach db rebuild --collection all[/] to fix."
             )
             sys.exit(1)
@@ -56,8 +71,7 @@ def get_components(skip_advisor: bool = False):
     search = JournalSearch(storage, embeddings, fts_index=fts_index)
     intel_search = IntelSearch(intel_storage, intel_embeddings)
 
-    # Pass intel_search to RAG for semantic intel retrieval
-    profile_path = get_profile_path(config)
+    profile_path = get_profile_path(config, storage_paths=storage_paths)
     rag = RAGRetriever(
         search,
         paths["intel_db"],
@@ -85,6 +99,7 @@ def get_components(skip_advisor: bool = False):
         "config": config,
         "config_model": config_model,
         "paths": paths,
+        "storage_paths": storage_paths,
         "storage": storage,
         "embeddings": embeddings,
         "search": search,
@@ -95,24 +110,74 @@ def get_components(skip_advisor: bool = False):
     }
 
 
-def get_rec_db_path(config: dict) -> Path:
-    """Get recommendations directory path."""
-    intel_db = Path(config["paths"]["intel_db"]).expanduser()
-    return intel_db.parent / "recommendations"
-
-
-def get_profile_storage(config: dict | None = None):
-    """Get ProfileStorage instance from config."""
-    from profile.storage import ProfileStorage
-
+def get_storage_paths(config: dict | None = None, paths: dict | None = None) -> dict[str, Path]:
+    """Return canonical single-user storage paths for CLI helpers and commands."""
     if config is None:
         from cli.config import load_config
 
         config = load_config()
-    path = config.get("profile", {}).get("path", "~/coach/profile.yaml")
-    return ProfileStorage(path)
+
+    resolved_paths = paths
+    if resolved_paths is None:
+        raw_intel_db = config.get("paths", {}).get("intel_db", "~/coach/intel.db")
+        coach_home = Path(raw_intel_db).expanduser().parent
+    else:
+        coach_home = Path(resolved_paths["intel_db"]).expanduser().parent
+
+    raw_profile_path = config.get("profile", {}).get("path")
+    profile_path = Path(raw_profile_path).expanduser() if raw_profile_path else None
+    return get_single_user_paths(coach_home=coach_home, profile_path=profile_path)
 
 
-def get_profile_path(config: dict) -> str:
+def get_rec_db_path(config: dict | None = None, storage_paths: dict | None = None) -> Path:
+    """Get recommendations directory path."""
+    resolved_storage_paths = storage_paths or get_storage_paths(config=config)
+    return get_recommendations_dir(resolved_storage_paths)
+
+
+def get_profile_storage(config: dict | None = None, storage_paths: dict | None = None):
+    """Get ProfileStorage instance from config."""
+    resolved_storage_paths = storage_paths or get_storage_paths(config=config)
+    return create_profile_storage(resolved_storage_paths)
+
+
+def get_profile_path(config: dict, storage_paths: dict | None = None) -> str:
     """Get profile YAML path from config."""
-    return config.get("profile", {}).get("path", "~/coach/profile.yaml")
+    resolved_storage_paths = storage_paths or get_storage_paths(config=config)
+    return str(resolve_profile_path(resolved_storage_paths))
+
+
+def get_thread_store(config: dict | None = None, storage_paths: dict | None = None):
+    """Get the single-user thread store for CLI commands."""
+    resolved_storage_paths = storage_paths or get_storage_paths(config=config)
+    return create_thread_store(resolved_storage_paths)
+
+
+def get_watchlist_store(config: dict | None = None, storage_paths: dict | None = None):
+    """Get the single-user watchlist store for CLI commands."""
+    resolved_storage_paths = storage_paths or get_storage_paths(config=config)
+    return create_watchlist_store(resolved_storage_paths)
+
+
+def get_memory_store(config: dict | None = None, storage_paths: dict | None = None):
+    """Get the single-user memory store for CLI commands."""
+    resolved_storage_paths = storage_paths or get_storage_paths(config=config)
+    return create_memory_store(resolved_storage_paths)
+
+
+def get_intel_storage(config: dict | None = None, storage_paths: dict | None = None):
+    """Get the shared intel store for CLI commands."""
+    resolved_storage_paths = storage_paths or get_storage_paths(config=config)
+    return create_intel_storage(resolved_storage_paths)
+
+
+def get_recommendation_storage(config: dict | None = None, storage_paths: dict | None = None):
+    """Get the recommendation store for CLI commands."""
+    resolved_storage_paths = storage_paths or get_storage_paths(config=config)
+    return create_recommendation_storage(resolved_storage_paths)
+
+
+def get_insight_store(config: dict | None = None, storage_paths: dict | None = None):
+    """Get the insight store for CLI commands."""
+    resolved_storage_paths = storage_paths or get_storage_paths(config=config)
+    return create_insight_store(resolved_storage_paths)

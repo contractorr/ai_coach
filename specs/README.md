@@ -1,6 +1,6 @@
 # Specs
 
-Two-tier spec system: functional specs define *what*, technical specs define *how*.
+Primary spec system: functional specs define *what*, technical specs define *how*. Shared foundation docs capture cross-cutting UX and design rules used by both.
 
 ## Workflow
 
@@ -19,6 +19,9 @@ specs/
   technical/         # How (Claude-generated, developer-reviewed)
     TEMPLATE.md
     {module}.md
+  foundations/       # Shared UX/design rules that span features/modules
+    design-system.md
+    ux-guidelines.md
 ```
 
 ## Functional Specs (features)
@@ -26,26 +29,37 @@ specs/
 | Spec | Status | Covers |
 |------|--------|--------|
 | [journaling](functional/journaling.md) | Stable | CRUD, search, templates, trends, threads, sentiment |
-| [ask-advice](functional/ask-advice.md) | Stable | RAG Q&A, agentic mode, advice types, greeting, insights, suggestions |
+| [ask-advice](functional/ask-advice.md) | Stable | RAG Q&A, agentic mode, advice types, chat surfaces, document-grounded answers, greeting, insights, suggestions |
 | [intelligence-feed](functional/intelligence-feed.md) | Stable | 15 scrapers, dedup, trending radar, scheduling |
 | [recommendations](functional/recommendations.md) | Stable | Scoring, dedup, feedback loop, delivery |
+| [action-plans](functional/action-plans.md) | Stable | Recommendation-to-execution workflow, weekly planning, goal linkage |
 | [profile-onboarding](functional/profile-onboarding.md) | Stable | Interview flow, profile fields, staleness |
+| [analytics-admin](functional/analytics-admin.md) | Stable | Lightweight usage analytics, page views, scraper health |
 | [deep-research](functional/deep-research.md) | Experimental | Topic selection, web search, synthesis |
+| [research-dossiers](functional/research-dossiers.md) | Experimental | Persistent research topics, timeline updates, advisor retrieval |
 | [goal-tracking](functional/goal-tracking.md) | Experimental | Goals, milestones, check-ins |
-| [memory-threads](functional/memory-threads.md) | Experimental | Persistent facts, recurring topic detection |
+| [projects-opportunities](functional/projects-opportunities.md) | Stable | Matched issues, project ideas, dedicated workspace |
+| [settings-account](functional/settings-account.md) | Stable | Keys, lite mode, watchlist, profile editing, account deletion |
+| [memory-threads](functional/memory-threads.md) | Experimental | Persistent facts, recurring topic detection, document-derived memory |
+| [library-reports](functional/library-reports.md) | Partially Implemented | Library workspace for durable AI-generated reports and uploaded PDFs, manual generation, document storage, refresh, collections |
+| [v2-simplified-product](functional/v2-simplified-product.md) | Draft | Simplified information architecture, merged workflows, progressive disclosure across existing features |
 
 ## Technical Specs (modules)
 
 | Spec | Covers |
 |------|--------|
+| [architecture](technical/architecture.md) | System topology, module boundaries, dependency graph, weak points |
 | [advisor](technical/advisor.md) | AdvisorEngine, RAG retrieval, agentic orchestrator, prompts |
 | [journal](technical/journal.md) | Storage, embeddings, search, FTS, threads, trends, sentiment |
 | [intelligence](technical/intelligence.md) | Scrapers, IntelStorage, scheduler, dedup, trending radar |
 | [profile](technical/profile.md) | UserProfile model, ProfileInterviewer, storage |
 | [research](technical/research.md) | WebSearchClient, ResearchSynthesizer, DeepResearchAgent |
+| [research-dossiers](technical/research-dossiers.md) | ResearchDossierStore, dossier update flow, cross-surface integrations |
+| [action-plans](technical/action-plans.md) | Recommendation execution metadata, weekly plan assembly, execution feedback |
 | [memory](technical/memory.md) | FactStore, FactExtractor, ConflictResolver, MemoryPipeline |
 | [llm](technical/llm.md) | Provider factory, Claude/OpenAI/Gemini adapters |
 | [web](technical/web.md) | FastAPI app, JWT auth, route modules, user isolation |
+| [library](technical/library.md) | ReportStore, Library routes, Library workspace MVP |
 | [mcp](technical/mcp.md) | MCP server, bootstrap, 37 tools across 12 modules |
 | [cli](technical/cli.md) | Click commands, config validation, logging |
 
@@ -53,5 +67,13 @@ specs/
 
 - **Functional specs**: No code, no internal details. User-facing language only.
 - **Technical specs**: Reference the functional spec they implement. Include component signatures, invariants, error paths.
+- **Foundation docs**: Cross-cutting product and UI guidance. Use them to keep feature specs and implementations consistent.
 - One functional spec per feature. One technical spec per module (may cover multiple features).
 - Functional specs map to user-facing features; technical specs map to code modules. The mapping is many-to-many (e.g., journaling touches `journal`, `web`, `cli`, and `mcp` technical specs).
+
+## Foundation Docs
+
+| Doc | Covers |
+|-----|--------|
+| [design-system](foundations/design-system.md) | Tokens, component conventions, states, accessibility baseline |
+| [ux-guidelines](foundations/ux-guidelines.md) | Page structure, actions, AI UX, feedback states, copy, responsiveness |

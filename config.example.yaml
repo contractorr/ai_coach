@@ -92,6 +92,27 @@ schedule:
   weekly_review: "sunday 9am"
   intelligence_gather: "daily 6am"
 
+company_movement:
+  enabled: false
+  min_significance: 0.45
+  run_cron: "0 */6 * * *"
+  lookback_days: 14
+
+hiring:
+  enabled: false
+  spike_multiplier: 2.0
+  min_post_count: 5
+  min_family_count: 3
+  min_geo_count: 3
+  run_cron: "0 */12 * * *"
+  lookback_days: 14
+
+regulatory:
+  enabled: false
+  min_relevance: 0.5
+  run_cron: "0 */12 * * *"
+  lookback_days: 30
+
 # --- Optional: journal templates ---
 # journal:
 #   templates:

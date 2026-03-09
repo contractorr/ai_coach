@@ -3,6 +3,7 @@
 import { useRef, useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
+import { ChatAttachmentBadges, ChatPdfAttachmentPicker } from "@/components/ChatPdfAttachments";
 import { MessageRenderer } from "@/components/MessageRenderer";
 import { Brain, Send, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -12,14 +13,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { useChatPdfAttachments } from "@/hooks/useChatPdfAttachments";
 import { Textarea } from "@/components/ui/textarea";
 import { apiFetch, apiFetchSSE } from "@/lib/api";
 import { TOOL_LABELS } from "@/lib/constants";
-
-interface Message {
-  role: "user" | "assistant";
-  content: string;
-}
+import type { ChatMessage } from "@/types/chat";
 
 const CONV_KEY = "dashboard_conv_id";
 
@@ -32,13 +30,15 @@ export function EmbeddedAdvisor({
   prefillQuestion?: string;
   onQuestionConsumed?: () => void;
 }) {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [toolStatus, setToolStatus] = useState<string | null>(null);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const { attachments, addFiles, removeAttachment, uploadPending, uploading } =
+    useChatPdfAttachments(token);
 
   // Restore conversation on mount
   useEffect(() => {
@@ -48,7 +48,7 @@ export function EmbeddedAdvisor({
       try {
         const conv = await apiFetch<{
           id: string;
-          messages: Message[];
+          messages: ChatMessage[];
         }>(`/api/advisor/conversations/${saved}`, {}, token);
         setConversationId(saved);
         // Show last 5 messages
@@ -100,11 +100,24 @@ export function EmbeddedAdvisor({
     if (!input.trim() || loading) return;
     const question = input.trim();
     setInput("");
-    setMessages((prev) => [...prev, { role: "user", content: question }]);
     setLoading(true);
-    setToolStatus(null);
+    setToolStatus(attachments.length ? "Uploading PDFs..." : null);
 
     try {
+      const uploaded = await uploadPending();
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "user",
+          content: question,
+          attachments: uploaded.map((item) => ({
+            library_item_id: item.attachment_id,
+            file_name: item.file_name,
+            mime_type: item.mime_type,
+          })),
+        },
+      ]);
+
       await apiFetchSSE(
         "/api/advisor/ask/stream",
         {
@@ -113,6 +126,7 @@ export function EmbeddedAdvisor({
             question,
             advice_type: "general",
             conversation_id: conversationId,
+            attachment_ids: uploaded.map((item) => item.attachment_id),
           }),
         },
         token,
@@ -149,7 +163,7 @@ export function EmbeddedAdvisor({
       setLoading(false);
       setToolStatus(null);
     }
-  }, [input, loading, conversationId, token]);
+  }, [input, loading, conversationId, token, attachments.length, uploadPending]);
 
   return (
     <Card>
@@ -193,6 +207,7 @@ export function EmbeddedAdvisor({
               <span className="mb-0.5 block text-xs font-medium text-muted-foreground">
                 {msg.role === "user" ? "You" : "Steward"}
               </span>
+              {msg.role === "user" && <ChatAttachmentBadges attachments={msg.attachments} />}
               {msg.role === "assistant" ? (
                 <MessageRenderer content={msg.content} onAction={(text) => { setInput(text); setTimeout(() => textareaRef.current?.focus(), 100); }} compact />
               ) : (
@@ -215,28 +230,36 @@ export function EmbeddedAdvisor({
         </div>
 
         {/* Input */}
-        <div className="flex gap-2">
-          <Textarea
-            ref={textareaRef}
-            rows={2}
-            placeholder="Ask a question..."
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                handleSend();
-              }
-            }}
-            className="flex-1"
+        <div className="space-y-3">
+          <ChatPdfAttachmentPicker
+            attachments={attachments}
+            disabled={loading || uploading}
+            onAddFiles={addFiles}
+            onRemove={removeAttachment}
           />
-          <Button
-            onClick={handleSend}
-            disabled={loading || !input.trim()}
-            className="self-end"
-          >
-            <Send className="h-4 w-4" />
-          </Button>
+          <div className="flex gap-2">
+            <Textarea
+              ref={textareaRef}
+              rows={2}
+              placeholder="Ask a question..."
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSend();
+                }
+              }}
+              className="flex-1"
+            />
+            <Button
+              onClick={handleSend}
+              disabled={loading || uploading || !input.trim()}
+              className="self-end"
+            >
+              <Send className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </CardContent>
     </Card>

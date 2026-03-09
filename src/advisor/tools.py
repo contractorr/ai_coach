@@ -197,10 +197,10 @@ class ToolRegistry:
             filepath = storage.create(
                 content=content, entry_type=entry_type, title=title, tags=tags
             )
-            # Sync embeddings for new entry
+            # Incrementally index the new entry instead of re-syncing the whole journal
             try:
-                all_entries = storage.get_all_content()
-                embeddings.sync_from_storage(all_entries)
+                post = storage.read(filepath)
+                embeddings.add_entry(str(filepath), post.content, dict(post.metadata))
             except Exception:
                 pass
             return {
@@ -296,11 +296,11 @@ class ToolRegistry:
                 post["check_in_days"] = check_days
                 with open(filepath, "w") as f:
                     f.write(frontmatter.dumps(post))
-            # Sync embeddings
+            # Incrementally index the new goal instead of re-syncing the whole journal
             try:
                 embeddings = self.components["embeddings"]
-                all_entries = storage.get_all_content()
-                embeddings.sync_from_storage(all_entries)
+                post = storage.read(filepath)
+                embeddings.add_entry(str(filepath), post.content, dict(post.metadata))
             except Exception:
                 pass
             return {
@@ -553,7 +553,7 @@ class ToolRegistry:
             return
 
         def intel_list_rss_feeds(args: dict) -> dict:
-            from web.user_store import get_user_rss_feeds
+            from user_state_store import get_user_rss_feeds
 
             feeds = get_user_rss_feeds(user_id)
             return {
@@ -580,7 +580,7 @@ class ToolRegistry:
 
             import httpx
 
-            from web.user_store import add_user_rss_feed
+            from user_state_store import add_user_rss_feed
 
             url = args["url"]
             name = args.get("name")

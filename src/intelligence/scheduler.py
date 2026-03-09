@@ -71,10 +71,7 @@ class ResearchRunner:
         self.config = config
 
     def _init_agent(self):
-        """Initialize research agent if configured."""
-        research_config = self.config.get("research", {})
-        if not research_config.get("enabled", False):
-            return None
+        """Initialize research agent for manual or scheduled research operations."""
 
         if not self.journal_storage or not self.embeddings:
             logger.warning("Research agent requires journal_storage and embeddings")
@@ -93,7 +90,7 @@ class ResearchRunner:
             logger.error("Failed to import research agent: %s", e)
             return None
 
-    def run(self, topic: Optional[str] = None) -> list[dict]:
+    def run(self, topic: Optional[str] = None, dossier_id: Optional[str] = None) -> list[dict]:
         """Run deep research immediately."""
         agent = self._init_agent()
         if not agent:
@@ -101,7 +98,34 @@ class ResearchRunner:
             return []
 
         try:
-            return agent.run(specific_topic=topic)
+            return agent.run(specific_topic=topic, dossier_id=dossier_id)
+        finally:
+            agent.close()
+
+    def list_dossiers(self, include_archived: bool = False, limit: int = 50) -> list[dict]:
+        agent = self._init_agent()
+        if not agent:
+            return []
+        try:
+            return agent.list_dossiers(include_archived=include_archived, limit=limit)
+        finally:
+            agent.close()
+
+    def create_dossier(self, **kwargs) -> dict | None:
+        agent = self._init_agent()
+        if not agent:
+            return None
+        try:
+            return agent.create_dossier(**kwargs)
+        finally:
+            agent.close()
+
+    def get_dossier(self, dossier_id: str) -> dict | None:
+        agent = self._init_agent()
+        if not agent:
+            return None
+        try:
+            return agent.get_dossier(dossier_id)
         finally:
             agent.close()
 
@@ -213,7 +237,7 @@ class IntelScheduler:
         intel_embedding_mgr = None
         if self.config.get("semantic_dedup", False):
             try:
-                from cli.config import get_paths
+                from coach_config import get_paths
                 from intelligence.embeddings import IntelEmbeddingManager
 
                 paths = get_paths(self.full_config)
@@ -245,7 +269,7 @@ class IntelScheduler:
 
         # Merge user-added RSS feeds
         try:
-            from web.user_store import get_all_user_rss_feeds
+            from user_state_store import get_all_user_rss_feeds
 
             for feed in get_all_user_rss_feeds():
                 if feed["url"] not in config_rss_urls:
@@ -490,7 +514,7 @@ class IntelScheduler:
                         items_deduped=deduped_count,
                     )
                     try:
-                        from web.user_store import log_event
+                        from user_state_store import log_event
 
                         log_event(
                             "scraper_run", metadata={"source": source, "items_added": new_count}
@@ -584,6 +608,168 @@ class IntelScheduler:
             except Exception as e:
                 logger.error("Error in custom on_error callback: %s", e)
 
+    def _load_pipeline_watchlists(self) -> list[dict]:
+        from .watchlist import list_all_watchlist_items
+
+        return list_all_watchlist_items()
+
+    def run_company_movement_pipeline(self) -> dict:
+        from .company_watch import (
+            CompanyMovementCollector,
+            CompanyMovementStore,
+            WatchedCompanyResolver,
+        )
+
+        company_config = self.full_config.get("company_movement", {})
+        watchlist_items = self._load_pipeline_watchlists()
+        companies = WatchedCompanyResolver().from_watchlist_items(watchlist_items)
+        by_key: dict[str, dict] = {}
+        for company in companies:
+            key = company.get("company_key") or ""
+            if key and (
+                key not in by_key or company.get("priority", 0) > by_key[key].get("priority", 0)
+            ):
+                by_key[key] = company
+        companies = list(by_key.values())
+        if not companies:
+            return {"watched_companies": 0, "events_detected": 0, "saved": 0}
+
+        lookback_days = int(company_config.get("lookback_days", 14) or 14)
+        min_significance = float(company_config.get("min_significance", 0.45) or 0.45)
+        recent_items = self.storage.get_recent(
+            days=lookback_days,
+            limit=max(200, len(companies) * 25),
+            include_duplicates=True,
+        )
+        collector = CompanyMovementCollector()
+        events = [
+            event
+            for event in collector.collect(companies, recent_items)
+            if float(event.get("significance") or 0.0) >= min_significance
+        ]
+        saved = CompanyMovementStore(self.storage.db_path).save_many(events)
+        logger.info(
+            "company_movement.complete",
+            watched_companies=len(companies),
+            events_detected=len(events),
+            saved=saved,
+        )
+        return {"watched_companies": len(companies), "events_detected": len(events), "saved": saved}
+
+    def run_hiring_activity_pipeline(self) -> dict:
+        from .company_watch import WatchedCompanyResolver
+        from .hiring_signals import HiringSignalAnalyzer, HiringSignalStore
+
+        hiring_config = self.full_config.get("hiring", {})
+        watchlist_items = self._load_pipeline_watchlists()
+        entities = WatchedCompanyResolver().from_watchlist_items(watchlist_items)
+        by_key: dict[str, dict] = {}
+        for entity in entities:
+            key = entity.get("company_key") or entity.get("entity_key") or ""
+            if key and (
+                key not in by_key or entity.get("priority", 0) > by_key[key].get("priority", 0)
+            ):
+                by_key[key] = entity
+        entities = list(by_key.values())
+        if not entities:
+            return {"watched_entities": 0, "signals_detected": 0, "saved": 0}
+
+        lookback_days = int(hiring_config.get("lookback_days", 14) or 14)
+        recent_items = self.storage.get_recent(
+            days=lookback_days,
+            limit=max(200, len(entities) * 25),
+            include_duplicates=True,
+        )
+        signals = HiringSignalAnalyzer().analyze_mentions(entities, recent_items)
+        saved = HiringSignalStore(self.storage.db_path).save_many(signals)
+        logger.info(
+            "hiring_pipeline.complete",
+            watched_entities=len(entities),
+            signals_detected=len(signals),
+            saved=saved,
+        )
+        return {"watched_entities": len(entities), "signals_detected": len(signals), "saved": saved}
+
+    def run_regulatory_pipeline(self) -> dict:
+        from .regulatory import RegulatoryAlertStore, RegulatoryClassifier, RegulatoryWatchResolver
+
+        reg_config = self.full_config.get("regulatory", {})
+        watchlist_items = self._load_pipeline_watchlists()
+        targets = RegulatoryWatchResolver().from_watchlist_items(watchlist_items)
+        by_key: dict[str, dict] = {}
+        for target in targets:
+            key = target.get("target_key") or ""
+            if key and (
+                key not in by_key or target.get("priority", 0) > by_key[key].get("priority", 0)
+            ):
+                by_key[key] = target
+        targets = list(by_key.values())
+        if not targets:
+            return {"targets": 0, "alerts_detected": 0, "saved": 0}
+
+        lookback_days = int(reg_config.get("lookback_days", 30) or 30)
+        min_relevance = float(reg_config.get("min_relevance", 0.5) or 0.5)
+        recent_items = self.storage.get_recent(
+            days=lookback_days,
+            limit=max(250, len(targets) * 30),
+            include_duplicates=True,
+        )
+        classifier = RegulatoryClassifier()
+        alerts: list[dict] = []
+        seen: set[tuple[str, str]] = set()
+        for target in targets:
+            for intel_item in recent_items:
+                alert = classifier.classify(intel_item, target)
+                if not alert or float(alert.get("relevance") or 0.0) < min_relevance:
+                    continue
+                dedupe_key = (alert.get("target_key") or "", alert.get("source_url") or "")
+                if dedupe_key in seen:
+                    continue
+                seen.add(dedupe_key)
+                alerts.append(alert)
+        saved = RegulatoryAlertStore(self.storage.db_path).save_many(alerts)
+        logger.info(
+            "regulatory_pipeline.complete",
+            targets=len(targets),
+            alerts_detected=len(alerts),
+            saved=saved,
+        )
+        return {"targets": len(targets), "alerts_detected": len(alerts), "saved": saved}
+
+    def _schedule_extended_jobs(self) -> None:
+        company_config = self.full_config.get("company_movement", {})
+        if company_config.get("enabled", False):
+            cron = company_config.get("run_cron", "0 */6 * * *")
+            self.scheduler.add_job(
+                self.run_company_movement_pipeline,
+                trigger=_parse_cron(cron),
+                id="company_movement_pipeline",
+                replace_existing=True,
+            )
+            logger.info("company_movement.scheduled", cron=cron)
+
+        hiring_config = self.full_config.get("hiring", {})
+        if hiring_config.get("enabled", False):
+            cron = hiring_config.get("run_cron", "0 */12 * * *")
+            self.scheduler.add_job(
+                self.run_hiring_activity_pipeline,
+                trigger=_parse_cron(cron),
+                id="hiring_activity_pipeline",
+                replace_existing=True,
+            )
+            logger.info("hiring_pipeline.scheduled", cron=cron)
+
+        reg_config = self.full_config.get("regulatory", {})
+        if reg_config.get("enabled", False):
+            cron = reg_config.get("run_cron", "0 */12 * * *")
+            self.scheduler.add_job(
+                self.run_regulatory_pipeline,
+                trigger=_parse_cron(cron),
+                id="regulatory_pipeline",
+                replace_existing=True,
+            )
+            logger.info("regulatory_pipeline.scheduled", cron=cron)
+
     def start(self, cron_expr: str = "0 6 * * *"):
         """Start scheduled gathering."""
         trigger = _parse_cron(cron_expr)
@@ -593,6 +779,7 @@ class IntelScheduler:
             id="intel_gather",
             replace_existing=True,
         )
+        self._schedule_extended_jobs()
         self.scheduler.add_listener(self._default_error_handler, EVENT_JOB_ERROR)
         self.scheduler.start()
 
@@ -601,13 +788,29 @@ class IntelScheduler:
         self.scheduler.shutdown()
 
     # Delegate research methods
-    def run_research_now(self, topic: Optional[str] = None) -> list[dict]:
+    def run_research_now(
+        self,
+        topic: Optional[str] = None,
+        dossier_id: Optional[str] = None,
+    ) -> list[dict]:
         """Run deep research immediately."""
-        return self._research.run(topic=topic)
+        return self._research.run(topic=topic, dossier_id=dossier_id)
 
     def get_research_topics(self) -> list[dict]:
         """Get suggested research topics."""
         return self._research.get_topics()
+
+    def list_research_dossiers(self, include_archived: bool = False, limit: int = 50) -> list[dict]:
+        """List persistent research dossiers."""
+        return self._research.list_dossiers(include_archived=include_archived, limit=limit)
+
+    def create_research_dossier(self, **kwargs) -> dict | None:
+        """Create a persistent research dossier."""
+        return self._research.create_dossier(**kwargs)
+
+    def get_research_dossier(self, dossier_id: str) -> dict | None:
+        """Get a persistent research dossier with updates."""
+        return self._research.get_dossier(dossier_id)
 
     # Delegate recommendation methods
     def run_recommendations_now(self) -> dict:
@@ -783,6 +986,8 @@ class IntelScheduler:
             rec_cron = rec_config.get("delivery", {}).get("schedule", "0 8 * * 0")
             self._add_recommendations_job(rec_cron)
 
+        self._schedule_extended_jobs()
+
         # Add signal detection + autonomous actions if agent enabled
         agent_config = self.full_config.get("agent", {})
         if agent_config.get("enabled", False):
@@ -936,9 +1141,9 @@ class IntelScheduler:
     def run_weekly_summary(self):
         """Generate and write a weekly usage summary to logs dir."""
         try:
-            from web.user_store import get_usage_stats
+            from user_state_store import get_usage_stats
         except ImportError:
-            logger.warning("weekly_summary.skip: web.user_store not available")
+            logger.warning("weekly_summary.skip: user_state_store not available")
             return
 
         try:

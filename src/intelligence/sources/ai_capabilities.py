@@ -8,9 +8,9 @@ import httpx
 import structlog
 from bs4 import BeautifulSoup
 
-from cli.retry import http_retry
 from intelligence.scraper import BaseScraper, IntelItem, IntelStorage
 from llm.factory import create_cheap_provider
+from retry_utils import http_retry
 from shared_types import IntelSource
 
 logger = structlog.get_logger().bind(source="ai_capabilities")
@@ -490,9 +490,9 @@ class FrontierEvalsGitHubScraper(BaseScraper):
 
     def __init__(self, storage: IntelStorage, token: Optional[str] = None):
         super().__init__(storage)
-        self.client.headers["Accept"] = "application/vnd.github.v3+json"
+        self.set_client_headers(Accept="application/vnd.github.v3+json")
         if token:
-            self.client.headers["Authorization"] = f"token {token}"
+            self.set_client_headers(Authorization=f"token {token}")
 
     @property
     def source_name(self) -> str:

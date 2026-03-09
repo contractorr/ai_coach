@@ -1,6 +1,10 @@
 """Intelligence MCP tools — search, recent items, trigger scrape."""
 
-from coach_mcp.bootstrap import get_components
+from coach_mcp.bootstrap import get_components, get_profile_storage, get_watchlist_store
+
+
+def _get_watchlist_store():
+    return get_watchlist_store()
 
 
 def _search(args: dict) -> dict:
@@ -89,11 +93,7 @@ def _events_upcoming(args: dict) -> dict:
 
     profile = None
     try:
-        from profile.storage import ProfileStorage
-
-        profile_path = c["config"].get("profile", {}).get("path", "~/coach/profile.yaml")
-        ps = ProfileStorage(profile_path)
-        profile = ps.load()
+        profile = get_profile_storage().load()
     except Exception:
         pass
 
@@ -135,6 +135,49 @@ def _trending_radar(args: dict) -> dict:
         topic["items"] = topic.get("items", [])[:1]
 
     return snapshot
+
+
+def _watchlist_list(args: dict) -> dict:
+    """List tracked watchlist items."""
+    items = _get_watchlist_store().list_items()
+    return {"items": items, "count": len(items)}
+
+
+def _watchlist_upsert(args: dict) -> dict:
+    """Create or update a watchlist item."""
+    item_id = args.get("item_id")
+    store = _get_watchlist_store()
+    payload = {
+        "label": args["label"],
+        "kind": args.get("kind", "theme"),
+        "aliases": args.get("aliases", []),
+        "why": args.get("why", ""),
+        "priority": args.get("priority", "medium"),
+        "tags": args.get("tags", []),
+        "goal": args.get("goal", ""),
+        "time_horizon": args.get("time_horizon", "quarter"),
+        "source_preferences": args.get("source_preferences", []),
+        "domain": args.get("domain", ""),
+        "github_org": args.get("github_org", ""),
+        "ticker": args.get("ticker", ""),
+        "topics": args.get("topics", []),
+        "geographies": args.get("geographies", []),
+        "linked_dossier_ids": args.get("linked_dossier_ids", []),
+    }
+    if item_id:
+        item = store.update_item(item_id, payload)
+        if item is None:
+            payload["id"] = item_id
+            item = store.save_item(payload)
+    else:
+        item = store.save_item(payload)
+    return {"item": item}
+
+
+def _watchlist_delete(args: dict) -> dict:
+    """Delete a watchlist item."""
+    item_id = args["item_id"]
+    return {"success": _get_watchlist_store().delete_item(item_id), "item_id": item_id}
 
 
 TOOLS = [
@@ -216,5 +259,57 @@ TOOLS = [
             "required": [],
         },
         _trending_radar,
+    ),
+    (
+        "watchlist_list",
+        {
+            "description": "List tracked watchlist items used to boost bespoke intelligence ranking.",
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+        _watchlist_list,
+    ),
+    (
+        "watchlist_upsert",
+        {
+            "description": "Create or update a watchlist item for bespoke intelligence monitoring.",
+            "type": "object",
+            "properties": {
+                "item_id": {"type": "string", "description": "Existing item id to update"},
+                "label": {"type": "string", "description": "Primary watched entity or theme"},
+                "kind": {
+                    "type": "string",
+                    "description": "Item kind such as company or technology",
+                },
+                "aliases": {"type": "array", "items": {"type": "string"}},
+                "why": {"type": "string", "description": "Why it matters to the user"},
+                "priority": {"type": "string", "enum": ["high", "medium", "low"]},
+                "tags": {"type": "array", "items": {"type": "string"}},
+                "goal": {"type": "string", "description": "Optional linked goal"},
+                "time_horizon": {"type": "string", "description": "Optional horizon label"},
+                "source_preferences": {"type": "array", "items": {"type": "string"}},
+                "domain": {"type": "string", "description": "Company domain"},
+                "github_org": {"type": "string", "description": "Company GitHub org"},
+                "ticker": {"type": "string", "description": "Company ticker"},
+                "topics": {"type": "array", "items": {"type": "string"}},
+                "geographies": {"type": "array", "items": {"type": "string"}},
+                "linked_dossier_ids": {"type": "array", "items": {"type": "string"}},
+            },
+            "required": ["label"],
+        },
+        _watchlist_upsert,
+    ),
+    (
+        "watchlist_delete",
+        {
+            "description": "Delete a watchlist item by id.",
+            "type": "object",
+            "properties": {
+                "item_id": {"type": "string", "description": "Watchlist item id"},
+            },
+            "required": ["item_id"],
+        },
+        _watchlist_delete,
     ),
 ]

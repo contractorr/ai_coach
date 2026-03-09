@@ -1,5 +1,7 @@
 """Tests for GitHub trending scraper."""
 
+from unittest.mock import MagicMock
+
 import pytest
 
 
@@ -7,34 +9,32 @@ import pytest
 class TestGitHubTrendingScraper:
     """Test GitHubTrendingScraper (async)."""
 
-    async def test_source_name(self, temp_dirs):
+    @pytest.fixture(scope="class")
+    def storage(self):
+        return MagicMock(name="intel_storage")
+
+    async def test_source_name(self, storage):
         """Test source name is correct."""
-        from intelligence.scraper import IntelStorage
         from intelligence.sources.github import GitHubTrendingScraper
 
-        storage = IntelStorage(temp_dirs["intel_db"])
         scraper = GitHubTrendingScraper(storage)
 
         assert scraper.source_name == "github_trending"
         await scraper.close()
 
-    async def test_default_languages(self, temp_dirs):
+    async def test_default_languages(self, storage):
         """Test default language is python."""
-        from intelligence.scraper import IntelStorage
         from intelligence.sources.github import GitHubTrendingScraper
 
-        storage = IntelStorage(temp_dirs["intel_db"])
         scraper = GitHubTrendingScraper(storage)
 
         assert "python" in scraper.languages
         await scraper.close()
 
-    async def test_custom_languages(self, temp_dirs):
+    async def test_custom_languages(self, storage):
         """Test custom languages configuration."""
-        from intelligence.scraper import IntelStorage
         from intelligence.sources.github import GitHubTrendingScraper
 
-        storage = IntelStorage(temp_dirs["intel_db"])
         scraper = GitHubTrendingScraper(
             storage,
             languages=["rust", "go"],
@@ -45,12 +45,9 @@ class TestGitHubTrendingScraper:
         assert "python" not in scraper.languages
         await scraper.close()
 
-    async def test_timeframe_options(self, temp_dirs):
+    async def test_timeframe_options(self, storage):
         """Test timeframe configuration."""
-        from intelligence.scraper import IntelStorage
         from intelligence.sources.github import GitHubTrendingScraper
-
-        storage = IntelStorage(temp_dirs["intel_db"])
 
         daily = GitHubTrendingScraper(storage, timeframe="daily")
         weekly = GitHubTrendingScraper(storage, timeframe="weekly")
@@ -86,12 +83,9 @@ class TestGitHubTrendingScraper:
         assert new_count == 1
         await scraper.close()
 
-    async def test_context_manager(self, temp_dirs):
+    async def test_context_manager(self, storage):
         """Test async context manager usage."""
-        from intelligence.scraper import IntelStorage
         from intelligence.sources.github import GitHubTrendingScraper
-
-        storage = IntelStorage(temp_dirs["intel_db"])
 
         async with GitHubTrendingScraper(storage) as scraper:
             assert scraper.source_name == "github_trending"

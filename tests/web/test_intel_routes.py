@@ -43,6 +43,122 @@ def test_search(client, auth_headers):
     mock_storage.search.assert_called_once_with("rust", limit=5)
 
 
+def test_watchlist_crud(client, auth_headers):
+    create = client.post(
+        "/api/intel/watchlist",
+        json={"label": "OpenAI", "priority": "high", "why": "career relevance", "tags": ["ai"]},
+        headers=auth_headers,
+    )
+    assert create.status_code == 200
+    item = create.json()
+    assert item["label"] == "OpenAI"
+
+    listed = client.get("/api/intel/watchlist", headers=auth_headers)
+    assert listed.status_code == 200
+    assert listed.json()[0]["label"] == "OpenAI"
+
+    updated = client.patch(
+        f"/api/intel/watchlist/{item['id']}",
+        json={
+            "label": "OpenAI",
+            "priority": "medium",
+            "why": "still relevant",
+            "tags": ["ai", "labs"],
+        },
+        headers=auth_headers,
+    )
+    assert updated.status_code == 200
+    assert updated.json()["priority"] == "medium"
+
+    deleted = client.delete(f"/api/intel/watchlist/{item['id']}", headers=auth_headers)
+    assert deleted.status_code == 200
+
+
+def test_watchlist_crud_round_trips_pipeline_fields(client, auth_headers):
+    create = client.post(
+        "/api/intel/watchlist",
+        json={
+            "label": "OpenAI",
+            "kind": "company",
+            "priority": "high",
+            "domain": "openai.com",
+            "github_org": "openai",
+            "ticker": "MSFT",
+            "aliases": ["Open AI"],
+            "topics": ["AI infrastructure"],
+            "geographies": ["US", "EU"],
+            "linked_dossier_ids": ["dos_123"],
+        },
+        headers=auth_headers,
+    )
+    assert create.status_code == 200
+    item = create.json()
+    assert item["kind"] == "company"
+    assert item["domain"] == "openai.com"
+    assert item["github_org"] == "openai"
+    assert item["ticker"] == "MSFT"
+    assert item["topics"] == ["AI infrastructure"]
+    assert item["geographies"] == ["US", "EU"]
+    assert item["linked_dossier_ids"] == ["dos_123"]
+
+    listed = client.get("/api/intel/watchlist", headers=auth_headers)
+    assert listed.status_code == 200
+    assert listed.json()[0]["domain"] == "openai.com"
+
+
+def test_recent_items_are_boosted_by_watchlist(client, auth_headers):
+    create = client.post(
+        "/api/intel/watchlist",
+        json={"label": "Anthropic", "priority": "high", "why": "important startup"},
+        headers=auth_headers,
+    )
+    assert create.status_code == 200
+
+    mock_storage = MagicMock()
+    mock_storage.get_recent.return_value = [
+        {
+            "source": "rss",
+            "title": "Generic cloud news",
+            "url": "https://example.com/generic",
+            "summary": "General infrastructure update",
+            "scraped_at": "2026-03-06T08:00:00",
+        },
+        {
+            "source": "rss",
+            "title": "Anthropic launches a new model",
+            "url": "https://example.com/anthropic",
+            "summary": "Anthropic shipped a model update",
+            "scraped_at": "2026-03-05T08:00:00",
+        },
+    ]
+    with patch("web.routes.intel._get_storage", return_value=mock_storage):
+        res = client.get("/api/intel/recent", headers=auth_headers)
+    assert res.status_code == 200
+    data = res.json()
+    assert data[0]["title"] == "Anthropic launches a new model"
+    assert data[0]["why_this_matters"]
+
+
+def test_follow_up_saved_on_item(client, auth_headers):
+    saved = client.put(
+        "/api/intel/follow-ups",
+        json={
+            "url": "https://example.com/openai",
+            "title": "OpenAI roadmap",
+            "saved": True,
+            "note": "review this later",
+            "watchlist_ids": ["abc123"],
+        },
+        headers=auth_headers,
+    )
+    assert saved.status_code == 200
+    assert saved.json()["saved"] is True
+
+    listed = client.get("/api/intel/follow-ups", headers=auth_headers)
+    assert listed.status_code == 200
+    assert listed.json()[0]["note"] == "review this later"
+
+
 def test_scrape_trigger(client, auth_headers):
     mock_scheduler = MagicMock()
     mock_scheduler._run_async = AsyncMock(return_value={"sources": 3})

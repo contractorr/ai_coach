@@ -3,6 +3,7 @@
 import { useRef, useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
+import { ChatAttachmentBadges, ChatPdfAttachmentPicker } from "@/components/ChatPdfAttachments";
 import { MessageRenderer } from "@/components/MessageRenderer";
 import { ExternalLink, Send, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -12,14 +13,11 @@ import {
   SheetContent,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { useChatPdfAttachments } from "@/hooks/useChatPdfAttachments";
 import { apiFetchSSE } from "@/lib/api";
 import { TOOL_LABELS } from "@/lib/constants";
 import { useLiteMode } from "@/hooks/useLiteMode";
-
-interface Message {
-  role: "user" | "assistant";
-  content: string;
-}
+import type { ChatMessage } from "@/types/chat";
 
 export function ChatSheet({
   token,
@@ -32,7 +30,7 @@ export function ChatSheet({
   initialQuestion: string | null;
   onOpenChange: (open: boolean) => void;
 }) {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [toolStatus, setToolStatus] = useState<string | null>(null);
@@ -41,9 +39,11 @@ export function ChatSheet({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const lastFiredQuestion = useRef<string | null>(null);
   const liteMode = useLiteMode();
+  const { attachments, addFiles, removeAttachment, uploadPending, uploading, clearAttachments } =
+    useChatPdfAttachments(token);
 
   const sendMessage = useCallback(
-    async (question: string, convId: string | null) => {
+    async (question: string, convId: string | null, attachmentIds: string[] = []) => {
       setLoading(true);
       setToolStatus(null);
 
@@ -56,6 +56,7 @@ export function ChatSheet({
               question,
               advice_type: "general",
               conversation_id: convId,
+              attachment_ids: attachmentIds,
             }),
           },
           token,
@@ -105,8 +106,9 @@ export function ChatSheet({
     setMessages([{ role: "user", content: initialQuestion }]);
     setConversationId(null);
     setInput("");
+    clearAttachments();
     sendMessage(initialQuestion, null);
-  }, [open, initialQuestion, sendMessage]);
+  }, [open, initialQuestion, sendMessage, clearAttachments]);
 
   // Clear tracking on close
   useEffect(() => {
@@ -144,9 +146,33 @@ export function ChatSheet({
     if (!input.trim() || loading) return;
     const question = input.trim();
     setInput("");
-    setMessages((prev) => [...prev, { role: "user", content: question }]);
-    sendMessage(question, conversationId);
-  }, [input, loading, conversationId, sendMessage]);
+    setLoading(true);
+    setToolStatus(attachments.length ? "Uploading PDFs..." : null);
+    try {
+      const uploaded = await uploadPending();
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "user",
+          content: question,
+          attachments: uploaded.map((item) => ({
+            library_item_id: item.attachment_id,
+            file_name: item.file_name,
+            mime_type: item.mime_type,
+          })),
+        },
+      ]);
+      sendMessage(
+        question,
+        conversationId,
+        uploaded.map((item) => item.attachment_id),
+      );
+    } catch (e) {
+      toast.error((e as Error).message);
+      setLoading(false);
+      setToolStatus(null);
+    }
+  }, [input, loading, conversationId, sendMessage, uploadPending, attachments.length]);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -196,6 +222,7 @@ export function ChatSheet({
                   : "mr-4 rounded-2xl rounded-bl-sm px-4 py-2.5"
               }
             >
+              {msg.role === "user" && <ChatAttachmentBadges attachments={msg.attachments} />}
               {msg.role === "assistant" ? (
                 <MessageRenderer
                   content={msg.content}
@@ -225,28 +252,36 @@ export function ChatSheet({
 
         {/* Input */}
         <div className="border-t px-3 py-2">
-          <div className="flex gap-2">
-            <Textarea
-              ref={textareaRef}
-              rows={1}
-              placeholder="Follow up..."
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSend();
-                }
-              }}
-              className="flex-1 resize-none"
+          <div className="space-y-3">
+            <ChatPdfAttachmentPicker
+              attachments={attachments}
+              disabled={loading || uploading}
+              onAddFiles={addFiles}
+              onRemove={removeAttachment}
             />
-            <Button
-              onClick={handleSend}
-              disabled={loading || !input.trim()}
-              className="self-end"
-            >
-              <Send className="h-4 w-4" />
-            </Button>
+            <div className="flex gap-2">
+              <Textarea
+                ref={textareaRef}
+                rows={1}
+                placeholder="Follow up..."
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSend();
+                  }
+                }}
+                className="flex-1 resize-none"
+              />
+              <Button
+                onClick={handleSend}
+                disabled={loading || uploading || !input.trim()}
+                className="self-end"
+              >
+                <Send className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </div>
       </SheetContent>

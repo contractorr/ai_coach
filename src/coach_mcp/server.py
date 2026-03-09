@@ -8,6 +8,8 @@ from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp.types import TextContent, Tool
 
+from coach_mcp.tools import build_tool_registry
+
 logger = structlog.get_logger()
 
 app = Server("stewardme")
@@ -18,43 +20,8 @@ _handlers: dict | None = None
 
 
 def _load_tools() -> tuple[list[Tool], dict]:
-    """Load tool definitions and handlers from all tool modules."""
-    from coach_mcp.tools import (
-        brief,
-        goals,
-        insights,
-        intelligence,
-        journal,
-        memory,
-        profile,
-        projects,
-        recommendations,
-        reflect,
-        research,
-        threads,
-    )
-
-    modules = [
-        journal,
-        goals,
-        intelligence,
-        recommendations,
-        research,
-        reflect,
-        profile,
-        projects,
-        insights,
-        brief,
-        memory,
-        threads,
-    ]
-    tools = []
-    handlers = {}
-    for mod in modules:
-        for name, schema, handler in mod.TOOLS:
-            tools.append(Tool(name=name, description=schema["description"], inputSchema=schema))
-            handlers[name] = handler
-    return tools, handlers
+    """Load tool definitions and handlers from the shared tool registry."""
+    return build_tool_registry()
 
 
 @app.list_tools()

@@ -1,15 +1,16 @@
 """Tests for arXiv scraper."""
 
+from unittest.mock import MagicMock
+
 import pytest
 
-from intelligence.scraper import IntelStorage
 from intelligence.sources.arxiv import DEFAULT_CATEGORIES, ArxivScraper
 
 
 class TestArxivScraper:
-    @pytest.fixture
-    def storage(self, tmp_path):
-        return IntelStorage(tmp_path / "test.db")
+    @pytest.fixture(scope="class")
+    def storage(self):
+        return MagicMock(name="intel_storage")
 
     def test_source_name(self, storage):
         scraper = ArxivScraper(storage)

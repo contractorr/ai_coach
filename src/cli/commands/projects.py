@@ -8,6 +8,11 @@ from rich.markdown import Markdown
 from rich.table import Table
 
 from cli.utils import get_components, get_profile_storage
+from services.projects import (
+    discover_matching_project_issues,
+    generate_project_ideas,
+    list_project_issues,
+)
 
 console = Console()
 
@@ -23,13 +28,14 @@ def projects():
 @click.option("--days", default=14, help="Lookback window in days")
 def projects_discover(limit: int, days: int):
     """Find matching open-source issues based on your skills."""
-    from advisor.projects import get_matching_issues
-
     c = get_components(skip_advisor=True)
     ps = get_profile_storage(c["config"])
     profile = ps.load()
 
-    issues = get_matching_issues(c["intel_storage"], profile=profile, limit=limit, days=days)
+    payload = discover_matching_project_issues(
+        c["intel_storage"], profile=profile, limit=limit, days=days
+    )
+    issues = payload["issues"]
 
     if not issues:
         console.print("[yellow]No matching issues found. Run [cyan]coach scrape[/] first.[/]")
@@ -42,18 +48,14 @@ def projects_discover(limit: int, days: int):
     table.add_column("Labels", style="dim")
 
     for issue in issues:
-        match_score = issue.get("_match_score", 0)
+        match_score = issue.get("match_score", 0)
         title = issue.get("title", "")[:45]
         # Extract repo from summary
         summary = issue.get("summary", "")
         repo = ""
         if "Repo: " in summary:
             repo = summary.split("Repo: ")[1].split(" |")[0][:30]
-        tags = issue.get("tags", "")
-        if isinstance(tags, list):
-            tags = ", ".join(tags[:3])
-        elif isinstance(tags, str):
-            tags = ", ".join(tags.split(",")[:3])
+        tags = ", ".join(issue.get("tags", [])[:3])
 
         table.add_row(str(match_score), title, repo, tags[:30])
 
@@ -67,14 +69,12 @@ def projects_discover(limit: int, days: int):
 def projects_ideas():
     """Generate side-project ideas from your journal entries."""
     from advisor.engine import LLMError
-    from advisor.projects import ProjectIdeaGenerator
 
     c = get_components()
-    generator = ProjectIdeaGenerator(c["rag"], c["advisor"]._call_llm)
 
     try:
         with console.status("Generating project ideas from your journal..."):
-            ideas = generator.generate_ideas()
+            ideas = generate_project_ideas(c["rag"], c["advisor"]._call_llm)
         console.print()
         console.print(Markdown(ideas))
     except LLMError as e:
@@ -87,8 +87,8 @@ def projects_ideas():
 def projects_list(days: int):
     """List tracked project opportunities from intelligence."""
     c = get_components(skip_advisor=True)
-    items = c["intel_storage"].get_recent(days=days, limit=50)
-    issues = [i for i in items if i.get("source") == "github_issues"]
+    payload = list_project_issues(c["intel_storage"], days=days, limit=50)
+    issues = payload["issues"]
 
     if not issues:
         console.print(

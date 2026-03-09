@@ -6,6 +6,31 @@ from datetime import datetime, timezone
 from web.user_store import _get_conn
 
 
+def _load_attachments(conn, message_ids: list[str]) -> dict[str, list[dict]]:
+    if not message_ids:
+        return {}
+
+    placeholders = ", ".join("?" for _ in message_ids)
+    rows = conn.execute(
+        f"""
+        SELECT message_id, library_item_id, file_name, mime_type
+        FROM conversation_message_attachments
+        WHERE message_id IN ({placeholders})
+        ORDER BY created_at ASC
+        """,
+        message_ids,
+    ).fetchall()
+    grouped: dict[str, list[dict]] = {}
+    for row in rows:
+        payload = {
+            "library_item_id": row["library_item_id"],
+            "file_name": row["file_name"],
+            "mime_type": row["mime_type"],
+        }
+        grouped.setdefault(row["message_id"], []).append(payload)
+    return grouped
+
+
 def create_conversation(user_id: str, title: str, db_path=None) -> str:
     """Create conversation, return its id."""
     conv_id = uuid.uuid4().hex
@@ -57,16 +82,31 @@ def get_conversation(conv_id: str, user_id: str, db_path=None) -> dict | None:
             return None
         conv = dict(row)
         msgs = conn.execute(
-            "SELECT role, content, created_at FROM conversation_messages WHERE conversation_id = ? ORDER BY created_at ASC",
+            "SELECT id, role, content, created_at FROM conversation_messages WHERE conversation_id = ? ORDER BY created_at ASC",
             (conv_id,),
         ).fetchall()
-        conv["messages"] = [dict(m) for m in msgs]
+        attachments_by_message = _load_attachments(conn, [message["id"] for message in msgs])
+        conv["messages"] = [
+            {
+                "role": message["role"],
+                "content": message["content"],
+                "created_at": message["created_at"],
+                "attachments": attachments_by_message.get(message["id"], []),
+            }
+            for message in msgs
+        ]
         return conv
     finally:
         conn.close()
 
 
-def add_message(conv_id: str, role: str, content: str, db_path=None) -> str:
+def add_message(
+    conv_id: str,
+    role: str,
+    content: str,
+    attachments: list[dict] | None = None,
+    db_path=None,
+) -> str:
     """Add message to conversation, return message id."""
     msg_id = uuid.uuid4().hex
     now = datetime.now(timezone.utc).isoformat()
@@ -76,6 +116,22 @@ def add_message(conv_id: str, role: str, content: str, db_path=None) -> str:
             "INSERT INTO conversation_messages (id, conversation_id, role, content, created_at) VALUES (?, ?, ?, ?, ?)",
             (msg_id, conv_id, role, content, now),
         )
+        for attachment in attachments or []:
+            conn.execute(
+                """
+                INSERT INTO conversation_message_attachments
+                    (id, message_id, library_item_id, file_name, mime_type, created_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    uuid.uuid4().hex,
+                    msg_id,
+                    attachment["library_item_id"],
+                    attachment.get("file_name"),
+                    attachment.get("mime_type"),
+                    now,
+                ),
+            )
         conn.execute(
             "UPDATE conversations SET updated_at = ? WHERE id = ?",
             (now, conv_id),
@@ -92,8 +148,8 @@ def get_messages(conv_id: str, limit: int = 20, db_path=None) -> list[dict]:
     try:
         rows = conn.execute(
             """
-            SELECT role, content, created_at FROM (
-                SELECT role, content, created_at
+            SELECT id, role, content, created_at FROM (
+                SELECT id, role, content, created_at
                 FROM conversation_messages
                 WHERE conversation_id = ?
                 ORDER BY created_at DESC
@@ -102,7 +158,16 @@ def get_messages(conv_id: str, limit: int = 20, db_path=None) -> list[dict]:
             """,
             (conv_id, limit),
         ).fetchall()
-        return [dict(r) for r in rows]
+        attachments_by_message = _load_attachments(conn, [row["id"] for row in rows])
+        return [
+            {
+                "role": row["role"],
+                "content": row["content"],
+                "created_at": row["created_at"],
+                "attachments": attachments_by_message.get(row["id"], []),
+            }
+            for row in rows
+        ]
     finally:
         conn.close()
 

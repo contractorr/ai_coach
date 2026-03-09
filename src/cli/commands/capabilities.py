@@ -65,11 +65,13 @@ def refresh():
     config = load_config()
     db_path = Path(config.get("paths", {}).get("intel_db", "~/coach/intel.db")).expanduser()
 
+    from cli.utils import get_intel_storage, get_storage_paths
     from intelligence.capability_model import CapabilityHorizonModel
     from intelligence.scheduler import IntelScheduler
-    from intelligence.scraper import IntelStorage
 
-    storage = IntelStorage(db_path)
+    storage = get_intel_storage(
+        config, storage_paths=get_storage_paths(config=config, paths={"intel_db": db_path})
+    )
     scheduler = IntelScheduler(
         storage,
         config=config.get("sources", {}),

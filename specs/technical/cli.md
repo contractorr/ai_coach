@@ -36,7 +36,7 @@ def cli(verbose: bool): ...
 
 **Registered command groups:** `journal`, `daemon`, `db`, `research`, `recommend`, `export`, `profile`, `learn` (DEPRECATED — Phase 2), `projects`, `capabilities`, `heartbeat`, `memory`, `predictions`, `threads`
 
-**Registered standalone commands:** `ask`, `review`, `opportunities`, `goals`, `scrape`, `brief`, `sources`, `intel_export`, `init`, `trends`, `reflect`, `today`, `radar`, `scraper_health`, `eval_cmd`, `dedup_backfill`
+**Registered standalone commands:** `ask`, `review`, `opportunities`, `goals`, `scrape`, `brief`, `sources`, `intel_export`, `init`, `trends`, `reflect`, `today`, `radar`, `scraper_health`, `watchlist`, `eval_cmd`, `dedup_backfill`
 
 #### Inputs / Outputs
 
@@ -420,13 +420,13 @@ def get_profile_path(config: dict) -> str
 
 #### Behavior
 
-28 Click commands/groups registered on the root `cli` group. Commands use `get_components()` or `load_config()` directly for dependencies. No shared base class. Rich `Console` from `cli.utils.console` is used for output in most commands.
+29 Click commands/groups registered on the root `cli` group. Commands use `get_components()` or `load_config()` directly for dependencies. No shared base class. Rich `Console` from `cli.utils.console` is used for output in most commands.
 
 | Module | Commands | Status |
 |--------|----------|--------|
 | `advisor.py` | `ask`, `review`, `opportunities`, `goals`, `today` | Stable |
 | `journal.py` | `journal` (group: `add`, `list`, `search`, `show`, `edit`, `delete`) | Stable |
-| `intelligence.py` | `scrape`, `brief`, `sources`, `intel_export`, `radar`, `scraper_health`, `dedup_backfill` | Stable |
+| `intelligence.py` | `scrape`, `brief`, `sources`, `intel_export`, `radar`, `scraper_health`, `watchlist`, `dedup_backfill` | Stable |
 | `daemon.py` | `daemon` (group: `start`, `stop`, `status`) | Stable |
 | `database.py` | `db` (group: `rebuild`, `stats`, `migrate`) | Stable |
 | `research.py` | `research` (group: `run`, `topics`) | Stable |

@@ -1,4 +1,4 @@
-"""LLM-powered fact extraction from journal entries, feedback, and goals."""
+"""LLM-powered fact extraction from journal entries, feedback, goals, and documents."""
 
 import json
 import uuid
@@ -52,6 +52,13 @@ _GOAL_CONTEXT = """The user {event_type} a goal.
 Goal: "{title}"
 {extra}
 Extract facts about the user's current focus, context, or aspirations."""
+
+_DOCUMENT_CONTEXT = """The user uploaded a document for their AI steward to use.
+Document title: "{title}"
+Document type: {document_type}
+{extra}
+
+Extract persistent facts about the user's experience, skills, preferences, constraints, current context, or goals that are explicitly stated or strongly implied by the document."""
 
 VALID_CATEGORIES = {c.value for c in FactCategory}
 
@@ -124,6 +131,31 @@ class FactExtractor:
         system = _EXTRACTION_SYSTEM.format(max_facts=3)
         prompt = _GOAL_CONTEXT.format(event_type=event_type, title=title, extra=extra)
         return self._extract(system, prompt, FactSource.GOAL, goal_id)
+
+    def extract_from_document(
+        self, document_id: str, document_text: str, document_metadata: dict | None = None
+    ) -> list[StewardFact]:
+        """Extract durable facts from an uploaded document such as a CV."""
+        if not document_text or len(document_text.strip()) < 40:
+            return []
+
+        metadata = document_metadata or {}
+        title = metadata.get("title", "Uploaded document")
+        document_type = metadata.get("document_type", metadata.get("mime_type", "document"))
+        extra_parts = []
+        if metadata.get("file_name"):
+            extra_parts.append(f"File name: {metadata['file_name']}")
+        if metadata.get("collection"):
+            extra_parts.append(f"Collection: {metadata['collection']}")
+
+        system = _EXTRACTION_SYSTEM.format(max_facts=self.max_facts)
+        prompt = _DOCUMENT_CONTEXT.format(
+            title=title,
+            document_type=document_type,
+            extra="\n".join(extra_parts),
+        )
+        prompt = f"{prompt}\n\nDocument text:\n{document_text[:5000]}"
+        return self._extract(system, prompt, FactSource.DOCUMENT, document_id)
 
     def _extract(
         self, system: str, prompt: str, source_type: FactSource, source_id: str

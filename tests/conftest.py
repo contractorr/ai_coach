@@ -7,8 +7,30 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+_SLOW_NODEIDS = {}
+
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+
+
+def pytest_collection_modifyitems(items):
+    """Apply repo-wide test markers by path and known hotspots."""
+    for item in items:
+        nodeid = item.nodeid.replace("\\", "/")
+
+        item.add_marker(pytest.mark.unit)
+
+        if nodeid.startswith("tests/web/"):
+            item.add_marker(pytest.mark.web)
+            item.add_marker(pytest.mark.serial)
+
+        if nodeid.startswith("tests/integration/"):
+            item.add_marker(pytest.mark.integration)
+            item.add_marker(pytest.mark.slow)
+            item.add_marker(pytest.mark.serial)
+
+        if nodeid in _SLOW_NODEIDS:
+            item.add_marker(pytest.mark.slow)
 
 
 @pytest.fixture

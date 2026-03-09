@@ -84,6 +84,60 @@ class TestRecommendationStorage:
         assert retrieved.metadata["user_rating"] == 4
         assert retrieved.metadata["feedback_comment"] == "useful"
 
+    def test_create_action_item(self, storage):
+        rec = Recommendation(
+            category="learning",
+            title="Learn Rust",
+            description="Master async Rust",
+            rationale="It supports your systems goal",
+            score=8.0,
+            metadata={"action_plan": "## Week 1\n- Install Rust\n- Build a tiny CLI"},
+        )
+        rec_id = storage.save(rec)
+
+        action_item = storage.create_action_item(
+            rec_id,
+            goal_path="/tmp/goal.md",
+            goal_title="Become stronger at systems programming",
+        )
+
+        assert action_item is not None
+        assert action_item["objective"] == "Learn Rust"
+        assert action_item["goal_title"] == "Become stronger at systems programming"
+
+        retrieved = storage.get(rec_id)
+        assert retrieved.status == "in_progress"
+        assert retrieved.metadata["action_item"]["next_step"] == "Install Rust"
+
+    def test_build_weekly_plan_respects_capacity(self, storage):
+        first_id = storage.save(Recommendation(category="career", title="A", score=9.0))
+        second_id = storage.save(Recommendation(category="career", title="B", score=8.0))
+        third_id = storage.save(Recommendation(category="career", title="C", score=7.0))
+
+        storage.create_action_item(first_id, effort="large", due_window="today")
+        storage.create_action_item(second_id, effort="medium", due_window="today")
+        storage.create_action_item(third_id, effort="small", due_window="later")
+
+        plan = storage.build_weekly_plan(capacity_points=3)
+        ids = [item.recommendation_id for item in plan["items"]]
+        assert plan["used_points"] <= 3
+        assert second_id in ids
+        assert third_id in ids
+        assert first_id not in ids
+
+    def test_execution_stats_capture_outcomes(self, storage):
+        completed_id = storage.save(Recommendation(category="career", title="Ship", score=9.0))
+        abandoned_id = storage.save(Recommendation(category="career", title="Drop", score=6.0))
+
+        storage.create_action_item(completed_id)
+        storage.update_action_item(completed_id, status="completed", review_notes="Worked well")
+        storage.create_action_item(abandoned_id)
+        storage.update_action_item(abandoned_id, status="abandoned", review_notes="Wrong timing")
+
+        stats = storage.get_execution_stats()
+        assert stats["by_category"]["career"]["completed"] == 1
+        assert stats["by_category"]["career"]["abandoned"] == 1
+
 
 class TestRecommendationEngine:
     """Tests for engine orchestration."""
@@ -94,6 +148,7 @@ class TestRecommendationEngine:
         rag.get_journal_context.return_value = "User wants to learn Rust"
         rag.get_intel_context.return_value = "Rust demand growing 40%"
         rag.get_filtered_intel_context.return_value = "Rust demand growing 40%"
+        rag.get_research_context.return_value = "Dossier says API prices are dropping"
         rag.get_profile_context.return_value = ""
         rag.get_profile_keywords.return_value = []
         return rag
@@ -129,6 +184,11 @@ CAVEATS: Steep learning curve, requires dedicated time commitment
         engine = RecommendationEngine(mock_rag, mock_llm, storage)
         recs = engine.generate_category("learning", max_items=3, save=False)
         assert len(recs) >= 0  # May be empty if score threshold not met
+
+    def test_generate_category_reads_research_context(self, mock_rag, mock_llm, storage):
+        engine = RecommendationEngine(mock_rag, mock_llm, storage)
+        engine.generate_category("learning", max_items=3, save=False)
+        mock_rag.get_research_context.assert_called()
 
     def test_config_disables_categories(self, mock_rag, mock_llm, storage):
         config = {"categories": {"learning": True, "career": False}}

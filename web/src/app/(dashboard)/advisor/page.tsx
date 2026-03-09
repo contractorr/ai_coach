@@ -3,8 +3,10 @@
 import { useRef, useEffect, useState, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
+import { ChatAttachmentBadges, ChatPdfAttachmentPicker } from "@/components/ChatPdfAttachments";
 import { MessageRenderer } from "@/components/MessageRenderer";
 import { Brain, Send, Plus, MessageSquare, Trash2 } from "lucide-react";
+import { useChatPdfAttachments } from "@/hooks/useChatPdfAttachments";
 import { useToken } from "@/hooks/useToken";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,12 +25,7 @@ import {
 } from "@/components/ui/select";
 import { apiFetch, apiFetchSSE } from "@/lib/api";
 import { TOOL_LABELS } from "@/lib/constants";
-
-interface Message {
-  role: "user" | "assistant";
-  content: string;
-  advice_type?: string;
-}
+import type { ChatMessage } from "@/types/chat";
 
 interface Conversation {
   id: string;
@@ -42,7 +39,7 @@ const CONV_KEY = "advisor_conversation_id";
 export default function AdvisorPage() {
   const token = useToken();
   const searchParams = useSearchParams();
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [adviceType, setAdviceType] = useState("general");
   const [loading, setLoading] = useState(false);
@@ -51,6 +48,8 @@ export default function AdvisorPage() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const { attachments, addFiles, removeAttachment, uploadPending, uploading, clearAttachments } =
+    useChatPdfAttachments(token);
 
   const loadConversations = useCallback(async () => {
     if (!token) return;
@@ -73,7 +72,7 @@ export default function AdvisorPage() {
         const conv = await apiFetch<{
           id: string;
           title: string;
-          messages: Message[];
+          messages: ChatMessage[];
         }>(`/api/advisor/conversations/${id}`, {}, token);
         setMessages(conv.messages);
         setConversationId(id);
@@ -141,6 +140,7 @@ export default function AdvisorPage() {
   const handleNewChat = () => {
     setConversationId(null);
     setMessages([]);
+    clearAttachments();
     localStorage.removeItem(CONV_KEY);
   };
 
@@ -161,11 +161,25 @@ export default function AdvisorPage() {
     if (!token || !input.trim()) return;
     const question = input.trim();
     setInput("");
-    setMessages((prev) => [...prev, { role: "user", content: question }]);
     setLoading(true);
-    setToolStatus(null);
+    setToolStatus(attachments.length ? "Uploading PDFs..." : null);
 
     try {
+      const uploaded = await uploadPending();
+      const messageAttachments = uploaded.map((item) => ({
+        library_item_id: item.attachment_id,
+        file_name: item.file_name,
+        mime_type: item.mime_type,
+        index_status: item.index_status,
+        visibility_state: item.visibility_state,
+        warning: item.warning,
+      }));
+      setMessages((prev) => [
+        ...prev,
+        { role: "user", content: question, attachments: messageAttachments },
+      ]);
+      clearAttachments();
+
       await apiFetchSSE(
         "/api/advisor/ask/stream",
         {
@@ -174,6 +188,7 @@ export default function AdvisorPage() {
             question,
             advice_type: adviceType,
             conversation_id: conversationId,
+            attachment_ids: uploaded.map((item) => item.attachment_id),
           }),
         },
         token,
@@ -309,6 +324,7 @@ export default function AdvisorPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
+                {msg.role === "user" && <ChatAttachmentBadges attachments={msg.attachments} token={token} />}
                 {msg.role === "assistant" ? (
                   <MessageRenderer content={msg.content} onAction={(text) => { setInput(text); setTimeout(() => textareaRef.current?.focus(), 100); }} />
                 ) : (
@@ -334,24 +350,32 @@ export default function AdvisorPage() {
         </div>
 
         {/* Input */}
-        <div className="mt-4 flex gap-2 border-t pt-4">
-          <Textarea
-            ref={textareaRef}
-            rows={2}
-            placeholder="Ask me anything..."
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                handleSend();
-              }
-            }}
-            className="flex-1"
+        <div className="mt-4 border-t pt-4">
+          <ChatPdfAttachmentPicker
+            attachments={attachments}
+            disabled={loading || uploading}
+            onAddFiles={addFiles}
+            onRemove={removeAttachment}
           />
-          <Button onClick={handleSend} disabled={loading || !input.trim()}>
-            <Send className="h-4 w-4" />
-          </Button>
+          <div className="mt-3 flex gap-2">
+            <Textarea
+              ref={textareaRef}
+              rows={2}
+              placeholder="Ask me anything..."
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSend();
+                }
+              }}
+              className="flex-1"
+            />
+            <Button onClick={handleSend} disabled={loading || uploading || !input.trim()}>
+              <Send className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </div>
     </div>

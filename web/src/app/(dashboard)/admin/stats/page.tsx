@@ -13,6 +13,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { WorkspacePageHeader } from "@/components/WorkspacePageHeader";
 
 interface ScraperHealth {
   source: string;
@@ -86,24 +87,29 @@ export default function AdminStatsPage() {
 
   return (
     <div className="space-y-6 p-4 md:p-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Usage Analytics</h1>
-        <div className="flex items-center gap-2">
-          {DAY_OPTIONS.map((d) => (
-            <Button
-              key={d}
-              size="sm"
-              variant={days === d ? "default" : "outline"}
-              onClick={() => setDays(d)}
-            >
-              {d}d
+      <WorkspacePageHeader
+        eyebrow="Internal"
+        title="Usage analytics"
+        description="Monitor recent product activity, scraper health, and feedback signals without leaving the admin workspace."
+        badge={`${days}-day window`}
+        actions={
+          <>
+            {DAY_OPTIONS.map((d) => (
+              <Button
+                key={d}
+                size="sm"
+                variant={days === d ? "default" : "outline"}
+                onClick={() => setDays(d)}
+              >
+                {d}d
+              </Button>
+            ))}
+            <Button size="sm" variant="outline" onClick={() => loadStats(days)}>
+              Refresh
             </Button>
-          ))}
-          <Button size="sm" variant="outline" onClick={() => loadStats(days)}>
-            Refresh
-          </Button>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       {lastUpdated && (
         <p className="text-xs text-muted-foreground">
@@ -167,28 +173,30 @@ export default function AdminStatsPage() {
             <CardTitle className="text-base">Scraper Health</CardTitle>
           </CardHeader>
           <CardContent>
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b text-left text-muted-foreground">
-                  <th className="pb-2">Source</th>
-                  <th className="pb-2">Runs</th>
-                  <th className="pb-2">Avg items</th>
-                  <th className="pb-2">Last run</th>
-                </tr>
-              </thead>
-              <tbody>
-                {stats.scraper_health.map((s) => (
-                  <tr key={s.source} className="border-b last:border-0">
-                    <td className="py-1.5 font-medium">{s.source}</td>
-                    <td className="py-1.5">{s.runs}</td>
-                    <td className="py-1.5">{s.avg_items}</td>
-                    <td className="py-1.5 text-muted-foreground">
-                      {s.last_run ? new Date(s.last_run).toLocaleDateString() : "-"}
-                    </td>
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="border-b text-left text-muted-foreground">
+                    <th className="pb-2 pr-4">Source</th>
+                    <th className="pb-2 pr-4">Runs</th>
+                    <th className="pb-2 pr-4">Avg items</th>
+                    <th className="pb-2">Last run</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {stats.scraper_health.map((s) => (
+                    <tr key={s.source} className="border-b last:border-0">
+                      <td className="py-1.5 pr-4 font-medium">{s.source}</td>
+                      <td className="py-1.5 pr-4">{s.runs}</td>
+                      <td className="py-1.5 pr-4">{s.avg_items}</td>
+                      <td className="py-1.5 text-muted-foreground">
+                        {s.last_run ? new Date(s.last_run).toLocaleDateString() : "-"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </CardContent>
         </Card>
       )}
@@ -200,22 +208,24 @@ export default function AdminStatsPage() {
             <CardTitle className="text-base">Page Views</CardTitle>
           </CardHeader>
           <CardContent>
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b text-left text-muted-foreground">
-                  <th className="pb-2">Path</th>
-                  <th className="pb-2">Views</th>
-                </tr>
-              </thead>
-              <tbody>
-                {stats.page_views.map((p) => (
-                  <tr key={p.path} className="border-b last:border-0">
-                    <td className="py-1.5 font-mono">{p.path}</td>
-                    <td className="py-1.5">{p.count}</td>
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="border-b text-left text-muted-foreground">
+                    <th className="pb-2 pr-4">Path</th>
+                    <th className="pb-2">Views</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {stats.page_views.map((p) => (
+                    <tr key={p.path} className="border-b last:border-0">
+                      <td className="py-1.5 pr-4 font-mono">{p.path}</td>
+                      <td className="py-1.5">{p.count}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </CardContent>
         </Card>
       )}

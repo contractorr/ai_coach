@@ -5,10 +5,13 @@ from cryptography.fernet import Fernet
 from web.user_store import (
     delete_user,
     delete_user_secret,
+    get_feedback_count,
     get_or_create_user,
     get_user_secret,
     get_user_secrets,
     init_db,
+    log_engagement,
+    log_event,
     set_user_secret,
 )
 
@@ -160,3 +163,14 @@ def test_last_login_set_on_create_and_updated_on_upsert(tmp_path):
 
     user2 = get_or_create_user("u1", email="a@b.com", db_path=db)
     assert user2["last_login"] >= first_login
+
+
+def test_feedback_count_includes_numeric_and_binary_feedback(tmp_path):
+    db = tmp_path / "users.db"
+    init_db(db)
+    get_or_create_user("u1", db_path=db)
+
+    log_engagement("u1", "feedback_useful", "recommendation", "rec-1", db_path=db)
+    log_event("recommendation_feedback", "u1", {"rating": 5, "score": 1}, db_path=db)
+
+    assert get_feedback_count("u1", db_path=db) == 2

@@ -168,3 +168,24 @@ class TestContextAssemblyWiring:
         call_args = mock_client.messages.create.call_args
         user_msg = [m for m in call_args.kwargs["messages"] if m["role"] == "user"][0]
         assert "<user_memory>" not in user_msg["content"]
+
+    def test_attachment_ids_force_document_context(self, mock_rag, mock_client):
+        """Attachment IDs should trigger extended document-grounded prompt assembly."""
+        from advisor.rag import AskContext
+
+        mock_rag.build_context_for_ask.return_value = AskContext(
+            journal="j",
+            intel="i",
+            profile="p",
+            documents="DOCUMENT CONTEXT:\n[DOCUMENT] Resume\nPython leadership",
+        )
+        engine = self._make_engine(mock_rag, mock_client)
+
+        engine.ask("Use my CV", attachment_ids=["doc-1"])
+
+        mock_rag.build_context_for_ask.assert_called_once_with(
+            "Use my CV", {}, attachment_ids=["doc-1"]
+        )
+        call_args = mock_client.messages.create.call_args
+        user_msg = [m for m in call_args.kwargs["messages"] if m["role"] == "user"][0]
+        assert "DOCUMENT CONTEXT" in user_msg["content"]

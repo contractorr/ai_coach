@@ -1,12 +1,12 @@
 # Ask Advice
 
-**Status:** Approved
-**Author:** —
-**Date:** 2026-03-02
+**Status:** Partially Implemented
+**Author:** -
+**Date:** 2026-03-08
 
 ## Problem
 
-Users want personalized career and technical advice grounded in their own journal history, profile, and current industry intelligence — not generic LLM responses.
+Users want personalized career and technical advice grounded in their own journal history, profile, uploaded reference documents, and current industry intelligence - not generic LLM responses.
 
 ## Users
 
@@ -16,153 +16,166 @@ All users. Most valuable for users with 10+ journal entries and a completed prof
 
 ### Asking a question
 
-1. User asks a free-text question (e.g., "Should I learn Rust or Go next?")
-2. System retrieves relevant context: journal entries (semantic + keyword), intelligence items, user profile, memory facts, and recurring thoughts
-3. System sends the assembled context + question to the LLM
-4. User receives a personalized answer grounded in their data
+1. User asks a free-text question (e.g., "Should I learn Rust or Go next?").
+2. User can optionally attach one or more PDF files to the same message from any first-party web chat surface.
+3. System stores the uploaded PDFs as private user documents, extracts searchable text, and derives durable memory when the content contains stable user-relevant facts.
+4. System retrieves relevant context: journal entries, intelligence items, user profile, memory facts, recurring thoughts, uploaded documents, and recent research when available.
+5. System sends the assembled context plus question to the LLM.
+6. User receives a personalized answer grounded in their data and attached documents.
 
 ### Advice types
 
 User can optionally specify an advice type that adjusts the system prompt:
-- `general` (default) — open-ended advice
-- `career` — career trajectory focus
-- `goals` — goal progress and next steps
-- `opportunities` — what to pursue based on intel
+- `general` (default) - open-ended advice
+- `career` - career trajectory focus
+- `goals` - goal progress and next steps
+- `opportunities` - what to pursue based on intel
+- `skill_gap` - gap analysis against current skills and aspirations
 
 ### Two modes
 
-- **Classic RAG**: single retrieval pass → single LLM call. Deterministic context assembly.
-- **Agentic**: LLM decides what to look up via tool calls (search journal, query intel, check goals, etc.) in a multi-turn loop. Richer but uses more tokens.
+- **Classic RAG**: single retrieval pass -> single LLM call. Deterministic context assembly.
+- **Agentic**: LLM decides what to look up via tool calls (search journal, query intel, check goals, etc.) in a multi-step loop.
 
-Mode is set at engine construction time. In CLI, this is config-driven. In web, the client can toggle `use_tools` per request via query parameter.
+Current interface scope:
+- CLI can choose behavior through config and command usage.
+- Web requests default to `use_tools=true`, but users on shared/lite mode are forced onto the cheaper non-agentic path.
+- MCP exposes advisor-supporting context tools rather than a direct ask endpoint.
 
 ### Context composition
 
-- Journal and intel context are blended with a dynamic weight (default 70% journal, 30% intel), adjusted based on engagement data
-- User profile is injected as structured context
-- Memory facts (persistent user preferences/patterns) are injected if enabled
-- Recurring thought threads are injected if enabled
-- Recent research reports are optionally included
+- Journal and intel context are blended for retrieval.
+- User profile is injected as structured context.
+- Memory facts are injected when enabled.
+- Recurring thought threads are injected when enabled.
+- Uploaded PDF/document text is available as retrievable context when relevant to the question.
+- Newly uploaded documents in the current chat turn can influence the same response instead of waiting for a later session.
+- Recent research reports, including dossier material saved as research entries, can be included when relevant.
+
+### Reference documents in chat
+
+1. Any first-party web chat entry point can accept PDF attachments alongside a question.
+2. Attached PDFs are shown as part of the conversation turn so the user can tell what was included.
+3. The advisor can use extracted document text in the immediate answer and in later conversations.
+4. Uploaded documents become searchable private assets in the user's account instead of one-off ephemeral chat attachments.
+5. When a document contains durable user context, such as a CV or resume, the system can distill that into memory so later advice stays personalized without requiring repeated uploads.
+
+Current interface scope:
+- Home and advisor web chat surfaces support in-thread PDF attachments and pass `attachment_ids` through the ask flow.
+- Chat-origin PDFs are stored as private user documents, remain searchable for later retrieval, and can be explicitly promoted into the visible Library workspace.
 
 ### Proactive greeting (chat-first home)
 
-1. On home page load, system serves a cached personalized greeting (3-5 sentences)
-2. Greeting is pre-computed by cheap LLM from current state: stale goals, top recommendations, recent intel highlights, profile name
-3. Cache TTL: 4 hours; invalidated on journal create/update, goal check-in, or scrape batch
-4. If no cache exists, static fallback shown while greeting generates in background
-5. Greeting is the first assistant message in the home page chat
-6. Chat input doubles as journal quick-capture (explicit mode toggle) or advisor question
-7. No dashboard sections — dedicated pages (Goals, Journal, Radar) handle deep dives
+1. On home page load, system serves a cached personalized greeting.
+2. Greeting is pre-computed from current state: stale goals, top recommendations, recent intel highlights, and the user's name.
+3. Cache TTL is 4 hours and is invalidated on journal create/update, goal check-in, and scrape batches.
+4. If no cache exists, a static fallback is shown while the greeting is generated in the background.
+5. Greeting is the first assistant message in the home page chat.
+6. Chat input doubles as either journal quick capture or advisor question via an explicit mode toggle.
 
 ### Conversation continuity
 
-User can send follow-up questions with conversation history. The system passes prior turns to the LLM for multi-turn dialogue.
+1. User can continue a prior conversation.
+2. System persists conversation history and passes recent turns back to the model.
+3. Web supports both normal responses and SSE streaming for live advisor replies.
 
 ### Specialized analyses
 
-Beyond free-form Q&A, the advisor can run:
-- **Weekly review**: summarizes recent journal activity
-- **Opportunity detection**: identifies opportunities from intel matched to profile
-- **Goal analysis**: evaluates progress on specific or all goals
-- **Skill gap analysis**: identifies gaps between current skills and aspirations
+The advisor system can also run:
+- **Weekly review** - summarizes recent journal activity
+- **Goal analysis** - evaluates progress on one goal or all goals
+- **Skill gap analysis** - identifies likely gaps between current skills and aspirations
+- **Opportunity-oriented framing** - biases the answer toward near-term opportunities from profile and intel context
+
+Current interface scope:
+- CLI exposes dedicated weekly review and goal-analysis commands.
+- Web currently focuses on free-form chat plus advice-type framing rather than separate specialist screens.
 
 ## Acceptance Criteria
 
-- [ ] Question returns a personalized answer referencing user's journal/profile data
-- [ ] Response quality degrades gracefully with no journal entries (uses profile + intel only)
-- [ ] Agentic mode makes multiple tool calls to gather context before answering
-- [ ] Classic RAG mode returns a response in a single LLM call
-- [ ] Conversation history is passed through for multi-turn dialogue
-- [ ] Advice type changes the framing/focus of the response
-- [ ] Works via CLI, web (including SSE streaming), and MCP
-- [ ] Greeting returns in <100ms when cached
-- [ ] Greeting reflects current user state (stale goals, recent intel)
-- [ ] Cache invalidated on data events (journal create/update, goal check-in, scrape batch)
-- [ ] Static fallback shown on first visit (no blocking LLM call)
-- [ ] Quick-capture mode creates journal entries via existing `/api/journal/quick`
+- [ ] Question returns a personalized answer referencing the user's own context when available.
+- [ ] Response quality degrades gracefully with sparse data.
+- [ ] Agentic mode can make multiple tool calls before answering when tools are available.
+- [ ] Classic RAG mode returns in a single model pass.
+- [ ] Conversation history is passed through for multi-turn dialogue.
+- [ ] Advice type changes the framing of the response.
+- [ ] Works via CLI and web, including SSE streaming in web.
+- [ ] MCP exposes advisor-supporting context tools rather than a direct `ask` tool.
+- [ ] Users can attach PDF files from any first-party web chat surface.
+- [ ] Uploaded PDF text is extracted and can be used in the same advisor response.
+- [ ] Uploaded PDF text remains searchable and reusable in later advisor conversations.
+- [ ] Durable user-relevant facts derived from uploaded documents are available to memory-backed advisor context.
+- [ ] Chat UI makes it clear which documents were attached to a turn.
+- [ ] Greeting returns immediately from cache when available.
+- [ ] Greeting reflects current user state and falls back without blocking the page.
+- [ ] Greeting cache is invalidated on journal create/update, goal check-in, and scrape batch.
+- [ ] Quick-capture mode creates journal entries via `/api/journal/quick`.
+- [ ] Web advisor input is bounded at the request layer to 5,000 characters.
 
 ## Edge Cases
 
 | Scenario | Expected Behavior |
 |----------|-------------------|
-| No journal entries, no profile | Answer based on intel + general knowledge; quality warning optional |
-| Question unrelated to career/tech | LLM answers normally, context may not be relevant |
-| LLM API key missing or invalid | Clear error message, not a crash |
-| Very long question (>10K chars) | Truncated or rejected at input boundary |
-| Agentic mode with no tools available | Falls back to classic RAG |
+| No journal entries, no profile | Answer falls back to whatever profile, intel, or general context exists |
+| Question unrelated to career or tech | System still answers, even if retrieved context is less relevant |
+| LLM API key missing or invalid | User sees a clear error, not a crash |
+| Very long question (>5K chars in web) | Rejected at the input boundary |
+| User attaches a valid PDF with little or no extractable text | Upload can still succeed, but the user is told the document may not influence advice yet |
+| User attaches a non-PDF file in chat | Upload is rejected with a clear validation message |
+| User asks about their CV immediately after uploading it | Advisor can use the extracted content in that same response |
+| Agentic mode with no tools available | Falls back to classic behavior |
+| Shared/lite mode user asks from web | Request still works, but richer agentic behavior is disabled |
 
----
-
-## Proactive Infrastructure: Insights & Heartbeat
+## Proactive Infrastructure: Insights, Heartbeat, and Suggestions
 
 ### Insights
 
-Unified store for all proactive system-detected items. Merges what was previously signals, patterns, and heartbeat notifications.
+Unified store for proactive system-detected items.
 
-1. System detects notable items from three sources:
-   - **Signal detectors**: goal staleness, journal gaps, topic emergence, deadlines, research triggers, recurring blockers, goal completion candidates
-   - **Pattern detectors**: blind spots (goals with no journal activity), blocker cycles (recurring negative keywords)
-   - **Heartbeat pipeline**: intel-to-goal matches that pass heuristic + LLM evaluation
-2. Each insight has a type, severity (1-10), title, detail, suggested actions, and evidence
-3. Insights auto-expire after 14 days (TTL) — no acknowledge/dismiss workflow
-4. Deduplication by content hash within TTL window prevents duplicate insights
-5. Queryable via `GET /api/insights` and `get_insights` MCP tool
-6. Engagement tracked implicitly via click-through (no explicit dismiss)
+1. System detects notable items from signals, patterns, and heartbeat output.
+2. Insights can be listed by severity and type.
+3. Duplicate insights are deduplicated by hash while still active.
+4. Insights expire automatically after their TTL instead of requiring manual acknowledgement.
 
-### Heartbeat (invisible infrastructure)
+### Heartbeat
 
-Heartbeat is an internal pipeline — no user-facing CLI, routes, or MCP tools. Output feeds into Insights.
+1. A scheduled heartbeat evaluates fresh intel against user goals and watchlist context.
+2. A heuristic filter narrows candidates before optional LLM evaluation.
+3. The system saves proactive briefs or notifications for the most relevant items.
 
-1. System periodically scans recent intel items (within lookback window, default 2 hours)
-2. Each item is scored against active goals using a composite heuristic: keyword overlap (35%), recency (35%), source affinity (30%)
-3. Items passing the heuristic threshold (default 0.3) go to an LLM evaluator (budget-capped at 5 per cycle)
-4. Items that pass LLM evaluation are saved as Insights (`type=intel_match`)
-5. Dedup by insight hash within TTL window prevents spamming
+### Daily brief and suggestions
 
-### Daily brief
+1. `GET /api/suggestions` merges daily brief items and saved recommendations into a single ranked list.
+2. Brief items stay ahead of lower-priority recommendations.
+3. The suggestions data is designed for conversational follow-up and chat pre-fill actions.
 
-The `DailyBriefBuilder` and `/api/briefing` endpoint are retained for MCP backward compat. The chat-first home page replaces the dashboard UI.
+Current interface scope:
+- Insights are queryable through web API and MCP.
+- The engagement/event ingestion route exists in web API, but click-through wiring is not yet broadly enabled across the web client.
+- Suggestions currently ship as API data, not as a dedicated standalone dashboard page.
 
-1. User requests daily brief via MCP or API
-2. System assembles: stale goals, top recommendations, goal-intel matches
-3. Items are scored by urgency and filled within the user's weekly time budget
-4. Available on demand, not scheduled
+## Proactive Acceptance Criteria
 
-### Suggestions
+- [ ] Insights are queryable via `GET /api/insights` and an MCP insights tool.
+- [ ] Insights auto-expire after 14 days unless given a different TTL.
+- [ ] Heartbeat runs on a configured schedule as background infrastructure.
+- [ ] Heuristic plus optional LLM filtering limits token usage.
+- [ ] `GET /api/suggestions` merges daily brief items and recommendations.
+- [ ] Engagement events are supportable through `POST /api/engagement`, even though broad web click-through wiring is still partial.
 
-Unified concept merging recommendations and daily brief items — both are "things the system suggests I do."
-
-1. `GET /api/suggestions` returns a ranked list combining daily brief items (high-priority actionable nudges) and recommendations (deeper LLM-generated suggestions)
-2. Brief items appear first (already priority-ranked), followed by remaining recommendations not already in the brief
-3. Each suggestion has: source (brief/recommendation), kind, title, description, action (chat pre-fill), priority, score
-
-### Proactive Acceptance Criteria
-
-- [ ] Insights are queryable via `GET /api/insights` and `get_insights` MCP tool
-- [ ] Insights auto-expire after 14 days (no manual acknowledge)
-- [ ] Heartbeat runs on configured interval as invisible infra
-- [ ] Heuristic + LLM two-stage filter limits token usage
-- [ ] `GET /api/suggestions` merges daily brief items + recommendations
-- [ ] Engagement tracked implicitly via click-through to source
-
-### Proactive Edge Cases
+## Proactive Edge Cases
 
 | Scenario | Expected Behavior |
 |----------|-------------------|
-| No goals set | Heartbeat has nothing to match against; brief shows intel-only summary |
-| No recent intel | Brief reports "no new intelligence"; heartbeat finds nothing |
-| All goals stale | Insight raised for stale goals |
-| LLM budget exhausted in heartbeat cycle | Remaining items deferred to next cycle |
-| Duplicate insight within TTL | Deduplicated by hash, not saved again |
-
----
+| No goals set | Heartbeat has nothing goal-specific to match; suggestions can still use other context |
+| No recent intel | Brief reports little or no new intelligence |
+| All goals stale | Insight can be raised for stale goals |
+| LLM budget exhausted in heartbeat cycle | Remaining items defer to a later cycle or heuristic-only behavior |
+| Duplicate insight within TTL | Deduplicated by hash |
 
 ## Out of Scope
 
-- Real-time web search during Q&A (that's deep research)
-- Multi-user advice (comparing users)
-- Voice input/output
-- Caching of answers (context is cached, not responses)
-- Push notifications (insights are pull-only via web/MCP)
-- Custom insight rules (insights are system-defined patterns)
-- Manual acknowledge/dismiss of insights (TTL-only expiry)
+- Replacing journal, goals, or radar pages with a single monolithic advisor page
+- Real-time collaborative chat or shared conversations
+- Guaranteed citations in every answer
+- Non-PDF chat attachments such as images, spreadsheets, audio, or video

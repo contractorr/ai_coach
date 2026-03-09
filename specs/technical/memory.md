@@ -2,7 +2,7 @@
 
 ## Overview
 
-The memory module extracts structured facts about the user from journal entries, recommendation feedback, and goal events, storing them in a dual-backend (SQLite + ChromaDB) fact store. Facts carry a category, source, and LLM-assigned confidence score. A conflict resolver prevents duplicates by combining a fast Jaccard-similarity auto-NOOP path with an LLM arbitration path. The resulting facts are injected into advisor prompts as a `<user_memory>` XML block, enabling the RAG pipeline to ground responses in persistent, user-specific context across sessions.
+The memory module extracts structured facts about the user from journal entries, uploaded documents, recommendation feedback, and goal events, storing them in a dual-backend (SQLite + ChromaDB) fact store. Facts carry a category, source, and LLM-assigned confidence score. A conflict resolver prevents duplicates by combining a fast Jaccard-similarity auto-NOOP path with an LLM arbitration path. The resulting facts are injected into advisor prompts as a `<user_memory>` XML block, enabling the RAG pipeline to ground responses in persistent, user-specific context across sessions.
 
 ## Dependencies
 
@@ -38,6 +38,7 @@ The memory module extracts structured facts about the user from journal entries,
 | Value | Member |
 |---|---|
 | `"journal"` | `JOURNAL` |
+| `"document"` | `DOCUMENT` |
 | `"feedback"` | `FEEDBACK` |
 | `"profile"` | `PROFILE` |
 | `"goal"` | `GOAL` |
@@ -162,7 +163,7 @@ Pydantic validation raises on type mismatches at startup.
 
 #### Behavior
 
-Extracts `StewardFact` instances from text using an LLM. Three public entry points cover the three source types. All paths converge on `_extract` (LLM call) and `_parse_response` (JSON parsing + filtering).
+Extracts `StewardFact` instances from text using an LLM. Four public entry points cover the supported source types. All paths converge on `_extract` (LLM call) and `_parse_response` (JSON parsing + filtering).
 
 **Constructor:**
 
@@ -184,6 +185,21 @@ def extract_from_journal(
 - Truncates entry text to first **3000 characters**
 - Appends optional metadata (`type`, `tags`) to the LLM prompt
 - Calls `_extract` with `FactSource.JOURNAL` and `max_facts = self.max_facts` (from config, default 5)
+
+**Document extraction:**
+
+```python
+def extract_from_document(
+    self, document_id: str, document_text: str, document_metadata: dict | None = None
+) -> list[StewardFact]
+```
+
+- Intended for durable user-context documents such as CVs, resumes, role descriptions, and personal planning documents
+- Returns `[]` if `document_text` is missing or too short to be useful for stable fact extraction
+- Truncates document text before the LLM call using a higher ceiling than journal entries when needed
+- Appends optional metadata such as title, filename, and collection to the extraction prompt
+- Calls `_extract` with `FactSource.DOCUMENT`
+- Should extract only durable user-relevant facts, not every generic sentence from the document
 
 **Feedback extraction:**
 
@@ -239,6 +255,7 @@ Outputs: `list[StewardFact]` — may be empty on extraction failure, short text,
 #### Invariants
 
 - `extract_from_journal()` returns `[]` on short content (< 20 chars) without an LLM call.
+- `extract_from_document()` is source-aware and should bias toward durable user facts rather than generic document summarization.
 - `extract_from_feedback()` always uses `max_facts=3` regardless of `self.max_facts`.
 - Content is always truncated before the LLM call — LLM never sees more than 3000 chars of journal text.
 - IDs are `uuid4().hex[:16]` — not deterministic; re-extraction of the same entry produces different IDs.
@@ -480,7 +497,7 @@ ChromaDB failures on init, upsert, delete, and search are all silently swallowed
 
 #### Behavior
 
-Orchestrates the extract → resolve → store sequence. Provides three entry points for different event types and a `backfill` method for processing historical entries.
+Orchestrates the extract → resolve → store sequence. Provides four entry points for different event types and a `backfill` method for processing historical journal data.
 
 **Constructor:**
 
@@ -515,6 +532,16 @@ def process_feedback(
 
 Logs `memory.feedback_processed`.
 
+**Document processing:**
+
+```python
+def process_document(
+    self, document_id: str, document_text: str, document_metadata: dict | None = None
+) -> list[FactUpdate]
+```
+
+Runs the same extract → resolve → store path for uploaded Library documents. Intended to be called after PDF text extraction succeeds. Logs `memory.document_processed`.
+
 **Goal event processing:**
 
 ```python
@@ -548,6 +575,8 @@ def reextract_entry(
 
 Calls `store.delete_by_source(FactSource.JOURNAL, entry_id)` to soft-delete existing facts, then calls `process_journal_entry`.
 
+Document re-extraction follows the same pattern using `FactSource.DOCUMENT` when a document is reprocessed or replaced.
+
 **Internal execution (`_execute`):**
 
 Builds a `candidate_map` keyed by `candidate.text`:
@@ -566,6 +595,7 @@ Outputs: `list[FactUpdate]` per entry, or summary dict for backfill.
 #### Invariants
 
 - `process_journal_entry()` returns `[]` when no candidates extracted — not an error condition.
+- `process_document()` returns `[]` when extracted document text does not contain durable user facts — not an error condition.
 - `backfill()` processes entries chronologically (sorted by `created` ascending) — ensures consistent supersession order.
 - `reextract_entry()` always soft-deletes existing facts before re-extracting — never creates duplicates for the same source.
 - `_execute()` maps one `FactUpdate` per candidate; `candidate_map` is keyed by `candidate.text`, not ID — duplicate texts within a batch may collide.
@@ -669,5 +699,7 @@ Any exception during retrieval or formatting is caught, logged at DEBUG as `memo
 - `FactStore.delete_by_source()`: note the misleading return value — returns `len(fetched)` not `len(newly_deleted)`.
 - `FactStore.search()`: verify fallback to `_keyword_search` on ChromaDB exception.
 - `MemoryPipeline.backfill()`: verify chronological ordering; verify short entries skipped.
+- `FactExtractor.extract_from_document()`: verify generic or text-poor documents can yield `[]`, and document metadata is included in the prompt shape.
+- `MemoryPipeline.process_document()`: verify document-derived facts are stored with `FactSource.DOCUMENT` and can be superseded by reprocessing the same document.
 - `get_memory_context()`: verify empty string returned when `_fact_store` is None; verify high-confidence facts included regardless of semantic relevance; verify section ordering in XML output.
 - Mocks required: LLM provider (cheap), ChromaDB client, SQLite (or use tmp path).

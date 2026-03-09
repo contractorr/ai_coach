@@ -27,6 +27,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ApiKeyInput } from "@/components/ApiKeyInput";
 import { DeleteAccountModal } from "@/components/DeleteAccountModal";
+import { WorkspacePageHeader } from "@/components/WorkspacePageHeader";
 import { apiFetch } from "@/lib/api";
 
 interface Settings {
@@ -54,6 +55,27 @@ interface RSSFeed {
   name: string | null;
   added_by: string;
   created_at: string;
+}
+
+interface WatchlistItem {
+  id: string;
+  label: string;
+  kind: string;
+  aliases: string[];
+  why: string;
+  priority: "high" | "medium" | "low";
+  tags: string[];
+  goal: string;
+  time_horizon: string;
+  source_preferences: string[];
+  domain: string;
+  github_org: string;
+  ticker: string;
+  topics: string[];
+  geographies: string[];
+  linked_dossier_ids: string[];
+  created_at: string;
+  updated_at: string;
 }
 
 interface ProfileData {
@@ -85,6 +107,17 @@ interface FieldConfig {
   key: keyof ProfileData;
   label: string;
   type: FieldType;
+}
+
+const WATCH_KINDS = [
+  { value: "theme", label: "Theme" },
+  { value: "company", label: "Company" },
+  { value: "sector", label: "Sector" },
+  { value: "regulation", label: "Regulation" },
+];
+
+function splitCommaValues(value: string): string[] {
+  return value.split(",").map((part) => part.trim()).filter(Boolean);
 }
 
 const PROFILE_FIELDS: FieldConfig[] = [
@@ -126,6 +159,8 @@ function TagsEditor({
           <Badge key={t} variant="secondary" className="gap-1">
             {t}
             <button
+              type="button"
+              aria-label={`Remove ${t}`}
               onClick={() => onChange(value.filter((v) => v !== t))}
               className="ml-0.5 hover:text-destructive"
             >
@@ -172,6 +207,8 @@ function SkillsEditor({
           <Badge key={s.name} variant="secondary" className="gap-1">
             {s.name} ({s.proficiency})
             <button
+              type="button"
+              aria-label={`Remove ${s.name}`}
               onClick={() => onChange(value.filter((v) => v.name !== s.name))}
               className="ml-0.5 hover:text-destructive"
             >
@@ -327,7 +364,7 @@ function ProfileField({
         )}
       </div>
       {!editing && (
-        <Button size="icon" variant="ghost" onClick={startEdit} className="h-7 w-7 shrink-0 mt-3">
+        <Button size="icon" variant="ghost" onClick={startEdit} className="h-7 w-7 shrink-0 mt-3" aria-label={`Edit ${config.label}`}>
           <Pencil className="h-3 w-3" />
         </Button>
       )}
@@ -371,6 +408,33 @@ export default function SettingsPage() {
   const [rssUrl, setRssUrl] = useState("");
   const [rssAdding, setRssAdding] = useState(false);
   const [rssRemoving, setRssRemoving] = useState<string | null>(null);
+  const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
+  const [watchLabel, setWatchLabel] = useState("");
+  const [watchKind, setWatchKind] = useState("theme");
+  const [watchWhy, setWatchWhy] = useState("");
+  const [watchAliases, setWatchAliases] = useState("");
+  const [watchTags, setWatchTags] = useState("");
+  const [watchPriority, setWatchPriority] = useState<"high" | "medium" | "low">("medium");
+  const [watchGoal, setWatchGoal] = useState("");
+  const [watchSourcePreferences, setWatchSourcePreferences] = useState("");
+  const [watchDomain, setWatchDomain] = useState("");
+  const [watchGithubOrg, setWatchGithubOrg] = useState("");
+  const [watchTicker, setWatchTicker] = useState("");
+  const [watchTopics, setWatchTopics] = useState("");
+  const [watchGeographies, setWatchGeographies] = useState("");
+  const [watchSaving, setWatchSaving] = useState(false);
+  const [watchRemoving, setWatchRemoving] = useState<string | null>(null);
+  const [editingWatchId, setEditingWatchId] = useState<string | null>(null);
+
+  const sectionLinks = [
+    { id: "account", label: "Account" },
+    { id: "ai-settings", label: "AI" },
+    { id: "api-keys", label: "Keys" },
+    { id: "rss-feeds", label: "RSS" },
+    { id: "watchlist", label: "Watchlist" },
+    { id: "profile", label: "Profile" },
+    { id: "danger-zone", label: "Danger" },
+  ];
 
   const isDirty = Object.keys(form).length > 0;
 
@@ -388,7 +452,27 @@ export default function SettingsPage() {
     apiFetch<RSSFeed[]>("/api/intel/rss-feeds", {}, token)
       .then(setRssFeeds)
       .catch(() => {});
+    apiFetch<WatchlistItem[]>("/api/intel/watchlist", {}, token)
+      .then(setWatchlist)
+      .catch(() => {});
   }, [token]);
+
+  const resetWatchForm = () => {
+    setWatchLabel("");
+    setWatchKind("theme");
+    setWatchWhy("");
+    setWatchAliases("");
+    setWatchTags("");
+    setWatchPriority("medium");
+    setWatchGoal("");
+    setWatchSourcePreferences("");
+    setWatchDomain("");
+    setWatchGithubOrg("");
+    setWatchTicker("");
+    setWatchTopics("");
+    setWatchGeographies("");
+    setEditingWatchId(null);
+  };
 
   const handleSaveName = async () => {
     if (!token) return;
@@ -469,12 +553,99 @@ export default function SettingsPage() {
     }
   };
 
+  const handleSaveWatch = async () => {
+    if (!token || !watchLabel.trim()) return;
+    setWatchSaving(true);
+    try {
+      const payload = {
+        label: watchLabel.trim(),
+        kind: watchKind,
+        aliases: splitCommaValues(watchAliases),
+        why: watchWhy.trim(),
+        priority: watchPriority,
+        tags: splitCommaValues(watchTags),
+        goal: watchGoal.trim(),
+        source_preferences: splitCommaValues(watchSourcePreferences),
+        domain: watchDomain.trim(),
+        github_org: watchGithubOrg.trim(),
+        ticker: watchTicker.trim().toUpperCase(),
+        topics: splitCommaValues(watchTopics),
+        geographies: splitCommaValues(watchGeographies),
+      };
+      const endpoint = editingWatchId
+        ? `/api/intel/watchlist/${editingWatchId}`
+        : "/api/intel/watchlist";
+      const method = editingWatchId ? "PATCH" : "POST";
+      const saved = await apiFetch<WatchlistItem>(
+        endpoint,
+        { method, body: JSON.stringify(payload) },
+        token
+      );
+      setWatchlist((prev) => {
+        const others = prev.filter((item) => item.id !== saved.id);
+        return [saved, ...others].sort((a, b) => a.label.localeCompare(b.label));
+      });
+      resetWatchForm();
+      toast.success(editingWatchId ? "Watchlist item updated" : "Watchlist item added");
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setWatchSaving(false);
+    }
+  };
+
+  const handleEditWatch = (item: WatchlistItem) => {
+    setEditingWatchId(item.id);
+    setWatchLabel(item.label);
+    setWatchKind(item.kind || "theme");
+    setWatchWhy(item.why || "");
+    setWatchAliases((item.aliases || []).join(", "));
+    setWatchPriority(item.priority || "medium");
+    setWatchTags((item.tags || []).join(", "));
+    setWatchGoal(item.goal || "");
+    setWatchSourcePreferences((item.source_preferences || []).join(", "));
+    setWatchDomain(item.domain || "");
+    setWatchGithubOrg(item.github_org || "");
+    setWatchTicker(item.ticker || "");
+    setWatchTopics((item.topics || []).join(", "));
+    setWatchGeographies((item.geographies || []).join(", "));
+  };
+
+  const handleRemoveWatch = async (itemId: string) => {
+    if (!token) return;
+    setWatchRemoving(itemId);
+    try {
+      await apiFetch(`/api/intel/watchlist/${itemId}`, { method: "DELETE" }, token);
+      setWatchlist((prev) => prev.filter((item) => item.id !== itemId));
+      if (editingWatchId === itemId) resetWatchForm();
+      toast.success("Watchlist item removed");
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setWatchRemoving(null);
+    }
+  };
+
   if (!settings) return <SettingsSkeleton />;
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6 p-4 md:p-6">
-      <h1 className="text-2xl font-semibold">Settings</h1>
+    <div className="mx-auto max-w-2xl space-y-6 p-4 pb-28 md:p-6 md:pb-32">
+      <WorkspacePageHeader
+        eyebrow="Control center"
+        title="Settings"
+        description="Manage model access, private keys, radar inputs, and the profile StewardMe uses to personalise guidance."
+        badge={settings.using_shared_key ? "Lite mode active" : "Full mode"}
+      />
 
+      <nav aria-label="Settings sections" className="flex flex-wrap gap-2">
+        {sectionLinks.map((section) => (
+          <Button key={section.id} asChild size="sm" variant="outline">
+            <a href={`#${section.id}`}>{section.label}</a>
+          </Button>
+        ))}
+      </nav>
+
+      <section id="account">
       <Card>
         <CardHeader>
           <CardTitle>Account</CardTitle>
@@ -513,14 +684,16 @@ export default function SettingsPage() {
               )}
             </div>
             {!editingName && (
-              <Button size="icon" variant="ghost" onClick={() => setEditingName(true)} className="h-7 w-7 shrink-0 mt-3">
+              <Button size="icon" variant="ghost" onClick={() => setEditingName(true)} className="h-7 w-7 shrink-0 mt-3" aria-label="Edit display name">
                 <Pencil className="h-3 w-3" />
               </Button>
             )}
           </div>
         </CardContent>
       </Card>
+      </section>
 
+      <section id="ai-settings">
       <Card>
         <CardHeader>
           <CardTitle>LLM Provider</CardTitle>
@@ -570,7 +743,9 @@ export default function SettingsPage() {
           />
         </CardContent>
       </Card>
+      </section>
 
+      <section id="api-keys">
       <Card>
         <CardHeader>
           <CardTitle>API Keys</CardTitle>
@@ -597,7 +772,9 @@ export default function SettingsPage() {
           />
         </CardContent>
       </Card>
+      </section>
 
+      <section id="rss-feeds">
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -628,6 +805,7 @@ export default function SettingsPage() {
                   className="h-7 w-7"
                   disabled={rssRemoving === feed.url}
                   onClick={() => handleRemoveFeed(feed.url)}
+                  aria-label={`Remove ${feed.name || new URL(feed.url).hostname}`}
                 >
                   {rssRemoving === feed.url
                     ? <Loader2 className="h-3 w-3 animate-spin" />
@@ -658,7 +836,229 @@ export default function SettingsPage() {
           </div>
         </CardContent>
       </Card>
+      </section>
 
+      <section id="watchlist">
+      <Card>
+        <CardHeader>
+          <CardTitle>Watchlist</CardTitle>
+          <CardDescription>
+            Track specific companies, technologies, roles, or themes so Radar can rank bespoke matches first.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            {watchlist.length === 0 && (
+              <p className="text-sm text-muted-foreground">
+                No watchlist items yet. Add a few themes you want me to track closely.
+              </p>
+            )}
+            {watchlist.map((item) => (
+              <div key={item.id} className="flex items-start justify-between gap-3 rounded-xl border p-3">
+                <div className="min-w-0 flex-1 space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="font-medium">{item.label}</p>
+                    <Badge variant="outline" className="text-[10px]">{item.kind}</Badge>
+                    <Badge variant="outline" className="text-[10px]">{item.priority}</Badge>
+                  </div>
+                  {item.why && <p className="text-sm text-muted-foreground">{item.why}</p>}
+                  {(item.domain || item.github_org || item.ticker || item.topics.length > 0 || item.geographies.length > 0) && (
+                    <p className="text-xs text-muted-foreground">
+                      {[item.domain, item.github_org, item.ticker, ...item.topics, ...item.geographies]
+                        .filter(Boolean)
+                        .slice(0, 4)
+                        .join(" ? ")}
+                    </p>
+                  )}
+                  {item.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1 pt-1">
+                      {item.tags.map((tag) => (
+                        <Badge key={tag} variant="secondary" className="text-[10px]">{tag}</Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => handleEditWatch(item)} aria-label={`Edit ${item.label}`}>
+                    <Pencil className="h-3 w-3" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-7 w-7"
+                    disabled={watchRemoving === item.id}
+                    onClick={() => handleRemoveWatch(item.id)}
+                    aria-label={`Remove ${item.label}`}
+                  >
+                    {watchRemoving === item.id
+                      ? <Loader2 className="h-3 w-3 animate-spin" />
+                      : <Trash2 className="h-3 w-3" />}
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <Separator />
+
+          <div className="space-y-3">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <Label className="text-xs text-muted-foreground">What should I watch?</Label>
+                <Input
+                  value={watchLabel}
+                  onChange={(e) => setWatchLabel(e.target.value)}
+                  placeholder="e.g. OpenAI, AI agents, staff+ roles"
+                  className="mt-1 h-8 text-sm"
+                />
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">Type</Label>
+                <Select value={watchKind} onValueChange={setWatchKind}>
+                  <SelectTrigger className="mt-1 h-8 text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {WATCH_KINDS.map((kind) => (
+                      <SelectItem key={kind.value} value={kind.value}>{kind.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Why it matters</Label>
+              <Textarea
+                value={watchWhy}
+                onChange={(e) => setWatchWhy(e.target.value)}
+                placeholder="e.g. relevant to my next role and current product bets"
+                className="mt-1 min-h-[70px] text-sm"
+              />
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <Label className="text-xs text-muted-foreground">Priority</Label>
+                <Select value={watchPriority} onValueChange={(value) => setWatchPriority(value as "high" | "medium" | "low")}>
+                  <SelectTrigger className="mt-1 h-8 text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="high">High</SelectItem>
+                    <SelectItem value="medium">Medium</SelectItem>
+                    <SelectItem value="low">Low</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">Aliases</Label>
+                <Input
+                  value={watchAliases}
+                  onChange={(e) => setWatchAliases(e.target.value)}
+                  placeholder="Open AI, OA"
+                  className="mt-1 h-8 text-sm"
+                />
+              </div>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <Label className="text-xs text-muted-foreground">Tags</Label>
+                <Input
+                  value={watchTags}
+                  onChange={(e) => setWatchTags(e.target.value)}
+                  placeholder="career, startup, infrastructure"
+                  className="mt-1 h-8 text-sm"
+                />
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">Goal / intent</Label>
+                <Input
+                  value={watchGoal}
+                  onChange={(e) => setWatchGoal(e.target.value)}
+                  placeholder="e.g. competitor tracking"
+                  className="mt-1 h-8 text-sm"
+                />
+              </div>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <Label className="text-xs text-muted-foreground">Source preferences</Label>
+                <Input
+                  value={watchSourcePreferences}
+                  onChange={(e) => setWatchSourcePreferences(e.target.value)}
+                  placeholder="rss, eu, sec"
+                  className="mt-1 h-8 text-sm"
+                />
+              </div>
+              {watchKind === "company" ? (
+                <div>
+                  <Label className="text-xs text-muted-foreground">Company domain</Label>
+                  <Input
+                    value={watchDomain}
+                    onChange={(e) => setWatchDomain(e.target.value)}
+                    placeholder="openai.com"
+                    className="mt-1 h-8 text-sm"
+                  />
+                </div>
+              ) : (
+                <div>
+                  <Label className="text-xs text-muted-foreground">Topics</Label>
+                  <Input
+                    value={watchTopics}
+                    onChange={(e) => setWatchTopics(e.target.value)}
+                    placeholder="AI Act, privacy"
+                    className="mt-1 h-8 text-sm"
+                  />
+                </div>
+              )}
+            </div>
+            {watchKind === "company" ? (
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <Label className="text-xs text-muted-foreground">GitHub org</Label>
+                  <Input
+                    value={watchGithubOrg}
+                    onChange={(e) => setWatchGithubOrg(e.target.value)}
+                    placeholder="openai"
+                    className="mt-1 h-8 text-sm"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Ticker</Label>
+                  <Input
+                    value={watchTicker}
+                    onChange={(e) => setWatchTicker(e.target.value)}
+                    placeholder="MSFT"
+                    className="mt-1 h-8 text-sm"
+                  />
+                </div>
+              </div>
+            ) : (
+              <div>
+                <Label className="text-xs text-muted-foreground">Geographies</Label>
+                <Input
+                  value={watchGeographies}
+                  onChange={(e) => setWatchGeographies(e.target.value)}
+                  placeholder="EU, UK, US"
+                  className="mt-1 h-8 text-sm"
+                />
+              </div>
+            )}
+            <div className="flex gap-2">
+              <Button onClick={handleSaveWatch} disabled={watchSaving || !watchLabel.trim()}>
+                {watchSaving ? "Saving..." : editingWatchId ? "Update Watch" : "Add Watch"}
+              </Button>
+              {editingWatchId && (
+                <Button variant="ghost" onClick={resetWatchForm}>
+                  Cancel
+                </Button>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+      </section>
+
+      <section id="profile">
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -698,19 +1098,9 @@ export default function SettingsPage() {
           </Button>
         </CardContent>
       </Card>
+      </section>
 
-      <Separator />
-      <div className="flex items-center gap-3">
-        <Button onClick={handleSave} disabled={saving || !isDirty}>
-          {saving ? "Saving..." : isDirty ? "Save Changes" : "No Changes"}
-        </Button>
-        {isDirty && (
-          <span className="text-xs text-muted-foreground">
-            {Object.keys(form).length} unsaved {Object.keys(form).length === 1 ? "change" : "changes"}
-          </span>
-        )}
-      </div>
-
+      <section id="danger-zone">
       <Card className="border-destructive/50 bg-destructive/5">
         <CardHeader>
           <CardTitle className="text-destructive">Danger Zone</CardTitle>
@@ -728,7 +1118,29 @@ export default function SettingsPage() {
           </div>
         </CardContent>
       </Card>
+      </section>
       <DeleteAccountModal open={deleteOpen} onOpenChange={setDeleteOpen} />
+
+      {isDirty && (
+        <div className="fixed bottom-0 left-0 right-0 z-20 border-t bg-background/95 backdrop-blur lg:left-60">
+          <div className="mx-auto flex max-w-2xl flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between md:px-6">
+            <div>
+              <p className="text-sm font-medium">You have unsaved settings changes</p>
+              <p className="text-xs text-muted-foreground">
+                {Object.keys(form).length} pending {Object.keys(form).length === 1 ? "update" : "updates"} across provider and key settings.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" onClick={() => setForm({})} disabled={saving}>
+                Discard
+              </Button>
+              <Button onClick={handleSave} disabled={saving}>
+                {saving ? "Saving..." : "Save changes"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

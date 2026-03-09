@@ -14,9 +14,11 @@ import httpx
 import structlog
 from bs4 import BeautifulSoup
 
-from db import wal_connect
+from db import ensure_schema_version, wal_connect
 
 logger = structlog.get_logger().bind(source="intel_storage")
+
+SCHEMA_VERSION = 3
 
 _ALLOWED_SCHEMES = {"http", "https"}
 _INTERNAL_SCHEMES = {"research"}
@@ -158,6 +160,7 @@ class IntelStorage:
                 FROM intel_items
                 WHERE id NOT IN (SELECT rowid FROM intel_fts)
             """)
+            ensure_schema_version(conn, SCHEMA_VERSION)
 
     def save(self, item: IntelItem) -> int | None:
         """Save intel item, skip if URL invalid/exists or content hash exists.
@@ -326,10 +329,27 @@ class BaseScraper(ABC):
     def __init__(self, storage: IntelStorage, embedding_manager=None):
         self.storage = storage
         self.embedding_manager = embedding_manager
-        self.client = httpx.AsyncClient(
-            timeout=30.0,
-            headers={"User-Agent": "AI-Coach/1.0 (Personal Use)"},
-        )
+        self._client: httpx.AsyncClient | None = None
+        self._client_headers = {"User-Agent": "AI-Coach/1.0 (Personal Use)"}
+
+    @property
+    def client(self) -> httpx.AsyncClient:
+        if self._client is None:
+            self._client = httpx.AsyncClient(
+                timeout=30.0,
+                headers=dict(self._client_headers),
+            )
+        return self._client
+
+    @client.setter
+    def client(self, value: httpx.AsyncClient) -> None:
+        self._client = value
+
+    def set_client_headers(self, **headers: str) -> None:
+        """Apply headers to a future or existing async client."""
+        self._client_headers.update(headers)
+        if self._client is not None:
+            self._client.headers.update(headers)
 
     @property
     @abstractmethod
@@ -400,7 +420,9 @@ class BaseScraper(ABC):
 
     async def close(self):
         """Close the async client."""
-        await self.client.aclose()
+        if self._client is not None:
+            await self._client.aclose()
+            self._client = None
 
     async def __aenter__(self):
         return self

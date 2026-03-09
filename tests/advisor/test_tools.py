@@ -1,6 +1,8 @@
 """Tests for advisor ToolRegistry."""
 
 import json
+from types import SimpleNamespace
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -9,30 +11,38 @@ from advisor.tools import ToolRegistry
 
 @pytest.fixture
 def mock_components(tmp_path):
-    """Build minimal real components for ToolRegistry."""
-    from intelligence.scraper import IntelStorage
-    from journal.embeddings import EmbeddingManager
-    from journal.search import JournalSearch
+    """Build minimal components for ToolRegistry with cheap fakes."""
     from journal.storage import JournalStorage
 
     journal_dir = tmp_path / "journal"
     journal_dir.mkdir()
-    chroma_dir = tmp_path / "chroma"
     intel_db = tmp_path / "intel.db"
     recs_dir = tmp_path / "recommendations"
     profile_path = tmp_path / "profile.yaml"
 
     storage = JournalStorage(journal_dir)
-    embeddings = EmbeddingManager(chroma_dir, collection_name="test")
-    intel_storage = IntelStorage(intel_db)
-    journal_search = JournalSearch(storage, embeddings)
+    embeddings = MagicMock(name="embeddings")
+    embeddings.query.return_value = []
+    embeddings.add_entry.return_value = None
+    embeddings.sync_from_storage.return_value = None
 
-    from advisor.rag import RAGRetriever
+    intel_storage = MagicMock(name="intel_storage")
+    intel_storage.db_path = intel_db
+    intel_storage.search.return_value = []
+    intel_storage.get_recent.return_value = []
 
-    rag = RAGRetriever(
-        journal_search=journal_search,
-        intel_db_path=intel_db,
-        profile_path=str(profile_path),
+    rag = MagicMock(name="rag")
+    rag.get_combined_context.return_value = ("", "")
+    rag.get_profile_context.return_value = ""
+    rag.get_recent_entries.return_value = ""
+    rag.get_journal_context.return_value = ""
+    rag.get_research_context.return_value = ""
+    rag.build_context_for_ask.return_value = SimpleNamespace(
+        journal="",
+        intel="",
+        profile="",
+        memory="",
+        thoughts="",
     )
 
     return {

@@ -114,6 +114,8 @@ JOURNAL CONTEXT:
 EXTERNAL INTELLIGENCE:
 {intel_context}
 
+{documents_context}
+
 {memory_context}
 
 {thoughts_context}
@@ -133,6 +135,8 @@ JOURNAL CONTEXT:
 
 EXTERNAL INTELLIGENCE:
 {intel_context}
+
+{documents_context}
 
 {memory_context}
 
@@ -159,6 +163,10 @@ Use the research context when relevant to provide more informed, thorough answer
 {intel_context}
 </external_intelligence>
 
+<documents>
+{documents_context}
+</documents>
+
 {memory_context}
 
 {thoughts_context}
@@ -183,6 +191,10 @@ Provide a helpful, specific response:"""
 {intel_context}
 </external_intelligence>
 
+<documents>
+{documents_context}
+</documents>
+
 {memory_context}
 
 {thoughts_context}
@@ -203,6 +215,7 @@ Use the research context when relevant to provide more informed, thorough answer
         journal_context: str,
         intel_context: str,
         profile_context: str = "",
+        documents_context: str = "",
         memory_context: str = "",
         thoughts_context: str = "",
         research_context: str = "",
@@ -213,6 +226,7 @@ Use the research context when relevant to provide more informed, thorough answer
             journal_context=journal_context,
             intel_context=intel_context,
             profile_context=profile_context,
+            documents_context=documents_context,
             memory_context=memory_context,
             thoughts_context=thoughts_context,
             research_context=research_context,

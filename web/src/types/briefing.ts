@@ -14,6 +14,13 @@ export interface CriticData {
   intel_contradictions?: string | null;
 }
 
+export interface WhyNowReason {
+  code: string;
+  label: string;
+  severity: string;
+  detail?: Record<string, unknown>;
+}
+
 export interface BriefingRecommendation {
   id: string;
   category: string;
@@ -23,6 +30,52 @@ export interface BriefingRecommendation {
   status: string;
   reasoning_trace?: ReasoningTrace | null;
   critic?: CriticData | null;
+  watchlist_evidence?: string[];
+  action_item?: RecommendationActionItem | null;
+  user_rating?: number | null;
+  feedback_comment?: string | null;
+  feedback_at?: string | null;
+  why_now?: WhyNowReason[];
+  harvested_outcome?: {
+    state: string;
+    confidence: number;
+    source_summary: string;
+    user_overridden: boolean;
+    evidence?: Array<Record<string, unknown>>;
+  } | null;
+}
+
+export interface RecommendationActionItem {
+  objective: string;
+  next_step: string;
+  effort: "small" | "medium" | "large";
+  due_window: "today" | "this_week" | "later";
+  blockers: string[];
+  success_criteria: string;
+  status: "accepted" | "deferred" | "blocked" | "completed" | "abandoned";
+  review_notes?: string | null;
+  goal_path?: string | null;
+  goal_title?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TrackedRecommendationAction {
+  recommendation_id: string;
+  recommendation_title: string;
+  category: string;
+  score: number;
+  recommendation_status: string;
+  created_at: string;
+  action_item: RecommendationActionItem;
+}
+
+export interface WeeklyPlanResponse {
+  items: TrackedRecommendationAction[];
+  capacity_points: number;
+  used_points: number;
+  remaining_points: number;
+  generated_at: string;
 }
 
 export interface BriefingGoal {
@@ -62,6 +115,71 @@ export interface GoalIntelMatch {
   llm_evaluated: boolean;
 }
 
+export interface CompanyMovement {
+  id: number;
+  company_key: string;
+  company_label: string;
+  movement_type: string;
+  title: string;
+  summary: string;
+  significance: number;
+  source_url: string;
+  source_family: string;
+  observed_at: string;
+  metadata: Record<string, unknown>;
+}
+
+export interface HiringSignal {
+  id: number;
+  entity_key: string;
+  entity_label: string;
+  signal_type: string;
+  title: string;
+  summary: string;
+  strength: number;
+  source_url: string;
+  observed_at: string;
+  metadata: Record<string, unknown>;
+}
+
+export interface RegulatoryAlert {
+  id: number;
+  target_key: string;
+  title: string;
+  summary: string;
+  source_family: string;
+  change_type: string;
+  urgency: "high" | "medium" | "low" | string;
+  relevance: number;
+  effective_date?: string | null;
+  source_url: string;
+  observed_at: string;
+  metadata: Record<string, unknown>;
+}
+
+export interface AssumptionAlert {
+  id: string;
+  title: string;
+  detail: string;
+  status: string;
+  updated_at?: string | null;
+}
+
+export interface DossierEscalation {
+  escalation_id: string;
+  topic_key: string;
+  topic_label: string;
+  score: number;
+  state: string;
+  evidence: Record<string, unknown>;
+  payload: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+  snoozed_until?: string | null;
+  dismissed_at?: string | null;
+  accepted_dossier_id?: string | null;
+}
+
 export interface BriefingResponse {
   recommendations: BriefingRecommendation[];
   stale_goals: BriefingGoal[];
@@ -70,4 +188,9 @@ export interface BriefingResponse {
   adaptation_count: number;
   daily_brief?: DailyBrief | null;
   goal_intel_matches: GoalIntelMatch[];
+  dossier_escalations: DossierEscalation[];
+  company_movements: CompanyMovement[];
+  hiring_signals: HiringSignal[];
+  regulatory_alerts: RegulatoryAlert[];
+  assumptions: AssumptionAlert[];
 }

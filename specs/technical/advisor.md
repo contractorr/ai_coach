@@ -2,11 +2,11 @@
 
 ## Overview
 
-The advisor module is the LLM orchestration layer. It exposes two modes via `AdvisorEngine.ask()`: classic RAG (single-shot retrieval + LLM call) and agentic (tool-calling loop where the LLM decides what to look up). It owns prompt construction, context assembly, caching, dynamic journal/intel weighting, and delegates to sub-engines for recommendations, skill analysis, learning paths, and action briefs.
+The advisor module is the LLM orchestration layer. It exposes two modes via `AdvisorEngine.ask()`: classic RAG (single-shot retrieval + LLM call) and agentic (tool-calling loop where the LLM decides what to look up). It owns prompt construction, context assembly, caching, dynamic journal/intel weighting, document-grounded retrieval from the user's Library, and delegates to sub-engines for recommendations, skill analysis, learning paths, and action briefs.
 
 ## Dependencies
 
-**Depends on:** `llm`, `journal`, `intelligence`, `profile`, `memory`, `research`, `cli`
+**Depends on:** `llm`, `journal`, `intelligence`, `profile`, `memory`, `research`, `library`, `cli`
 **Depended on by:** `web` (routes call `AdvisorEngine`), `cli` (Click commands call `AdvisorEngine`), `coach_mcp` (MCP tools call advisor sub-components directly)
 
 ---
@@ -49,7 +49,7 @@ def __init__(
 
 **Classic RAG mode decision tree:**
 
-`use_extended` is `True` when any of `structured_profile`, `inject_memory`, `inject_recurring_thoughts`, `xml_delimiters` are truthy in `_rag_config`.
+`use_extended` is `True` when any of `structured_profile`, `inject_memory`, `inject_recurring_thoughts`, `inject_documents`, `xml_delimiters` are truthy in `_rag_config`, or when the current turn supplies `attachment_ids`.
 
 | `use_extended` | Research available | Method |
 |---|---|---|
@@ -57,6 +57,8 @@ def __init__(
 | True | any | `rag.build_context_for_ask()` + `get_prompt("general", extended=True, xml_delimiters=..., with_research=...)` |
 
 Research context: fetched via `rag.get_research_context(question)` only if `include_research=True` and `rag` has `get_research_context`. Passed to prompt only if non-empty after strip.
+
+When `attachment_ids` are provided, document-grounded retrieval should be treated as first-class context assembly rather than optional post-processing. The current-turn attachment set is the highest-priority document source.
 
 In non-extended mode, `profile_ctx` is prepended to `journal_context` slot: `profile_ctx + journal_ctx`.
 
@@ -68,6 +70,7 @@ def ask(
     question: str,
     advice_type: str = "general",      # general, career, goals, opportunities
     include_research: bool = True,
+    attachment_ids: list[str] | None = None,
     conversation_history: list[dict] | None = None,
     event_callback: Callable[[dict], None] | None = None,
 ) -> str
@@ -144,6 +147,7 @@ def generate_action_brief(
 | `rag_config.structured_profile` | `False` | caller |
 | `rag_config.inject_memory` | `False` | caller |
 | `rag_config.inject_recurring_thoughts` | `False` | caller |
+| `rag_config.inject_documents` | `False` outside document-aware surfaces | caller |
 | `rag_config.xml_delimiters` | `False` | caller |
 | LLM retry attempts | `3` | `cli.retry.llm_retry` |
 | LLM retry wait min | `2.0` s | hardcoded |
@@ -161,7 +165,7 @@ def generate_action_brief(
 
 #### Behavior
 
-Assembles LLM context from journal + intel sources. Wraps `JournalSearch` and optionally `IntelSearch`. All retrieval results are cached via `ContextCache` (if set). Dynamic journal/intel budget splitting via `compute_dynamic_weight()`.
+Assembles LLM context from journal, intel, memory, recurring thoughts, research, and Library documents. Wraps `JournalSearch`, optionally `IntelSearch`, and a user-scoped Library retrieval layer. All retrieval results are cached via `ContextCache` (if set). Dynamic journal/intel budget splitting via `compute_dynamic_weight()`.
 
 ```python
 def __init__(
@@ -178,6 +182,7 @@ def __init__(
     fact_store=None,
     memory_config: Optional[dict] = None,
     thread_store=None,
+    library_index=None,
 )
 ```
 
@@ -194,9 +199,14 @@ def get_profile_keywords(self) -> list[str]
 # + industries[:4] + interests[:4] + active_projects[:3] (first 3 words each)
 # Returns [] on any exception
 
-def build_context_for_ask(self, query: str, rag_config: dict | None = None) -> AskContext
-# AskContext fields: journal, intel, profile, memory="", thoughts=""
-# Flags: structured_profile, inject_memory, inject_recurring_thoughts, xml_delimiters
+def build_context_for_ask(
+    self,
+    query: str,
+    rag_config: dict | None = None,
+    attachment_ids: list[str] | None = None,
+) -> AskContext
+# AskContext fields: journal, intel, profile, memory="", thoughts="", documents=""
+# Flags: structured_profile, inject_memory, inject_recurring_thoughts, inject_documents, xml_delimiters
 
 def get_journal_context(
     self, query: str, max_entries: int = 5, max_chars: int = 6000,
@@ -232,6 +242,13 @@ def get_memory_context(self, query: str = "") -> str
 # Returns <user_memory> XML block or ""
 # Merges: high_confidence_facts (>= threshold) + semantic search results, dedup by ID, cap at max_facts
 # Returns "" if no fact_store
+
+def get_document_context(
+    self, query: str, attachment_ids: list[str] | None = None, max_items: int = 4, max_chars: int = 4000,
+) -> str
+# Returns <user_documents> XML block or ""
+# Prioritizes explicit attachment_ids first, then falls back to Library search for relevant indexed documents
+# Uses title / filename / snippet blocks, bounded by max_chars
 
 def get_recurring_thoughts_context(self, max_threads: int = 3) -> str
 # Returns <recurring_thoughts> XML block or ""
@@ -271,6 +288,7 @@ class AskContext:
     profile: str
     memory: str = ""
     thoughts: str = ""
+    documents: str = ""
 ```
 
 **`_format_memory_block()` display order:**
@@ -291,6 +309,7 @@ Within each section: sorted by `confidence` descending.
 
 - Cache keys are SHA256 hashes; collisions are theoretically possible but not guarded against.
 - `get_combined_context()` combined cache stores JSON `{"journal": ..., "intel": ...}`; individual `get_journal_context()` and `get_intel_context()` calls inside it also write their own cache entries.
+- Document retrieval cache keys must include the explicit `attachment_ids` set when present, otherwise current-turn uploads can collide with generic query-only cache entries.
 - Not thread-safe for concurrent writes to the same cache db.
 - `intel_db_path` is expanded with `.expanduser()` at construction; `None` stays `None`.
 
@@ -299,6 +318,7 @@ Within each section: sorted by `confidence` descending.
 - `get_profile_context`: any exception → debug log, returns `""`.
 - `get_profile_keywords`: any exception → returns `[]`.
 - `get_memory_context`: any exception → debug log, returns `""`.
+- `get_document_context`: any exception → debug log, returns `""`.
 - `get_recurring_thoughts_context`: any exception → debug log, returns `""`.
 - `get_recent_entries`: per-entry `(OSError, ValueError)` → warning log, skip entry.
 - `get_research_context`: per-entry `(OSError, ValueError)` → warning log, skip entry.
@@ -312,6 +332,8 @@ Within each section: sorted by `confidence` descending.
 | `max_context_chars` | `8000` | constructor |
 | `journal_weight` | `0.7` | constructor |
 | `profile_path` | `"~/coach/profile.yaml"` | constructor |
+| document retrieval max items | `4` | retrieval helper |
+| document retrieval max chars | `4000` | retrieval helper |
 | dynamic weight min | `0.5` | hardcoded |
 | dynamic weight max | `0.85` | hardcoded |
 | dynamic weight formula slope | `0.15` | hardcoded |
@@ -392,17 +414,17 @@ def run(
 
 #### Behavior
 
-Registers and dispatches all tools available to `AgenticOrchestrator`. Initialized with a per-user `components` dict. All handlers are closures capturing components at registration time. Tool results are truncated to `TOOL_RESULT_MAX_CHARS = 4000`.
+Registers and dispatches all tools available to `AgenticOrchestrator`. Initialized with a per-user `components` dict. All handlers are closures capturing components at registration time. Tool results are truncated to `TOOL_RESULT_MAX_CHARS = 4000`. Document-aware advisor flows should expose Library search/read capabilities through this same registry.
 
 ```python
 def __init__(self, components: dict)
 # components keys: storage, embeddings, intel_storage, rag, profile_path,
-#                  recommendations_dir, user_id (optional)
+#                  recommendations_dir, library_index, user_id (optional)
 ```
 
-**`_register_all()` registers 6 tool groups:**
+**`_register_all()` registers 7 tool groups:**
 `_register_journal_tools`, `_register_goal_tools`, `_register_intel_tools`,
-`_register_rss_tools`, `_register_web_search_tools`, `_register_misc_tools`
+`_register_library_tools`, `_register_rss_tools`, `_register_web_search_tools`, `_register_misc_tools`
 
 #### Inputs / Outputs
 
@@ -411,7 +433,7 @@ def get_definitions(self) -> list[ToolDefinition]
 def execute(self, name: str, arguments: dict) -> str   # JSON string, truncated to 4000 chars
 ```
 
-**Registered tools (17 total):**
+**Registered tools (19 total target shape):**
 
 | Tool | Group | Key params | Notes |
 |------|-------|-----------|-------|
@@ -426,6 +448,8 @@ def execute(self, name: str, arguments: dict) -> str   # JSON string, truncated 
 | `goal_next_steps` | goal | `goal_path` | path traversal check; returns progress + intel matches (limit 5) + related journal (limit 5, excludes `type=goal`) |
 | `intel_search` | intel | `query`, `limit=10` | keyword search; summary `[:500]` |
 | `intel_get_recent` | intel | `days=7`, `limit=50`, `source` | source filter applied in Python after fetch |
+| `library_search` | library | `query`, `limit=5`, `source_kind` | searches indexed Library text, returns snippets |
+| `library_read` | library | `report_id`, `max_chars=2000` | returns bounded body or extracted text for one item |
 | `intel_list_rss_feeds` | rss | — | only registered if `user_id` in components |
 | `intel_add_rss_feed` | rss | `url`, `name`, `reason` | validates scheme (http/https), fetches + checks `<rss`/`<feed`/`<channel` in first 2048 bytes, persists, one-shot scrape |
 | `web_search` | web | `query`, `max_results=5` | mutates `search_client.max_results`; content `[:500]` |
@@ -699,7 +723,7 @@ Recs with `RELEVANCE < 6` are skipped by the LLM per prompt instruction.
 | Condition | Mode | Entry point |
 |-----------|------|-------------|
 | `use_tools=True` AND `components` provided | Agentic | `AgenticOrchestrator.run()` |
-| Any `rag_config` flag set | Extended RAG | `rag.build_context_for_ask()` |
+| Any `rag_config` flag set, or `attachment_ids` present | Extended RAG | `rag.build_context_for_ask()` |
 | Default | Classic RAG | `rag.get_combined_context()` |
 
 **Caching layers:**
@@ -708,6 +732,7 @@ Recs with `RELEVANCE < 6` are skipped by the LLM per prompt instruction.
 |-------|-------|-----|
 | `ContextCache` | per (type, query, params) | 24h |
 | Combined cache | `get_combined_context` | 24h (same cache) |
+| Document cache | `get_document_context` by query + attachment set | 24h (same cache namespace) |
 
 **Error class hierarchy:**
 ```
@@ -721,15 +746,17 @@ AdvisorError
 ## Test Expectations
 
 - `AdvisorEngine.ask()` in classic mode: mock `rag.get_combined_context()` + `rag.get_profile_context()`; verify prompt contains journal/intel sections; verify `_call_llm` called with `PromptTemplates.SYSTEM`.
-- `AdvisorEngine.ask()` extended mode: set any `rag_config` flag; verify `build_context_for_ask()` called; verify correct template variant selected.
+- `AdvisorEngine.ask()` extended mode: set any `rag_config` flag or provide `attachment_ids`; verify `build_context_for_ask(..., attachment_ids=...)` called; verify correct template variant selected.
 - `AdvisorEngine.ask()` agentic mode: set `use_tools=True` + `components`; verify `AgenticOrchestrator.run()` called; verify `advice_type` is ignored.
 - `APIKeyMissingError` raised on LLM init failure: mock `create_llm_provider` to raise `BaseLLMError`.
 - `RAGRetriever.compute_dynamic_weight()`: requires mock `users_db_path` with engagement data; verify formula clamps to [0.5, 0.85]; verify fallback on < 10 events.
 - `RAGRetriever.get_memory_context()`: mock `fact_store`; verify high-conf + semantic merge + dedup; verify empty string when no facts.
+- `RAGRetriever.get_document_context()`: mock `library_index`; verify explicit attachments are prioritized, snippets are bounded, and empty string is returned on failure.
 - `RAGRetriever.get_combined_context()` cache hit: set cache, verify no downstream calls.
 - `ContextCache`: verify TTL expiry on `get()`; verify upsert updates `created_at`; verify `make_key()` is deterministic.
 - `AgenticOrchestrator.run()`: mock LLM to return tool call then stop; verify message sequence; verify `event_callback` fired; verify max-iterations fallback.
 - `ToolRegistry.execute()`: unknown tool → error JSON; exception in handler → error JSON; result truncated at 4000 chars.
+- `ToolRegistry` library tools: wrong-user or missing `report_id` should return structured error JSON rather than raw tracebacks.
 - `ToolRegistry` `journal_read` / `goal_next_steps`: path traversal attempt → `{"error": "Invalid path"}`.
 - `ToolRegistry` `intel_add_rss_feed`: non-http scheme → error; feed without RSS markers → error; HTTP failure → error.
 - Mocks required: `LLMProvider`, `JournalSearch`, `IntelSearch`, `EmbeddingManager`, `JournalStorage`, `IntelStorage`, `FactStore`, `ThreadStore`, `httpx.Client` (for RSS validation).

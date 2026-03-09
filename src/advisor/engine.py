@@ -23,7 +23,7 @@ logger = structlog.get_logger()
 
 # Retry decorator for LLM calls
 try:
-    from cli.retry import llm_retry
+    from retry_utils import llm_retry
 
     _llm_retry = llm_retry(
         max_attempts=3,
@@ -195,6 +195,7 @@ class AdvisorEngine:
         advice_type: str = "general",
         include_research: bool = True,
         conversation_history: list[dict] | None = None,
+        attachment_ids: list[str] | None = None,
         event_callback: Callable[[dict], None] | None = None,
     ) -> str:
         """Get advice for a question.
@@ -210,7 +211,7 @@ class AdvisorEngine:
             LLM-generated advice
         """
         # Agentic mode: LLM decides what to look up via tool calls
-        if self._orchestrator:
+        if self._orchestrator and not attachment_ids:
             return self._orchestrator.run(
                 question,
                 conversation_history=conversation_history,
@@ -241,9 +242,10 @@ class AdvisorEngine:
                 "structured_profile",
                 "inject_memory",
                 "inject_recurring_thoughts",
+                "inject_documents",
                 "xml_delimiters",
             )
-        )
+        ) or bool(attachment_ids)
 
         # Get research context if available
         research_ctx = ""
@@ -252,7 +254,11 @@ class AdvisorEngine:
         has_research = bool(research_ctx.strip())
 
         if use_extended:
-            ctx = self.rag.build_context_for_ask(question, self._rag_config)
+            ctx = self.rag.build_context_for_ask(
+                question,
+                self._rag_config,
+                attachment_ids=attachment_ids,
+            )
             prompt_template = PromptTemplates.get_prompt(
                 advice_type,
                 with_research=has_research,
@@ -264,6 +270,7 @@ class AdvisorEngine:
                 journal_context=ctx.journal,
                 intel_context=ctx.intel,
                 profile_context=ctx.profile,
+                documents_context=ctx.documents,
                 memory_context=ctx.memory,
                 thoughts_context=ctx.thoughts,
                 research_context=research_ctx if has_research else "",

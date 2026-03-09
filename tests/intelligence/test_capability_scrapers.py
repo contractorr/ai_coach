@@ -6,7 +6,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 import pytest
 
-from intelligence.scraper import IntelStorage
 from intelligence.sources.ai_capabilities import (
     AIIndexScraper,
     ARCEvalsScraper,
@@ -16,9 +15,9 @@ from intelligence.sources.ai_capabilities import (
 )
 
 
-@pytest.fixture
-def storage(tmp_path):
-    return IntelStorage(tmp_path / "test_intel.db")
+@pytest.fixture(scope="module")
+def storage():
+    return MagicMock(name="intel_storage")
 
 
 # ---------------------------------------------------------------------------

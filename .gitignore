@@ -3,6 +3,7 @@ __pycache__/
 *.py[cod]
 *.so
 .venv/
+.venv*/
 venv/
 *.egg-info/
 dist/
@@ -25,6 +26,9 @@ web/.env.local
 .coverage
 .mcp.json
 .playwright-mcp/
+.codex-agent.md
+eval/ux-audit/*.log
+eval/ux-audit/coach-home/
 
 # Audit screenshots
 audit-*.png

@@ -17,7 +17,7 @@ export function AppHeader({
         <Button variant="ghost" size="icon" onClick={onToggleSidebar} className="-ml-2 lg:hidden">
           <Menu className="h-4 w-4" />
         </Button>
-        <span className="text-sm font-semibold text-primary">StewardMe</span>
+        <span className="text-sm font-semibold text-primary lg:hidden">StewardMe</span>
       </div>
       <div className="flex items-center gap-1">
         <Button variant="ghost" size="icon" onClick={onOpenSettings} title="Settings">

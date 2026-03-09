@@ -7,30 +7,19 @@ import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from web.routes import (
-    admin,
-    advisor,
-    briefing,
-    engagement,
-    goals,
-    greeting,
-    insights,
-    intel,
-    journal,
-    memory,
-    onboarding,
-    pageview,
-    profile,
-    recommendations,
-    research,
-    settings,
-    suggestions,
-    threads,
-    user,
-)
-from web.user_store import init_db
+from crypto_utils import decrypt_value, encrypt_value
+from user_state_store import init_db
+from web.routes import ROUTERS
 
 logger = structlog.get_logger()
+
+
+def _env_flag(name: str, default: bool = False) -> bool:
+    """Parse a boolean env flag with a conservative default."""
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
 def _verify_secret_key() -> None:
@@ -39,8 +28,6 @@ def _verify_secret_key() -> None:
     if not key:
         logger.critical("SECRET_KEY env var not set")
         raise RuntimeError("SECRET_KEY required")
-    from web.crypto import decrypt_value, encrypt_value
-
     canary = "canary-check"
     enc = encrypt_value(key, canary)
     dec = decrypt_value(key, enc, key_name="canary")
@@ -52,17 +39,17 @@ def _verify_secret_key() -> None:
 
 def _start_intel_scheduler():
     """Start background intel scheduler (daily 6am scrape)."""
+    if _env_flag("DISABLE_INTEL_SCHEDULER"):
+        logger.info("intel_scheduler.disabled")
+        return None
+
     try:
         from intelligence.scheduler import IntelScheduler
-        from web.deps import get_coach_paths, get_config
+        from web.deps import get_config, get_intel_storage
 
         config = get_config()
         full = config.to_dict()
-        paths = get_coach_paths()
-
-        from intelligence.scraper import IntelStorage
-
-        storage = IntelStorage(paths["intel_db"])
+        storage = get_intel_storage()
 
         scheduler = IntelScheduler(
             storage=storage,
@@ -78,56 +65,63 @@ def _start_intel_scheduler():
         return None
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
+def _startup_services():
+    """Initialize process-level web services and return shutdown state."""
     init_db()
     _verify_secret_key()
     scheduler = _start_intel_scheduler()
     logger.info("web.startup")
-    yield
+    return {"scheduler": scheduler}
+
+
+def _shutdown_services(state: dict | None) -> None:
+    """Stop process-level web services started during lifespan."""
+    scheduler = (state or {}).get("scheduler")
     if scheduler:
         scheduler.stop()
     logger.info("web.shutdown")
 
 
-app = FastAPI(
-    title="AI Coach",
-    version="0.1.0",
-    lifespan=lifespan,
-)
-
-# CORS — allow frontend origin
-frontend_origin = os.getenv("FRONTEND_ORIGIN", "http://localhost:3000")
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[frontend_origin],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Mount routes
-app.include_router(settings.router)
-app.include_router(journal.router)
-app.include_router(advisor.router)
-app.include_router(goals.router)
-app.include_router(intel.router)
-app.include_router(research.router)
-app.include_router(onboarding.router)
-app.include_router(briefing.router)
-app.include_router(greeting.router)
-app.include_router(recommendations.router)
-app.include_router(engagement.router)
-app.include_router(profile.router)
-app.include_router(user.router)
-app.include_router(pageview.router)
-app.include_router(admin.router)
-app.include_router(insights.router)
-app.include_router(suggestions.router)
-app.include_router(memory.router)
-app.include_router(threads.router)
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    state = _startup_services()
+    yield
+    _shutdown_services(state)
 
 
-@app.get("/api/health")
 async def health():
     return {"status": "ok"}
+
+
+def _configure_cors(app: FastAPI) -> None:
+    """Attach CORS middleware using env-driven frontend origin."""
+    frontend_origin = os.getenv("FRONTEND_ORIGIN", "http://localhost:3000")
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[frontend_origin],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+
+def _register_routes(app: FastAPI) -> None:
+    """Mount all API routers and health check."""
+    for router in ROUTERS:
+        app.include_router(router)
+    app.add_api_route("/api/health", health, methods=["GET"])
+
+
+def create_app() -> FastAPI:
+    """Create the FastAPI application with middleware and routes."""
+    app = FastAPI(
+        title="AI Coach",
+        version="0.1.0",
+        lifespan=lifespan,
+    )
+    _configure_cors(app)
+    _register_routes(app)
+    return app
+
+
+app = create_app()

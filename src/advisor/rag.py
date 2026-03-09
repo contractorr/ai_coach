@@ -23,6 +23,7 @@ class AskContext:
     profile: str
     memory: str = ""
     thoughts: str = ""
+    documents: str = ""
 
 
 class RAGRetriever:
@@ -42,6 +43,7 @@ class RAGRetriever:
         fact_store=None,
         memory_config: Optional[dict] = None,
         thread_store=None,
+        library_index=None,
     ):
         self.journal = journal_search
         self.intel_db_path = Path(intel_db_path).expanduser() if intel_db_path else None
@@ -55,6 +57,7 @@ class RAGRetriever:
         self._fact_store = fact_store
         self._memory_config = memory_config or {}
         self._thread_store = thread_store
+        self._library_index = library_index
 
     def get_profile_context(self, structured: bool = False) -> str:
         """Load user profile summary for LLM context injection.
@@ -81,13 +84,14 @@ class RAGRetriever:
         self,
         query: str,
         rag_config: dict | None = None,
+        attachment_ids: list[str] | None = None,
     ) -> "AskContext":
         """Build consolidated context for ask() calls.
 
         Args:
             query: User question
             rag_config: Dict of RAG flags (structured_profile, inject_memory,
-                        inject_recurring_thoughts, xml_delimiters)
+                        inject_recurring_thoughts, inject_documents, xml_delimiters)
 
         Returns:
             AskContext with all context slots populated per flags
@@ -105,13 +109,81 @@ class RAGRetriever:
         if cfg.get("inject_recurring_thoughts", False):
             thoughts_ctx = self.get_recurring_thoughts_context()
 
+        documents_ctx = ""
+        if cfg.get("inject_documents", False) or attachment_ids:
+            documents_ctx = self.get_document_context(query, attachment_ids=attachment_ids)
+
         return AskContext(
             journal=journal_ctx,
             intel=intel_ctx,
             profile=profile_ctx,
             memory=memory_ctx,
             thoughts=thoughts_ctx,
+            documents=documents_ctx,
         )
+
+    def get_document_context(
+        self,
+        query: str,
+        attachment_ids: list[str] | None = None,
+        max_items: int = 4,
+        max_chars: int = 4000,
+    ) -> str:
+        """Get indexed Library document context for the current ask."""
+        if not self._library_index:
+            return ""
+
+        selected: list[dict] = []
+        seen_ids: set[str] = set()
+        remaining_chars = max_chars
+
+        def add_item(item: dict | None) -> None:
+            nonlocal remaining_chars
+            if not item:
+                return
+            report_id = item.get("report_id")
+            if not report_id or report_id in seen_ids or len(selected) >= max_items:
+                return
+
+            text = (item.get("extracted_text") or item.get("body_text") or "").strip()
+            if not text:
+                return
+
+            excerpt = text[: min(len(text), max(remaining_chars - 200, 0))].strip()
+            if not excerpt:
+                return
+
+            selected.append(
+                {
+                    "report_id": report_id,
+                    "title": item.get("title") or "Untitled document",
+                    "file_name": item.get("file_name") or "",
+                    "source_kind": item.get("source_kind") or "document",
+                    "excerpt": excerpt,
+                }
+            )
+            seen_ids.add(report_id)
+            remaining_chars -= len(excerpt)
+
+        for attachment_id in attachment_ids or []:
+            add_item(self._library_index.get_item_text(attachment_id))
+            if remaining_chars <= 0 or len(selected) >= max_items:
+                break
+
+        if query and remaining_chars > 0 and len(selected) < max_items:
+            for hit in self._library_index.search(query, limit=max_items * 2, status="ready"):
+                add_item(self._library_index.get_item_text(hit["id"]))
+                if remaining_chars <= 0 or len(selected) >= max_items:
+                    break
+
+        if not selected:
+            return ""
+
+        blocks = []
+        for item in selected:
+            file_label = f" ({item['file_name']})" if item["file_name"] else ""
+            blocks.append(f"[DOCUMENT] {item['title']}{file_label}\n{item['excerpt']}")
+        return "DOCUMENT CONTEXT:\n" + "\n\n".join(blocks)
 
     def get_profile_keywords(self) -> list[str]:
         """Extract key terms from profile for intel query augmentation."""
@@ -646,9 +718,10 @@ class RAGRetriever:
                 context_parts = []
                 total_chars = 0
                 for r in results:
-                    text = (
-                        f"[Research: {r.get('title', 'Unknown')}]\n{r.get('content', '')[:1500]}\n"
-                    )
+                    label = r.get("title", "Unknown")
+                    if r.get("change_summary"):
+                        label = f"{label} — {r.get('change_summary')}"
+                    text = f"[Research: {label}]\n{r.get('content', '')[:1500]}\n"
                     if total_chars + len(text) > max_chars:
                         break
                     context_parts.append(text)
@@ -662,7 +735,10 @@ class RAGRetriever:
         for entry in research_entries[:max_entries]:
             try:
                 post = self.journal.storage.read(entry["path"])
-                text = f"[Research: {entry['title']}]\n{post.content[:1500]}\n"
+                label = entry["title"]
+                if post.get("change_summary"):
+                    label = f"{label} — {post.get('change_summary')}"
+                text = f"[Research: {label}]\n{post.content[:1500]}\n"
                 if total_chars + len(text) > max_chars:
                     break
                 context_parts.append(text)

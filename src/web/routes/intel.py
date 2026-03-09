@@ -1,14 +1,35 @@
 """Intelligence feed routes."""
 
+from datetime import datetime, timedelta
 from urllib.parse import urlparse
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
-from intelligence.scraper import IntelStorage
+from intelligence.company_watch import CompanyMovementStore, WatchedCompanyResolver
+from intelligence.hiring_signals import HiringSignalStore
+from intelligence.regulatory import RegulatoryAlertStore, RegulatoryWatchResolver
+from intelligence.watchlist import annotate_items, attach_follow_up_state, sort_ranked_items
 from web.auth import get_current_user
-from web.deps import get_coach_paths, get_config
+from web.deps import (
+    get_coach_paths,
+    get_company_movement_store,
+    get_config,
+    get_follow_up_store,
+    get_hiring_signal_store,
+    get_intel_storage,
+    get_profile_path,
+    get_regulatory_alert_store,
+    get_watchlist_store,
+)
+from web.models import (
+    CompanyMovementResponse,
+    HiringSignalResponse,
+    IntelFollowUp,
+    RegulatoryAlertResponse,
+    WatchlistItem,
+)
 from web.user_store import (
     add_user_rss_feed,
     get_user_rss_feeds,
@@ -27,9 +48,64 @@ class RSSFeedRemove(BaseModel):
     url: str
 
 
-def _get_storage() -> IntelStorage:
-    paths = get_coach_paths()
-    return IntelStorage(paths["intel_db"])
+class WatchlistUpsert(BaseModel):
+    label: str
+    kind: str = "theme"
+    aliases: list[str] = []
+    why: str = ""
+    priority: str = "medium"
+    tags: list[str] = []
+    goal: str = ""
+    time_horizon: str = "quarter"
+    source_preferences: list[str] = []
+    domain: str = ""
+    github_org: str = ""
+    ticker: str = ""
+    topics: list[str] = []
+    geographies: list[str] = []
+    linked_dossier_ids: list[str] = []
+
+
+class FollowUpUpsert(BaseModel):
+    url: str
+    title: str
+    saved: bool = False
+    note: str = ""
+    watchlist_ids: list[str] = []
+
+
+def _get_storage():
+    return get_intel_storage()
+
+
+def _get_watchlist_store(user_id: str):
+    return get_watchlist_store(user_id)
+
+
+def _get_follow_up_store(user_id: str):
+    return get_follow_up_store(user_id)
+
+
+def _get_company_store() -> CompanyMovementStore:
+    return get_company_movement_store()
+
+
+def _get_hiring_store() -> HiringSignalStore:
+    return get_hiring_signal_store()
+
+
+def _get_regulatory_store() -> RegulatoryAlertStore:
+    return get_regulatory_alert_store()
+
+
+def _apply_watchlist_state(items: list[dict], user_id: str) -> list[dict]:
+    watchlist_items = _get_watchlist_store(user_id).list_items()
+    if watchlist_items:
+        annotate_items(items, watchlist_items)
+        sort_ranked = sort_ranked_items(items)
+        items[:] = sort_ranked
+    attach_follow_up_state(items, _get_follow_up_store(user_id))
+    return items
 
 
 @router.get("/recent")
@@ -49,9 +125,8 @@ async def get_recent(
     # Personalize: score items against user profile (mirrors _personalize_trending)
     try:
         from intelligence.search import load_profile_terms, score_profile_relevance
-        from web.deps import get_user_paths
 
-        profile_path = get_user_paths(user["id"])["profile"]
+        profile_path = get_profile_path(user["id"])
         terms = load_profile_terms(profile_path)
         if not terms.is_empty:
             for item in items:
@@ -60,6 +135,8 @@ async def get_recent(
                 item["match_reasons"] = matches[:5]
     except Exception:
         pass
+
+    _apply_watchlist_state(items, user["id"])
 
     return items
 
@@ -71,7 +148,143 @@ async def search_intel(
     user: dict = Depends(get_current_user),
 ):
     storage = _get_storage()
-    return storage.search(q, limit=limit)
+    items = storage.search(q, limit=limit)
+    _apply_watchlist_state(items, user["id"])
+    return items
+
+
+@router.get("/watchlist", response_model=list[WatchlistItem])
+async def list_watchlist(user: dict = Depends(get_current_user)):
+    return _get_watchlist_store(user["id"]).list_items()
+
+
+@router.post("/watchlist", response_model=WatchlistItem)
+async def create_watchlist_item(body: WatchlistUpsert, user: dict = Depends(get_current_user)):
+    item = _get_watchlist_store(user["id"]).save_item(body.model_dump())
+    return WatchlistItem(**item)
+
+
+@router.patch("/watchlist/{item_id}", response_model=WatchlistItem)
+async def update_watchlist_item(
+    item_id: str,
+    body: WatchlistUpsert,
+    user: dict = Depends(get_current_user),
+):
+    item = _get_watchlist_store(user["id"]).update_item(item_id, body.model_dump())
+    if not item:
+        raise HTTPException(status_code=404, detail="Watchlist item not found")
+    return WatchlistItem(**item)
+
+
+@router.delete("/watchlist/{item_id}")
+async def delete_watchlist_item(item_id: str, user: dict = Depends(get_current_user)):
+    deleted = _get_watchlist_store(user["id"]).delete_item(item_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Watchlist item not found")
+    return {"ok": True}
+
+
+@router.get("/follow-ups", response_model=list[IntelFollowUp])
+async def list_follow_ups(user: dict = Depends(get_current_user)):
+    return _get_follow_up_store(user["id"]).list_items()
+
+
+@router.put("/follow-ups", response_model=IntelFollowUp)
+async def save_follow_up(body: FollowUpUpsert, user: dict = Depends(get_current_user)):
+    entry = _get_follow_up_store(user["id"]).upsert(**body.model_dump())
+    return IntelFollowUp(**entry)
+
+
+@router.get("/company-movements", response_model=list[CompanyMovementResponse])
+async def list_company_movements(
+    limit: int = Query(default=20, ge=1, le=100),
+    user: dict = Depends(get_current_user),
+):
+    resolver = WatchedCompanyResolver()
+    companies = resolver.from_watchlist_items(_get_watchlist_store(user["id"]).list_items())
+    company_keys = {company["company_key"] for company in companies}
+    items = [
+        item
+        for item in _get_company_store().get_since(
+            datetime.now() - timedelta(days=14), limit=limit * 4
+        )
+        if item.get("company_key") in company_keys
+    ]
+    return [CompanyMovementResponse(**item) for item in items[:limit]]
+
+
+@router.get("/company-movements/{company_key}", response_model=list[CompanyMovementResponse])
+async def get_company_movements(
+    company_key: str,
+    limit: int = Query(default=20, ge=1, le=100),
+    _user: dict = Depends(get_current_user),
+):
+    return [
+        CompanyMovementResponse(**item)
+        for item in _get_company_store().get_recent_for_company(company_key, limit=limit)
+    ]
+
+
+@router.get("/hiring-signals", response_model=list[HiringSignalResponse])
+async def list_hiring_signals(
+    limit: int = Query(default=20, ge=1, le=100),
+    user: dict = Depends(get_current_user),
+):
+    resolver = WatchedCompanyResolver()
+    companies = resolver.from_watchlist_items(_get_watchlist_store(user["id"]).list_items())
+    company_keys = {company["company_key"] for company in companies}
+    items = [
+        item
+        for item in _get_hiring_store().get_recent(limit=limit * 4)
+        if item.get("entity_key") in company_keys
+    ]
+    return [HiringSignalResponse(**item) for item in items[:limit]]
+
+
+@router.get("/hiring-signals/{entity_key}", response_model=list[HiringSignalResponse])
+async def get_hiring_signals_for_entity(
+    entity_key: str,
+    limit: int = Query(default=20, ge=1, le=100),
+    _user: dict = Depends(get_current_user),
+):
+    return [
+        HiringSignalResponse(**item)
+        for item in _get_hiring_store().get_recent(entity_key=entity_key, limit=limit)
+    ]
+
+
+@router.get("/regulatory-alerts", response_model=list[RegulatoryAlertResponse])
+async def list_regulatory_alerts(
+    limit: int = Query(default=20, ge=1, le=100),
+    user: dict = Depends(get_current_user),
+):
+    resolver = RegulatoryWatchResolver()
+    targets = resolver.from_watchlist_items(_get_watchlist_store(user["id"]).list_items())
+    target_keys = {target["target_key"] for target in targets}
+    items = [
+        item
+        for item in _get_regulatory_store().get_recent(
+            datetime.now() - timedelta(days=30), limit=limit * 4
+        )
+        if item.get("target_key") in target_keys
+    ]
+    return [RegulatoryAlertResponse(**item) for item in items[:limit]]
+
+
+@router.get("/regulatory-alerts/{target_key}", response_model=list[RegulatoryAlertResponse])
+async def get_regulatory_alerts_for_target(
+    target_key: str,
+    limit: int = Query(default=20, ge=1, le=100),
+    _user: dict = Depends(get_current_user),
+):
+    items = [
+        item
+        for item in _get_regulatory_store().get_recent(
+            datetime.now() - timedelta(days=90), limit=limit * 4
+        )
+        if item.get("target_key") == target_key
+    ]
+    return [RegulatoryAlertResponse(**item) for item in items[:limit]]
 
 
 @router.get("/health")
@@ -167,9 +380,8 @@ def _personalize_trending(snapshot: dict, user_id: str) -> dict:
     """Re-rank trending topics by profile relevance."""
     try:
         from intelligence.search import load_profile_terms, score_profile_relevance
-        from web.deps import get_user_paths
 
-        profile_path = get_user_paths(user_id)["profile"]
+        profile_path = get_profile_path(user_id)
         terms = load_profile_terms(profile_path)
         if terms.is_empty:
             snapshot["personalized"] = False

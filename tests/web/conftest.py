@@ -1,25 +1,34 @@
 """Shared fixtures for web API tests."""
 
 import os
-from unittest.mock import patch
+from pathlib import Path
+from unittest.mock import MagicMock
 
 import pytest
 from cryptography.fernet import Fernet
 from fastapi.testclient import TestClient
 from jose import jwt
 
+from web.deps import (
+    enforce_onboarding_shared_key_usage_limit,
+    enforce_shared_key_usage_limit,
+    require_personal_research_key,
+)
 from web.rate_limit import reset_rate_limits
 from web.user_store import init_db
+
+TEST_JWT_SECRET = "test-nextauth-secret"
+TEST_SECRET_KEY = Fernet.generate_key().decode()
 
 
 @pytest.fixture
 def secret_key():
-    return Fernet.generate_key().decode()
+    return TEST_SECRET_KEY
 
 
 @pytest.fixture
 def jwt_secret():
-    return "test-nextauth-secret"
+    return TEST_JWT_SECRET
 
 
 @pytest.fixture
@@ -56,19 +65,6 @@ def auth_headers_b(auth_token_b):
 
 
 @pytest.fixture
-def mock_paths(tmp_path):
-    """Each test gets a fresh temp directory."""
-    journal_dir = tmp_path / "journal"
-    journal_dir.mkdir()
-    return {
-        "journal_dir": journal_dir,
-        "chroma_dir": tmp_path / "chroma",
-        "intel_db": tmp_path / "intel.db",
-        "log_file": tmp_path / "coach.log",
-    }
-
-
-@pytest.fixture
 def users_db(tmp_path):
     """Fresh users.db for each test."""
     db_path = tmp_path / "users.db"
@@ -76,59 +72,70 @@ def users_db(tmp_path):
     return db_path
 
 
-@pytest.fixture
-def client(jwt_secret, secret_key, tmp_path, users_db):
-    """Test client with per-user tmp dirs."""
+@pytest.fixture(scope="session")
+def app():
+    from web.app import create_app
+
     env = {
-        "NEXTAUTH_SECRET": jwt_secret,
-        "SECRET_KEY": secret_key,
+        "NEXTAUTH_SECRET": TEST_JWT_SECRET,
+        "SECRET_KEY": TEST_SECRET_KEY,
         "ANTHROPIC_API_KEY": "test-key",
+        "DISABLE_INTEL_SCHEDULER": "1",
     }
+    previous = {key: os.environ.get(key) for key in env}
+    os.environ.update(env)
+    try:
+        app = create_app()
+        yield app
+    finally:
+        for key, value in previous.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
 
-    def _mock_user_paths(user_id: str) -> dict:
-        base = tmp_path / "users" / user_id
-        base.mkdir(parents=True, exist_ok=True)
-        jdir = base / "journal"
-        jdir.mkdir(exist_ok=True)
-        return {
-            "journal_dir": jdir,
-            "chroma_dir": base / "chroma",
-            "recommendations_dir": base / "recommendations",
-            "profile": base / "profile.yaml",
-            "intel_db": tmp_path / "intel.db",
-        }
 
-    patches = [
-        patch.dict(os.environ, env),
-        patch("web.deps.get_user_paths", side_effect=_mock_user_paths),
-        patch("web.routes.journal.get_user_paths", side_effect=_mock_user_paths),
-        patch("web.routes.goals.get_user_paths", side_effect=_mock_user_paths),
-        patch("web.routes.insights.get_user_paths", side_effect=_mock_user_paths),
-        patch(
-            "web.routes.intel.get_coach_paths",
-            return_value={
-                "journal_dir": tmp_path / "journal",
-                "chroma_dir": tmp_path / "chroma",
-                "intel_db": tmp_path / "intel.db",
-                "log_file": tmp_path / "coach.log",
-            },
-        ),
-        # user_store uses test DB — real get_or_create_user so FK rows exist
-        patch("web.user_store._DEFAULT_DB_PATH", users_db),
-        # Disable rate limiting and shared-key blocks in tests (env key = shared)
-        patch("web.routes.advisor.check_shared_key_rate_limit", lambda uid, **kw: None),
-        patch("web.routes.onboarding.check_shared_key_rate_limit", lambda uid, **kw: None),
-        patch("web.routes.research._check_shared_key", lambda uid: None),
-    ]
+@pytest.fixture(autouse=True)
+def _web_test_state(app, tmp_path):
+    import web.routes.greeting as greeting_routes
+    import web.routes.journal as journal_routes
 
-    for p in patches:
-        p.start()
+    coach_home = Path(tmp_path)
+    previous = {
+        "COACH_HOME": os.environ.get("COACH_HOME"),
+        "COACH_USERS_DB_PATH": os.environ.get("COACH_USERS_DB_PATH"),
+    }
+    os.environ["COACH_HOME"] = str(coach_home)
+    os.environ["COACH_USERS_DB_PATH"] = str(coach_home / "users.db")
 
-    from web.app import app
-
+    init_db()
     reset_rate_limits()
-    yield TestClient(app)
 
-    for p in reversed(patches):
-        p.stop()
-    reset_rate_limits()
+    app.dependency_overrides[enforce_shared_key_usage_limit] = lambda: None
+    app.dependency_overrides[enforce_onboarding_shared_key_usage_limit] = lambda: None
+    app.dependency_overrides[require_personal_research_key] = lambda: None
+
+    original_schedule_greeting = greeting_routes._schedule_greeting_refresh
+    original_schedule_hooks = journal_routes._schedule_post_create_hooks
+    greeting_routes._schedule_greeting_refresh = MagicMock(name="schedule_greeting_refresh")
+    journal_routes._schedule_post_create_hooks = MagicMock(name="schedule_post_create_hooks")
+
+    try:
+        yield
+    finally:
+        greeting_routes._schedule_greeting_refresh = original_schedule_greeting
+        journal_routes._schedule_post_create_hooks = original_schedule_hooks
+        app.dependency_overrides.clear()
+        reset_rate_limits()
+        for key, value in previous.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
+
+
+@pytest.fixture(scope="session")
+def client(app):
+    """Shared test client with per-test env isolation."""
+    with TestClient(app) as test_client:
+        yield test_client

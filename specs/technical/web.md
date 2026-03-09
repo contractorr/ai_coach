@@ -2,7 +2,7 @@
 
 ## Overview
 
-FastAPI + Next.js web layer for multi-user access to the AI coach. FastAPI backend handles JWT auth (via NextAuth), Fernet-encrypted per-user secrets, and per-user data isolation under `~/coach/users/{safe_user_id}/`. 20 route modules expose JSON REST endpoints and one SSE streaming endpoint. Intel DB stays global (shared across all users).
+FastAPI + Next.js web layer for multi-user access to the AI coach. FastAPI backend handles JWT auth (via NextAuth), Fernet-encrypted per-user secrets, and per-user data isolation under `~/coach/users/{safe_user_id}/`. 19 route modules expose JSON REST endpoints and one SSE streaming endpoint. Intel DB stays global (shared across all users).
 
 ## Dependencies
 
@@ -22,9 +22,10 @@ FastAPI + Next.js web layer for multi-user access to the AI coach. FastAPI backe
 Creates `FastAPI(title="AI Coach", version="0.1.0")` with an async lifespan that:
 1. Calls `init_db()` to create SQLite tables.
 2. Calls `_verify_secret_key()` — Fernet encrypt+decrypt roundtrip canary. **Raises `RuntimeError` and aborts startup** if `SECRET_KEY` is missing or canary fails.
-3. Logs `web.startup`.
+3. Best-effort starts the intel scheduler unless `DISABLE_INTEL_SCHEDULER` is truthy.
+4. Logs `web.startup`.
 
-20 routers mounted via `app.include_router(...)`. CORS middleware configured from `FRONTEND_ORIGIN` env var (default `http://localhost:3000`); allows credentials, all methods, all headers. `learning` router to be removed in Phase 2 (learning paths merged into goals).
+20 routers mounted via `app.include_router(...)`. CORS middleware configured from `FRONTEND_ORIGIN` env var (default `http://localhost:3000`); allows credentials, all methods, all headers.
 
 `GET /api/health` returns `{"status": "ok"}` — unauthenticated.
 
@@ -50,6 +51,7 @@ No public API beyond ASGI app object. All configuration via env vars.
 | `SECRET_KEY` | required | env var |
 | `NEXTAUTH_SECRET` | required | env var |
 | `FRONTEND_ORIGIN` | `http://localhost:3000` | env var |
+| `DISABLE_INTEL_SCHEDULER` | unset / false | env var |
 
 ---
 
@@ -145,6 +147,7 @@ Multi-user SQLite store at `~/coach/users.db` (override via `COACH_HOME` env or 
 | `user_secrets` | `(user_id, key) PK`, `value TEXT` | Fernet-encrypted values |
 | `conversations` | `id TEXT PK`, `user_id FK`, `title`, `created_at`, `updated_at` | CASCADE delete |
 | `conversation_messages` | `id TEXT PK`, `conversation_id FK`, `role CHECK(user/assistant)`, `content`, `created_at` | CASCADE delete |
+| `conversation_message_attachments` | `id TEXT PK`, `message_id FK`, `library_item_id`, `file_name`, `mime_type` | Per-message attachment linkage to user Library items |
 | `onboarding_responses` | `id AUTOINCREMENT`, `user_id FK`, `turn_number`, `role`, `content` | |
 | `engagement_events` | `id AUTOINCREMENT`, `user_id FK`, `event_type CHECK(...)`, `target_type`, `target_id`, `metadata_json` | 6 valid event types |
 | `usage_events` | `id AUTOINCREMENT`, `event`, `user_id`, `metadata` | Fail-silent analytics |
@@ -210,6 +213,8 @@ def get_all_user_rss_feeds() -> list[dict]
 
 Thin wrapper over `users.db` `conversations` + `conversation_messages` tables (reuses `_get_conn` from `user_store`). Conversations are keyed by `uuid4().hex` IDs. `get_messages` uses a subquery: fetches last N by `DESC`, returns `ASC` (oldest-first for LLM history).
 
+For document-aware chat, `conversation_message_attachments` lets each user turn retain zero or more Library attachment references without inlining binary data into message rows.
+
 `conversation_belongs_to(conv_id, user_id)` is used as an ownership check before operations; returns bool (no exception).
 
 `add_message` updates `conversations.updated_at` in the same transaction.
@@ -220,7 +225,7 @@ Thin wrapper over `users.db` `conversations` + `conversation_messages` tables (r
 def create_conversation(user_id, title, db_path=None) -> str          # returns conv_id (hex UUID)
 def list_conversations(user_id, limit=50) -> list[dict]               # newest-first
 def get_conversation(conv_id, user_id) -> dict | None                 # includes messages
-def add_message(conv_id, role, content) -> str                        # returns msg_id
+def add_message(conv_id, role, content, attachments=None) -> str      # returns msg_id
 def get_messages(conv_id, limit=20) -> list[dict]                     # oldest-first, last N
 def delete_conversation(conv_id, user_id) -> bool
 def conversation_belongs_to(conv_id, user_id) -> bool
@@ -228,11 +233,14 @@ def conversation_belongs_to(conv_id, user_id) -> bool
 
 `list_conversations` returns: `{id, title, updated_at, message_count}` (LEFT JOIN count).
 
+Attachment-aware `get_messages()` / `get_conversation()` return message objects with optional `attachments: list[{library_item_id, file_name, mime_type, title?, source_kind?}]`.
+
 #### Invariants
 
 - Title truncated to 80 chars on create.
 - `get_messages` returns at most `limit` messages, always in chronological order.
 - `delete_conversation` cascade-deletes messages (FK ON DELETE CASCADE).
+- Attachment rows must be deleted when their parent message is deleted.
 - Cross-user access is prevented at query level (`WHERE id = ? AND user_id = ?`).
 
 ---
@@ -250,9 +258,9 @@ def conversation_belongs_to(conv_id, user_id) -> bool
 | Key | Path | Notes |
 |---|---|---|
 | `journal_dir` | `~/coach/users/{safe_id}/journal/` | |
+| `data_dir` | `~/coach/users/{safe_id}/` | Parent directory for library, memory db, and other user-scoped stores |
 | `chroma_dir` | `~/coach/users/{safe_id}/chroma/` | |
 | `recommendations_dir` | `~/coach/users/{safe_id}/recommendations/` | |
-| `learning_paths_dir` | `~/coach/users/{safe_id}/learning_paths/` | DEPRECATED — to be removed in Phase 2 |
 | `profile` | `~/coach/users/{safe_id}/profile.yaml` | |
 | `intel_db` | `~/coach/intel.db` (global, not per-user) | |
 
@@ -313,21 +321,25 @@ State is process-local; multiple worker processes do not share rate limit counte
 
 ### Route Modules
 **File:** `src/web/routes/*.py`
-**Status:** Stable (settings, journal, advisor, profile, user, engagement, pageview, admin) / Experimental (goals, intel, research, briefing, recommendations, learning, insights, memory, threads, onboarding)
+**Status:** Stable (settings, journal, advisor, profile, user, engagement, pageview, admin) / Experimental (goals, intel, research, briefing, recommendations, insights, memory, threads, onboarding, greeting, suggestions)
 
 #### Behavior
 
 All routes require `Depends(get_current_user)` except `GET /api/health` (in `app.py`). All use `get_user_paths(user["id"])` for per-user data isolation.
 
 **Pattern: simple CRUD wrapping a storage class**
-Used by: `journal`, `goals`, `profile`, `recommendations`, `memory`, `threads`, `learning`
+Used by: `journal`, `goals`, `profile`, `recommendations`, `memory`, `threads`
 
 Each route: resolves user paths → instantiates storage class with per-user path → delegates to storage method → maps result to Pydantic response model. Path traversal protection on file-based routes via `_validate_journal_path()` (checks resolved path is inside `journal_dir`).
 
 **Pattern: advisor (non-trivial)**
-`POST /api/advisor/ask` — Creates or reuses a `conversation_id`, loads last 20 messages (trimmed to 64k chars), saves user message, calls `AdvisorEngine.ask()` in `asyncio.to_thread`, saves assistant response, logs `chat_query` usage event. Builds a fresh `AdvisorEngine` instance per request.
+`POST /api/advisor/ask` — Creates or reuses a `conversation_id`, loads last 20 messages (trimmed to 64k chars), saves user message, calls `AdvisorEngine.ask()` in `asyncio.to_thread`, saves assistant response, logs `chat_query` usage event. Builds a fresh `AdvisorEngine` instance per request. The JSON request accepts `attachment_ids` so chat turns can reference already-uploaded Library items.
 
-`POST /api/advisor/ask/stream` — SSE streaming variant. Uses `asyncio.Queue` as producer-consumer between engine thread and SSE generator. Engine runs in `loop.run_in_executor`. Events emitted: `tool_start`, `tool_done`, `answer`, `error`. `answer` event emitted by SSE generator only if agentic callback didn't already emit one. Returns `StreamingResponse(media_type="text/event-stream")`.
+`POST /api/advisor/ask/stream` — SSE streaming variant. Uses `asyncio.Queue` as producer-consumer between engine thread and SSE generator. Engine runs in `loop.run_in_executor`. Events emitted: `tool_start`, `tool_done`, `answer`, `error`. `answer` event emitted by SSE generator only if agentic callback didn't already emit one. Returns `StreamingResponse(media_type="text/event-stream")`. The JSON request accepts `attachment_ids` referencing uploaded Library items.
+
+`library.py`:
+- `POST /api/library/reports/upload` validates and stores PDFs, extracts text, indexes content, and returns a Library item that chat can attach immediately.
+- `GET /api/library/reports/{report_id}/file` streams the original uploaded file back through an ownership-checked path.
 
 **Shared-key constraints** (applied in `advisor` and `onboarding`):
 - `check_shared_key_rate_limit(user_id)` called before LLM operations.
@@ -339,6 +351,11 @@ Fired as `asyncio.create_task` (background, best-effort) after journal create/qu
 2. Thread detection via `ThreadDetector.detect` (requires `config.threads.enabled` and successful embed).
 3. Memory extraction via `MemoryPipeline.process_journal_entry` (requires `config.memory.enabled`).
 Each step is independent try/except; step 2 is skipped if step 1 fails (needs embedding).
+
+**Current implementation caveats:**
+- `DELETE /api/journal/{filepath}` removes the markdown file only; unlike CLI and MCP delete paths, it does not currently remove embeddings or FTS rows.
+- `memory.py` currently instantiates `FactStore` against global `intel.db`, while journal/advisor flows write and read per-user extracted memory from `~/coach/users/{safe_id}/memory.db`.
+- `threads.py` currently expects `get_user_paths(user_id)["data_dir"]`, but `get_user_paths()` does not return that key, so the web thread routes are currently broken.
 
 **Admin route** (`admin.py`):
 `GET /api/admin/stats?days=30` requires `get_admin_user` (admin-only). Returns `get_usage_stats(days)`. Days param: 1–365.
@@ -363,24 +380,25 @@ Each step is independent try/except; step 2 is skipped if step 1 fails (needs em
 | Module | Prefix | Key Routes |
 |---|---|---|
 | `settings` | `/api/settings` | `GET/PUT` settings, `POST /test-llm` |
-| `journal` | `/api/journal` | CRUD + `POST /quick`; post-create hooks |
-| `advisor` | `/api/advisor` | `POST /ask`, `POST /ask/stream`, conversation CRUD |
-| `goals` | `/api/goals` | CRUD goals, check-in, status, milestones |
-| `intel` | `/api/intel` | List intel items (shared DB) |
+| `journal` | `/api/journal` | list/create/read/update/delete + `POST /quick`; post-create hooks |
+| `advisor` | `/api/advisor` | `POST /ask`, `POST /ask/stream`, conversation CRUD, attachment-aware chat turns |
+| `library` | `/api/library` | report CRUD, PDF upload, file download, search-backed Library browsing |
+| `goals` | `/api/goals` | list/create, check-in, status, milestones, progress |
+| `intel` | `/api/intel` | recent/search/health, RSS feeds, watchlist CRUD, follow-ups, trending, scrape |
 | `research` | `/api/research` | List topics, `POST /run` |
 | `onboarding` | `/api/onboarding` | Chat interview, profile-status, feeds (see profile.md) |
 | `briefing` | `/api/briefing` | Daily briefing, recommendations |
 | `recommendations` | `/api/recommendations` | List/get/update recommendations |
 | `engagement` | `/api/engagement` | Log events, get stats |
-| `profile` | `/api/profile` | `GET/PUT` profile |
+| `profile` | `/api/profile` | `GET/PATCH` profile |
 | `user` | `/api/user` | `GET/PUT /me` |
 | `pageview` | `/api/pageview` | `POST` page view |
-| `learning` | `/api/learning` | DEPRECATED — merged into goals (Phase 2). Routes to be removed |
 | `greeting` | `/api/greeting` | Cached personalized greeting for chat-first home |
 | `admin` | `/api/admin` | `GET /stats` (admin only) |
 | `insights` | `/api/insights` | `GET` active insights |
-| `memory` | `/api/memory` | Facts CRUD, stats |
-| `threads` | `/api/threads` | List threads, entries, reindex |
+| `memory` | `/api/memory` | list/get/delete facts, stats |
+| `threads` | `/api/threads` | list/detail routes; currently miswired |
+| `suggestions` | `/api/suggestions` | merged brief + recommendation suggestions |
 
 #### Invariants
 
@@ -389,6 +407,7 @@ Each step is independent try/except; step 2 is skipped if step 1 fails (needs em
 - Path traversal check: `resolved.is_relative_to(storage.journal_dir)` on all file-path route params.
 - `asyncio.to_thread` used for all synchronous blocking operations (LLM calls, file I/O).
 - Conversation ownership verified via `conversation_belongs_to` before all conversation operations.
+- Attachment IDs passed into advisor routes must resolve to Library items owned by the same user.
 
 #### Error Handling
 
@@ -398,6 +417,8 @@ Common patterns:
 |---|---|
 | Missing API key for LLM routes | HTTP 400 or 422 `"No API key configured"` |
 | Conversation not found / wrong user | HTTP 404 |
+| Attachment not found / wrong user | HTTP 404 |
+| Invalid PDF upload | HTTP 400 with validation detail |
 | Path traversal attempt | HTTP 400 `"Invalid path"` |
 | Entry not found | HTTP 404 `"Entry not found"` |
 | ValueError from storage | HTTP 400 with detail |
@@ -420,11 +441,13 @@ Post-create hooks (embed, threads, memory): all exceptions caught and logged as 
   users.db          ← users, secrets, conversations, engagement
   users/
     {safe_user_id}/
-      journal/      ← markdown files (includes goals with type field)
+      journal/      ← markdown files (includes goals with goal_type field)
       chroma/       ← ChromaDB embeddings
       recommendations/
-      learning_paths/ ← DEPRECATED (Phase 2: migrated to goals, dir left for rollback)
+      library/
       profile.yaml
+      memory.db     ← per-user extracted memory used by journal/advisor flows
+      threads.db    ← per-user recurring-thought storage used by journal/advisor flows
 ```
 
 `safe_user_id` replaces `:` → `_` (OAuth provider prefix separator).

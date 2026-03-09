@@ -6,7 +6,7 @@ from pathlib import Path
 
 import structlog
 
-from coach_mcp.bootstrap import get_components
+from coach_mcp.bootstrap import get_components, get_insight_store, get_thread_store
 
 logger = structlog.get_logger()
 
@@ -58,7 +58,6 @@ def _get_proactive_context(args: dict) -> dict:
 
     # Insights (signals + patterns → InsightStore, then query back)
     try:
-        from advisor.insights import InsightStore
         from advisor.signals import SignalDetector
 
         paths_config = config.get("paths", {})
@@ -71,7 +70,7 @@ def _get_proactive_context(args: dict) -> dict:
         # Run pattern detection (also writes to InsightStore)
         from advisor.patterns import PatternDetector
 
-        insight_store = InsightStore(db_path)
+        insight_store = get_insight_store()
         pd = PatternDetector(storage, c.get("embeddings"), config, insight_store=insight_store)
         pd.detect_all()
 
@@ -210,13 +209,9 @@ def _detect_thread(c: dict, entry_id: str) -> dict | None:
         except Exception:
             pass
 
-        from journal.thread_store import ThreadStore
         from journal.threads import ThreadDetector
 
-        paths = c.get("paths", {})
-        intel_db = Path(paths.get("intel_db", "~/coach/intel.db")).expanduser()
-        db_path = intel_db.parent / "threads.db"
-        store = ThreadStore(db_path)
+        store = get_thread_store()
         threads_cfg = config_model.threads
         detector = ThreadDetector(
             c["embeddings"],

@@ -6,9 +6,9 @@ from typing import Optional
 import httpx
 import structlog
 
-from cli.retry import http_retry
 from intelligence.scraper import BaseScraper, IntelItem, IntelStorage
 from intelligence.utils import detect_tags
+from retry_utils import http_retry
 from shared_types import IntelSource
 
 logger = structlog.get_logger().bind(source="reddit")
@@ -37,7 +37,7 @@ class RedditScraper(BaseScraper):
         self.limit = limit
         self.timeframe = timeframe  # hour, day, week, month, year, all
         # Reddit requires unique user agent
-        self.client.headers["User-Agent"] = "AI-Coach/1.0 (Personal Research Bot)"
+        self.set_client_headers(**{"User-Agent": "AI-Coach/1.0 (Personal Research Bot)"})
 
     @property
     def source_name(self) -> str:

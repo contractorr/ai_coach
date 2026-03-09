@@ -1,5 +1,6 @@
 """Tests for intelligence, recommendations, and research MCP tools."""
 
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -15,7 +16,7 @@ def mock_components():
     components = {
         "config": {"intelligence": {}, "paths": {"intel_db": "/tmp/intel.db"}},
         "config_model": MagicMock(),
-        "paths": {},
+        "paths": {"intel_db": Path("/tmp/intel.db")},
         "storage": MagicMock(),
         "embeddings": MagicMock(),
         "search": MagicMock(),
@@ -105,6 +106,32 @@ def test_intel_scrape_now(mock_components):
         assert result["embeddings_synced"]["added"] == 3
 
 
+def test_watchlist_upsert_and_list(mock_components, tmp_path):
+    """Watchlist MCP tools should persist and return items."""
+    from coach_mcp.tools.intelligence import _watchlist_list, _watchlist_upsert
+
+    mock_components["paths"] = {"intel_db": tmp_path / "intel.db"}
+
+    created = _watchlist_upsert({"label": "OpenAI", "priority": "high", "why": "career"})
+    assert created["item"]["label"] == "OpenAI"
+
+    listed = _watchlist_list({})
+    assert listed["count"] == 1
+    assert listed["items"][0]["label"] == "OpenAI"
+
+
+def test_watchlist_delete(mock_components, tmp_path):
+    """Watchlist delete should remove persisted item."""
+    from coach_mcp.tools.intelligence import _watchlist_delete, _watchlist_upsert
+
+    mock_components["paths"] = {"intel_db": tmp_path / "intel.db"}
+
+    created = _watchlist_upsert({"label": "Anthropic"})
+    item_id = created["item"]["id"]
+    result = _watchlist_delete({"item_id": item_id})
+    assert result["success"] is True
+
+
 def test_recommendations_list(mock_components):
     """recommendations_list should return recommendations."""
     from coach_mcp.tools.recommendations import _list_recs
@@ -156,6 +183,85 @@ def test_recommendations_rate(mock_components):
         assert result["rating"] == 5
 
 
+def test_recommendations_action_create(mock_components):
+    """recommendations_action_create should delegate to storage."""
+    from coach_mcp.tools.recommendations import _create_action
+
+    with patch("coach_mcp.tools.recommendations._get_rec_storage") as mock_get:
+        rec_storage = MagicMock()
+        mock_get.return_value = rec_storage
+        rec_storage.create_action_item.return_value = {"status": "accepted"}
+        rec_storage.get_action_item.return_value = MagicMock(action_item={"status": "accepted"})
+
+        result = _create_action({"rec_id": "abc123", "due_window": "today"})
+        assert result["success"] is True
+        assert result["action_item"]["status"] == "accepted"
+
+
+def test_recommendations_action_update(mock_components):
+    """recommendations_action_update should delegate to storage."""
+    from coach_mcp.tools.recommendations import _update_action
+
+    with patch("coach_mcp.tools.recommendations._get_rec_storage") as mock_get:
+        rec_storage = MagicMock()
+        mock_get.return_value = rec_storage
+        rec_storage.update_action_item.return_value = {"status": "completed"}
+
+        result = _update_action({"rec_id": "abc123", "status": "completed"})
+        assert result["success"] is True
+        assert result["action_item"]["status"] == "completed"
+
+
+def test_recommendations_action_list(mock_components):
+    """recommendations_action_list should return tracked actions."""
+    from coach_mcp.tools.recommendations import _list_actions
+
+    with patch("coach_mcp.tools.recommendations._get_rec_storage") as mock_get:
+        rec_storage = MagicMock()
+        mock_get.return_value = rec_storage
+        rec_storage.list_action_items.return_value = [
+            MagicMock(
+                recommendation_id="abc123",
+                recommendation_title="Ship MVP",
+                category="projects",
+                score=8.5,
+                recommendation_status="in_progress",
+                action_item={"status": "accepted"},
+            )
+        ]
+
+        result = _list_actions({"limit": 10})
+        assert result["count"] == 1
+        assert result["actions"][0]["title"] == "Ship MVP"
+
+
+def test_recommendations_action_weekly_plan(mock_components):
+    """recommendations_action_weekly_plan should return weekly plan items."""
+    from coach_mcp.tools.recommendations import _weekly_plan
+
+    with patch("coach_mcp.tools.recommendations._get_rec_storage") as mock_get:
+        rec_storage = MagicMock()
+        mock_get.return_value = rec_storage
+        rec_storage.build_weekly_plan.return_value = {
+            "items": [
+                MagicMock(
+                    recommendation_id="abc123",
+                    recommendation_title="Ship MVP",
+                    category="projects",
+                    score=8.5,
+                    action_item={"status": "accepted"},
+                )
+            ],
+            "capacity_points": 6,
+            "used_points": 2,
+            "remaining_points": 4,
+        }
+
+        result = _weekly_plan({"capacity_points": 6})
+        assert result["used_points"] == 2
+        assert result["items"][0]["title"] == "Ship MVP"
+
+
 def test_research_topics(mock_components):
     """research_topics should return topic suggestions."""
     from coach_mcp.tools.research import _topics
@@ -190,3 +296,51 @@ def test_research_run(mock_components):
         result = _run({"topic": "AI agents"})
         assert result["count"] == 1
         assert result["reports"][0]["sources_count"] == 2
+
+
+def test_research_run_with_dossier(mock_components):
+    """research_run should forward dossier IDs."""
+    from coach_mcp.tools.research import _run
+
+    with patch("coach_mcp.tools.research._get_scheduler") as mock_get:
+        scheduler = MagicMock()
+        mock_get.return_value = scheduler
+        scheduler.run_research_now.return_value = [
+            {"topic": "AI agents", "dossier_id": "dos-1", "sources": []}
+        ]
+
+        result = _run({"dossier_id": "dos-1"})
+        assert result["count"] == 1
+        scheduler.run_research_now.assert_called_once_with(topic=None, dossier_id="dos-1")
+
+
+def test_research_dossiers_list(mock_components):
+    """research_dossiers_list should return dossier summaries."""
+    from coach_mcp.tools.research import _dossiers
+
+    with patch("coach_mcp.tools.research._get_scheduler") as mock_get:
+        scheduler = MagicMock()
+        mock_get.return_value = scheduler
+        scheduler.list_research_dossiers.return_value = [
+            {"dossier_id": "dos-1", "topic": "AI agents"}
+        ]
+
+        result = _dossiers({})
+        assert result["count"] == 1
+        assert result["dossiers"][0]["dossier_id"] == "dos-1"
+
+
+def test_research_dossier_create(mock_components):
+    """research_dossier_create should create a dossier."""
+    from coach_mcp.tools.research import _create_dossier
+
+    with patch("coach_mcp.tools.research._get_scheduler") as mock_get:
+        scheduler = MagicMock()
+        mock_get.return_value = scheduler
+        scheduler.create_research_dossier.return_value = {
+            "dossier_id": "dos-1",
+            "topic": "AI agents",
+        }
+
+        result = _create_dossier({"topic": "AI agents"})
+        assert result["dossier_id"] == "dos-1"

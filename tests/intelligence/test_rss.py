@@ -9,45 +9,40 @@ import pytest
 class TestRSSFeedScraper:
     """Test RSSFeedScraper (async)."""
 
-    async def test_source_name(self, temp_dirs):
+    @pytest.fixture(scope="class")
+    def storage(self):
+        return MagicMock(name="intel_storage")
+
+    async def test_source_name(self, storage):
         """Test source name extraction from URL."""
-        from intelligence.scraper import IntelStorage
         from intelligence.sources.rss import RSSFeedScraper
 
-        storage = IntelStorage(temp_dirs["intel_db"])
         scraper = RSSFeedScraper(storage, "https://example.com/feed.xml")
 
         assert "example" in scraper.source_name
         await scraper.close()
 
-    async def test_source_name_custom(self, temp_dirs):
+    async def test_source_name_custom(self, storage):
         """Test custom source name."""
-        from intelligence.scraper import IntelStorage
         from intelligence.sources.rss import RSSFeedScraper
 
-        storage = IntelStorage(temp_dirs["intel_db"])
         scraper = RSSFeedScraper(storage, "https://example.com/feed.xml", name="custom")
 
         assert scraper.source_name == "rss:custom"
         await scraper.close()
 
-    async def test_extract_name_from_url(self, temp_dirs):
+    async def test_extract_name_from_url(self, storage):
         """Test URL name extraction."""
-        from intelligence.scraper import IntelStorage
         from intelligence.sources.rss import RSSFeedScraper
 
-        storage = IntelStorage(temp_dirs["intel_db"])
         scraper = RSSFeedScraper(storage, "https://www.techcrunch.com/feed/")
 
         assert "techcrunch" in scraper.source_name
         await scraper.close()
 
-    async def test_context_manager(self, temp_dirs):
+    async def test_context_manager(self, storage):
         """Test async context manager."""
-        from intelligence.scraper import IntelStorage
         from intelligence.sources.rss import RSSFeedScraper
-
-        storage = IntelStorage(temp_dirs["intel_db"])
 
         async with RSSFeedScraper(storage, "https://example.com/feed") as scraper:
             assert "rss:" in scraper.source_name

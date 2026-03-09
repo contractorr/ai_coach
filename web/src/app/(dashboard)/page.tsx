@@ -3,39 +3,56 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
+import { ChatAttachmentBadges, ChatPdfAttachmentPicker } from "@/components/ChatPdfAttachments";
+import { ReturnBriefCard } from "@/components/home/ReturnBriefCard";
 import { useToken } from "@/hooks/useToken";
+import { useChatPdfAttachments } from "@/hooks/useChatPdfAttachments";
 import { MessageRenderer } from "@/components/MessageRenderer";
 import { Check, ExternalLink, PenLine, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { apiFetch, apiFetchSSE } from "@/lib/api";
 import { TOOL_LABELS } from "@/lib/constants";
-import type { GreetingResponse } from "@/types/greeting";
-
-interface Message {
-  role: "user" | "assistant";
-  content: string;
-}
+import type { ChatMessage } from "@/types/chat";
+import type { GreetingResponse, ReturnBrief } from "@/types/greeting";
 
 type InputMode = "ask" | "capture";
 
 export default function HomePage() {
   const token = useToken();
   const [greeting, setGreeting] = useState<string | null>(null);
+  const [returnBrief, setReturnBrief] = useState<ReturnBrief | null>(null);
+  const [dismissedReturnBriefAt, setDismissedReturnBriefAt] = useState<string | null>(null);
   const [greetingLoaded, setGreetingLoaded] = useState(false);
   const [userName, setUserName] = useState<string | null>(null);
 
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [mode, setMode] = useState<InputMode>("ask");
   const [loading, setLoading] = useState(false);
   const [toolStatus, setToolStatus] = useState<string | null>(null);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [captured, setCaptured] = useState(false);
+  const { attachments, addFiles, removeAttachment, uploadPending, uploading, clearAttachments } =
+    useChatPdfAttachments(token);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const retried = useRef(false);
+  const lastReturnBriefAt = useRef<string | null>(null);
+
+  const applyGreetingResponse = useCallback((data: GreetingResponse) => {
+    setGreeting(data.text);
+
+    const nextReturnBrief = data.return_brief ?? null;
+    setReturnBrief(nextReturnBrief);
+
+    const nextGeneratedAt = nextReturnBrief?.generated_at ?? null;
+    if (nextGeneratedAt && nextGeneratedAt !== lastReturnBriefAt.current) {
+      setDismissedReturnBriefAt(null);
+    }
+    lastReturnBriefAt.current = nextGeneratedAt;
+  }, []);
 
   // Fetch greeting + user on mount
   useEffect(() => {
@@ -45,14 +62,14 @@ export default function HomePage() {
     apiFetch<GreetingResponse>("/api/greeting", {}, token)
       .then((data) => {
         if (cancelled) return;
-        setGreeting(data.text);
+        applyGreetingResponse(data);
         // If stale, retry once after 5s
         if (data.stale && !retried.current) {
           retried.current = true;
           setTimeout(() => {
             apiFetch<GreetingResponse>("/api/greeting", {}, token)
               .then((fresh) => {
-                if (!cancelled && !fresh.stale) setGreeting(fresh.text);
+                if (!cancelled && !fresh.stale) applyGreetingResponse(fresh);
               })
               .catch(() => {});
           }, 5000);
@@ -72,7 +89,7 @@ export default function HomePage() {
     return () => {
       cancelled = true;
     };
-  }, [token]);
+  }, [token, applyGreetingResponse]);
 
   // Auto-scroll
   useEffect(() => {
@@ -82,8 +99,12 @@ export default function HomePage() {
     });
   }, [messages, loading]);
 
+  useEffect(() => {
+    if (mode === "capture") clearAttachments();
+  }, [mode, clearAttachments]);
+
   const sendMessage = useCallback(
-    async (question: string, convId: string | null) => {
+    async (question: string, convId: string | null, attachmentIds: string[] = []) => {
       setLoading(true);
       setToolStatus(null);
 
@@ -96,6 +117,7 @@ export default function HomePage() {
               question,
               advice_type: "general",
               conversation_id: convId,
+              attachment_ids: attachmentIds,
             }),
           },
           token,
@@ -137,13 +159,41 @@ export default function HomePage() {
     [token],
   );
 
-  const handleAsk = useCallback(() => {
+  const handleAsk = useCallback(async () => {
     if (!input.trim() || loading) return;
     const question = input.trim();
     setInput("");
-    setMessages((prev) => [...prev, { role: "user", content: question }]);
-    sendMessage(question, conversationId);
-  }, [input, loading, conversationId, sendMessage]);
+    setLoading(true);
+    setToolStatus(attachments.length ? "Uploading PDFs..." : null);
+    try {
+      const uploaded = await uploadPending();
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "user",
+          content: question,
+          attachments: uploaded.map((item) => ({
+            library_item_id: item.attachment_id,
+            file_name: item.file_name,
+            mime_type: item.mime_type,
+            index_status: item.index_status,
+            visibility_state: item.visibility_state,
+            warning: item.warning,
+          })),
+        },
+      ]);
+      clearAttachments();
+      sendMessage(
+        question,
+        conversationId,
+        uploaded.map((item) => item.attachment_id),
+      );
+    } catch (e) {
+      toast.error((e as Error).message);
+      setLoading(false);
+      setToolStatus(null);
+    }
+  }, [input, loading, conversationId, sendMessage, uploadPending, attachments.length, clearAttachments]);
 
   const handleCapture = useCallback(async () => {
     if (!input.trim() || !token) return;
@@ -183,12 +233,21 @@ export default function HomePage() {
   }
 
   const hasConversation = messages.length > 0;
+  const showReturnBrief =
+    returnBrief && returnBrief.generated_at !== dismissedReturnBriefAt;
 
   return (
     <div className="flex h-full flex-col">
       {/* Messages area */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4">
         <div className="mx-auto max-w-2xl space-y-3">
+          {showReturnBrief && returnBrief ? (
+            <ReturnBriefCard
+              brief={returnBrief}
+              onDismiss={() => setDismissedReturnBriefAt(returnBrief.generated_at)}
+            />
+          ) : null}
+
           {/* Greeting as first assistant message */}
           {greeting && (
             <div className="mr-4 rounded-2xl rounded-bl-sm px-4 py-2.5">
@@ -220,7 +279,10 @@ export default function HomePage() {
                   }}
                 />
               ) : (
-                <p className="text-sm">{msg.content}</p>
+                <div>
+                  <ChatAttachmentBadges attachments={msg.attachments} token={token} />
+                  <p className="text-sm">{msg.content}</p>
+                </div>
               )}
             </div>
           ))}
@@ -263,46 +325,56 @@ export default function HomePage() {
 
       {/* Input area */}
       <div className="border-t px-4 py-3">
-        <div className="mx-auto flex max-w-2xl gap-2">
-          <Textarea
-            ref={textareaRef}
-            rows={1}
-            placeholder={mode === "ask" ? "Ask anything..." : "Quick thought..."}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                handleSubmit();
-              }
-            }}
-            className="flex-1 resize-none"
-          />
-          <div className="flex flex-col gap-1 self-end">
-            {captured ? (
-              <Button size="icon" variant="ghost" disabled className="h-9 w-9">
-                <Check className="h-4 w-4 text-green-600" />
-              </Button>
-            ) : (
-              <Button
-                size="icon"
-                onClick={handleSubmit}
-                disabled={!input.trim() || loading}
-                className="h-9 w-9"
+        <div className="mx-auto max-w-2xl">
+          {mode === "ask" && (
+            <ChatPdfAttachmentPicker
+              attachments={attachments}
+              disabled={loading || uploading}
+              onAddFiles={addFiles}
+              onRemove={removeAttachment}
+            />
+          )}
+          <div className={`flex gap-2 ${mode === "ask" ? "mt-3" : ""}`}>
+            <Textarea
+              ref={textareaRef}
+              rows={1}
+              placeholder={mode === "ask" ? "Ask anything..." : "Quick thought..."}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSubmit();
+                }
+              }}
+              className="flex-1 resize-none"
+            />
+            <div className="flex flex-col gap-1 self-end">
+              {captured ? (
+                <Button size="icon" variant="ghost" disabled className="h-9 w-9">
+                  <Check className="h-4 w-4 text-green-600" />
+                </Button>
+              ) : (
+                <Button
+                  size="icon"
+                  onClick={handleSubmit}
+                  disabled={!input.trim() || loading || uploading}
+                  className="h-9 w-9"
+                >
+                  {mode === "ask" ? (
+                    <Send className="h-4 w-4" />
+                  ) : (
+                    <PenLine className="h-4 w-4" />
+                  )}
+                </Button>
+              )}
+              <button
+                onClick={() => setMode((m) => (m === "ask" ? "capture" : "ask"))}
+                className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
               >
-                {mode === "ask" ? (
-                  <Send className="h-4 w-4" />
-                ) : (
-                  <PenLine className="h-4 w-4" />
-                )}
-              </Button>
-            )}
-            <button
-              onClick={() => setMode((m) => (m === "ask" ? "capture" : "ask"))}
-              className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
-            >
-              {mode === "ask" ? "capture" : "ask"}
-            </button>
+                {mode === "ask" ? "capture" : "ask"}
+              </button>
+            </div>
           </div>
         </div>
       </div>

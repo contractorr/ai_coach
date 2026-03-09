@@ -64,6 +64,9 @@ Users who want in-depth understanding of a topic relevant to their goals or inte
 ## Out of Scope
 
 - PDF or academic paper parsing
-- Multi-day research that accumulates over time
 - Collaborative research shared between users
 - Research quality scoring or feedback loops
+
+## Related Features
+
+- Multi-update, long-lived topic tracking is covered by `specs/functional/research-dossiers.md`

@@ -20,11 +20,15 @@ class GoogleTrendsScraper(BaseScraper):
         keywords: list[str] | None = None,
         spike_threshold: float = 20.0,
         timeframe: str = "today 1-m",
+        sleep_fn=None,
+        batch_delay_seconds: float = 2.0,
     ):
         super().__init__(storage)
         self.keywords = keywords or ["AI agents", "LLM fine-tuning"]
         self.spike_threshold = spike_threshold
         self.timeframe = timeframe
+        self.sleep_fn = sleep_fn or asyncio.sleep
+        self.batch_delay_seconds = batch_delay_seconds
 
     @property
     def source_name(self) -> str:
@@ -43,8 +47,8 @@ class GoogleTrendsScraper(BaseScraper):
         batches = [self.keywords[i : i + 5] for i in range(0, len(self.keywords), 5)]
 
         for i, batch in enumerate(batches):
-            if i > 0:
-                await asyncio.sleep(2)  # rate limit between batches
+            if i > 0 and self.batch_delay_seconds > 0:
+                await self.sleep_fn(self.batch_delay_seconds)
 
             try:
                 batch_items = await asyncio.to_thread(self._query_batch, batch, TrendReq)

@@ -1,12 +1,11 @@
-"""Memory routes — list, search, delete facts, stats, backfill."""
+"""Memory routes ? list, search, delete facts, stats, backfill."""
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from memory.models import FactCategory
-from memory.store import FactStore
 from web.auth import get_current_user
-from web.deps import get_user_paths
+from web.deps import get_memory_store
 from web.models import MemoryFact, MemoryStats
 
 logger = structlog.get_logger()
@@ -14,9 +13,8 @@ logger = structlog.get_logger()
 router = APIRouter(prefix="/api/memory", tags=["memory"])
 
 
-def _get_store(user_id: str) -> FactStore:
-    paths = get_user_paths(user_id)
-    return FactStore(paths["intel_db"], paths.get("chroma_dir"))
+def _get_store(user_id: str):
+    return get_memory_store(user_id)
 
 
 @router.get("/facts", response_model=list[MemoryFact])

@@ -21,6 +21,11 @@ Users who set explicit goals during onboarding or manually. Most useful for mid-
 3. Goal gets a status (`active` by default) and 0% progress
 4. Goal has a `type` field: `career`, `learning`, `project`, or `general` (default `general`)
 
+Current interface scope:
+- CLI and web goal creation currently default to `general`
+- MCP goal creation can set `type` explicitly
+- Learning-path migration also produces `type="learning"` goals
+
 ### Milestones
 
 1. User adds milestones to a goal (sub-tasks with titles)
@@ -47,6 +52,21 @@ Users who set explicit goals during onboarding or manually. Most useful for mid-
 - `paused` — temporarily deprioritized
 - `abandoned` — explicitly dropped
 
+### Web goals workspace
+
+1. The web goals page defaults to a focus view that shows `active` and `paused` goals.
+2. Stale goals can be isolated with a dedicated `Needs check-in` filter.
+3. `Completed` and `abandoned` goals remain visible in an archived view instead of crowding the default working list.
+4. The web UI supports quick status transitions from each expanded goal card:
+   - `active` -> `paused`, `completed`, or `abandoned`
+   - `paused` -> `active`, `completed`, or `abandoned`
+   - `abandoned` -> `active`
+5. The web goals page includes title search across the loaded goal list.
+6. The web goals page surfaces a weekly-plan summary so users can see remaining capacity for the current week.
+7. Recommendation action items linked to a goal render inline on that goal card.
+8. Action items without a goal link remain visible in a separate section so they do not disappear.
+9. Recommendation cards on the goals page support inline 1-5 usefulness ratings with optional notes.
+
 ### Goal analysis
 
 1. Advisor can analyze progress on a specific goal or all goals
@@ -68,9 +88,15 @@ Existing learning paths are auto-migrated to goals on first startup post-upgrade
 
 ## Acceptance Criteria
 
-- [ ] User can create, update, and delete goals
-- [ ] Goals have a `type` field (`career`, `learning`, `project`, `general`)
+- [ ] User can create goals, update status, record check-ins, and manage milestones
+- [ ] Direct goal deletion is not currently exposed in CLI, web, or MCP
+- [ ] Goals persist a `goal_type` field (`career`, `learning`, `project`, `general`)
+- [ ] MCP can set goal type on create; CLI and web currently create `general` goals unless migrated or edited out-of-band
 - [ ] Goals support milestones with completion tracking
+- [ ] The web goals page defaults to a focus view and lets users filter to stale, archived, or all goals
+- [ ] The web goals page supports title search across loaded goals
+- [ ] The web goals page surfaces weekly-plan capacity and linked recommendation action items
+- [ ] The web UI exposes quick abandon and reactivate goal actions
 - [ ] Advisor can auto-generate milestones for any goal on request
 - [ ] Check-ins are timestamped and persisted
 - [ ] Progress percentage reflects milestone completion
@@ -89,6 +115,8 @@ Existing learning paths are auto-migrated to goals on first startup post-upgrade
 | Learning path migration fails | Original files untouched; user can retry migration or manually recreate |
 | All milestones completed | Goal progress is 100%; status remains `active` until user marks complete |
 | No active goals | Goal analysis returns empty; agentic prompt has no goals section |
+| Stale filter has no matches | Web UI shows a reassuring empty state instead of an empty list |
+| Search/filter returns no results | Web UI keeps filters visible and offers a reset action |
 | Goal file corrupted | Silently skipped in listings; error on direct access |
 | 8+ active goals | Only first 8 shown in advisor context |
 

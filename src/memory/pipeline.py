@@ -80,6 +80,29 @@ class MemoryPipeline:
         )
         return updates
 
+    def process_document(
+        self, document_id: str, document_text: str, document_metadata: dict | None = None
+    ) -> list[FactUpdate]:
+        """Pipeline for an uploaded document such as a CV."""
+        candidates = self.extractor.extract_from_document(
+            document_id,
+            document_text,
+            document_metadata,
+        )
+        if not candidates:
+            return []
+
+        updates = self.resolver.resolve(candidates)
+        self._execute(updates, candidates)
+
+        logger.info(
+            "memory.document_processed",
+            document_id=document_id,
+            extracted=len(candidates),
+            actions={u.action for u in updates},
+        )
+        return updates
+
     def backfill(self, journal_entries: list[dict]) -> dict:
         """Process all existing journal entries in chronological order."""
         stats = {
@@ -124,6 +147,13 @@ class MemoryPipeline:
         """Re-extract facts from a single entry. Deletes old facts first."""
         self.store.delete_by_source(FactSource.JOURNAL, entry_id)
         return self.process_journal_entry(entry_id, entry_text, entry_metadata)
+
+    def reextract_document(
+        self, document_id: str, document_text: str, document_metadata: dict | None = None
+    ) -> list[FactUpdate]:
+        """Re-extract facts from a single uploaded document."""
+        self.store.delete_by_source(FactSource.DOCUMENT, document_id)
+        return self.process_document(document_id, document_text, document_metadata)
 
     def _execute(self, updates: list[FactUpdate], candidates: list) -> int:
         """Execute resolved actions. Returns count of facts stored."""

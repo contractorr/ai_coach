@@ -4,7 +4,10 @@ from pathlib import Path
 from typing import Optional
 
 import structlog
-import yaml
+
+from coach_config import get_paths as _get_paths
+from coach_config import load_config as _load_config
+from coach_config import load_config_model as _load_config_model
 
 from .config_models import CoachConfig, LimitsConfig
 
@@ -36,26 +39,12 @@ def load_config(config_path: Optional[Path] = None) -> dict:
 
     Returns dict for backwards compatibility. Use load_config_model() for typed access.
     """
-    model = load_config_model(config_path)
-    return model.to_dict()
+    return _load_config(config_path)
 
 
 def load_config_model(config_path: Optional[Path] = None) -> CoachConfig:
     """Load configuration as Pydantic model with validation."""
-    base_config = {}
-
-    path = config_path or find_config()
-    if path and path.exists():
-        try:
-            with open(path) as f:
-                base_config = yaml.safe_load(f) or {}
-        except yaml.YAMLError as e:
-            raise ValueError(f"Invalid YAML in config file: {e}")
-
-    try:
-        return CoachConfig.from_dict(base_config)
-    except (ValueError, TypeError) as e:
-        raise ValueError(f"Config validation failed: {e}")
+    return _load_config_model(config_path)
 
 
 def _deep_merge(base: dict, override: dict) -> dict:
@@ -71,13 +60,7 @@ def _deep_merge(base: dict, override: dict) -> dict:
 
 def get_paths(config: dict) -> dict:
     """Get expanded paths from config."""
-    paths = config.get("paths", DEFAULT_CONFIG["paths"])
-    return {
-        "journal_dir": Path(paths["journal_dir"]).expanduser(),
-        "chroma_dir": Path(paths["chroma_dir"]).expanduser(),
-        "intel_db": Path(paths["intel_db"]).expanduser(),
-        "log_file": Path(paths.get("log_file", "~/coach/coach.log")).expanduser(),
-    }
+    return _get_paths(config)
 
 
 def get_limits(config: dict) -> dict:

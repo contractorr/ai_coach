@@ -4,7 +4,6 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from intelligence.scraper import IntelStorage
 from intelligence.sources.indeed_hiring_lab import IndeedHiringLabScraper
 from shared_types import IntelSource
 
@@ -60,9 +59,9 @@ date,jobcountry,indeed_job_postings_index,variable,display_name
 
 
 class TestIndeedHiringLabScraper:
-    @pytest.fixture
-    def storage(self, tmp_path):
-        return IntelStorage(tmp_path / "intel.db")
+    @pytest.fixture(scope="class")
+    def storage(self):
+        return MagicMock(name="intel_storage")
 
     @pytest.fixture
     def scraper(self, storage):

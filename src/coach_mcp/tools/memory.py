@@ -1,20 +1,10 @@
 """Memory MCP tools — list, search, delete facts, get stats."""
 
-from pathlib import Path
-
-from coach_mcp.bootstrap import get_components
+from coach_mcp.bootstrap import get_memory_store
 
 
 def _get_store():
-    c = get_components()
-    config = c.get("config", {})
-    paths_config = config.get("paths", {})
-    db_path = Path(paths_config.get("intel_db", "~/coach/intel.db")).expanduser()
-    chroma_dir = Path(paths_config.get("chroma_dir", "~/coach/chroma")).expanduser()
-
-    from memory.store import FactStore
-
-    return FactStore(db_path, chroma_dir)
+    return get_memory_store()
 
 
 def _list_facts(args: dict) -> dict:

@@ -620,6 +620,124 @@ Match dict shape: `{goal_path, goal_title, url, title, summary (<=300 chars), sc
 
 ---
 
+### WatchlistStore
+
+**File:** `src/intelligence/watchlist.py`
+**Status:** Experimental
+
+#### Behavior
+
+JSON-backed persistence for user-defined watchlist items. The store is path-scoped so web can use a per-user file under `~/coach/users/{safe_user_id}/`, while CLI and MCP can use a single-user file adjacent to `intel_db`.
+
+**Item shape:**
+
+| Field | Type | Notes |
+|------|------|-------|
+| `id` | TEXT | Stable opaque id |
+| `label` | TEXT | Primary watched entity or theme |
+| `kind` | TEXT | e.g. `company`, `person`, `technology`, `theme`, `event`, `role` |
+| `aliases` | JSON array | Optional alternate spellings / phrases |
+| `why` | TEXT | Optional reason shown in "Why this matters to you" |
+| `priority` | TEXT | `high` / `medium` / `low` |
+| `tags` | JSON array | Free-form grouping labels |
+| `goal` | TEXT | Optional linked goal path or title |
+| `time_horizon` | TEXT | e.g. `now`, `quarter`, `year`, `someday` |
+| `source_preferences` | JSON array | Optional preferred source names |
+| `created_at` | ISO timestamp | UTC |
+| `updated_at` | ISO timestamp | UTC |
+
+Normalized label de-duplication is case-insensitive and whitespace-insensitive; save/update performs upsert semantics when the same normalized label already exists.
+
+#### Inputs / Outputs
+
+```python
+def list_items(self) -> list[dict]
+
+def save_item(self, item: dict) -> dict
+
+def update_item(self, item_id: str, updates: dict) -> dict | None
+
+def delete_item(self, item_id: str) -> bool
+```
+
+Returned items are sorted by `priority` (`high → medium → low`) then `updated_at DESC`.
+
+---
+
+### WatchlistMatcher
+
+**File:** `src/intelligence/watchlist.py`
+**Status:** Experimental
+
+#### Behavior
+
+Annotates intel items with watchlist matches and computes a ranking boost.
+
+**Match inputs:** title, summary, first 1000 chars of content, tags, and source name.
+
+**Candidate terms per watchlist item:** `label + aliases + tags` after lowercasing and whitespace normalization.
+
+**Output annotations added to an intel item when matched:**
+
+| Field | Type | Notes |
+|------|------|-------|
+| `watchlist_matches` | list[dict] | Top matches with `watchlist_id`, `label`, `priority`, `matched_terms`, `why`, `score` |
+| `watchlist_score` | float | strongest match score |
+| `why_this_matters` | str | uses `why` when present, otherwise synthesizes from `label` + matched terms |
+
+**Ranking rule:** watchlist matches sort ahead of generic items when scores are otherwise close. Route handlers use `(has_watchlist_match, watchlist_score, profile_relevance, recency)` ordering instead of pure recency.
+
+#### Inputs / Outputs
+
+```python
+def annotate_items(items: list[dict], watchlist_items: list[dict]) -> list[dict]
+
+def find_evidence_for_text(text: str, annotated_items: list[dict], limit: int = 2) -> list[str]
+```
+
+`find_evidence_for_text()` returns short evidence strings suitable for recommendation / insight payloads.
+
+#### Invariants
+
+- Matching is best-effort and deterministic — no LLM calls.
+- Multiple watchlist hits on one intel item are preserved, but only the strongest match drives rank ordering.
+- Empty watchlists are a no-op; items pass through unchanged.
+
+---
+
+### IntelFollowUpStore
+
+**File:** `src/intelligence/watchlist.py`
+**Status:** Experimental
+
+#### Behavior
+
+JSON-backed persistence for saved or annotated intel items. Entries are keyed by intel URL and scoped to the same user path as the watchlist file.
+
+| Field | Type |
+|------|------|
+| `url` | TEXT |
+| `title` | TEXT |
+| `saved` | BOOL |
+| `note` | TEXT |
+| `watchlist_ids` | JSON array |
+| `created_at` | ISO timestamp |
+| `updated_at` | ISO timestamp |
+
+If `saved=False` and `note` is empty, the entry is removed instead of persisted as inert state.
+
+#### Inputs / Outputs
+
+```python
+def get(self, url: str) -> dict | None
+
+def upsert(self, *, url: str, title: str, saved: bool, note: str = "", watchlist_ids: list[str] | None = None) -> dict
+
+def list_items(self) -> list[dict]
+```
+
+---
+
 ### GoalIntelLLMEvaluator
 
 **File:** `src/intelligence/goal_intel_match.py`

@@ -7,7 +7,7 @@ from typing import Optional
 import httpx
 import structlog
 
-from cli.rate_limit import TokenBucketRateLimiter
+from rate_limit import TokenBucketRateLimiter
 
 logger = structlog.get_logger()
 
@@ -37,6 +37,7 @@ class WebSearchClient:
         self.max_results = max_results
         self.max_content_chars = max_content_chars
         self.client = httpx.Client(timeout=30.0)
+        self._closed = False
 
         # Rate limiting
         self._limiter = TokenBucketRateLimiter(requests_per_second=1.0, burst=1)
@@ -153,7 +154,10 @@ class WebSearchClient:
 
     def close(self):
         """Close the HTTP client."""
+        if self._closed:
+            return
         self.client.close()
+        self._closed = True
 
     def __enter__(self):
         return self
@@ -177,6 +181,7 @@ class AsyncWebSearchClient:
         self.max_results = max_results
         self.max_content_chars = max_content_chars
         self.client = httpx.AsyncClient(timeout=30.0)
+        self._closed = False
 
     async def search(self, query: str, search_depth: str = "advanced") -> list[SearchResult]:
         """Async search for a topic."""
@@ -262,7 +267,10 @@ class AsyncWebSearchClient:
 
     async def close(self):
         """Close async client."""
+        if self._closed:
+            return
         await self.client.aclose()
+        self._closed = True
 
     async def __aenter__(self):
         return self

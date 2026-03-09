@@ -1,5 +1,7 @@
 """Tests for Hacker News scraper."""
 
+from unittest.mock import MagicMock
+
 import pytest
 
 
@@ -7,34 +9,31 @@ import pytest
 class TestHackerNewsScraper:
     """Test HackerNewsScraper (async)."""
 
-    async def test_source_name(self, temp_dirs):
+    @pytest.fixture(scope="class")
+    def storage(self):
+        return MagicMock(name="intel_storage")
+
+    async def test_source_name(self, storage):
         """Test source name is correct."""
-        from intelligence.scraper import IntelStorage
         from intelligence.sources.hn import HackerNewsScraper
 
-        storage = IntelStorage(temp_dirs["intel_db"])
         scraper = HackerNewsScraper(storage)
 
         assert scraper.source_name == "hackernews"
         await scraper.close()
 
-    async def test_max_stories_config(self, temp_dirs):
+    async def test_max_stories_config(self, storage):
         """Test max stories configuration."""
-        from intelligence.scraper import IntelStorage
         from intelligence.sources.hn import HackerNewsScraper
 
-        storage = IntelStorage(temp_dirs["intel_db"])
         scraper = HackerNewsScraper(storage, max_stories=10)
 
         assert scraper.max_stories == 10
         await scraper.close()
 
-    async def test_context_manager(self, temp_dirs):
+    async def test_context_manager(self, storage):
         """Test async context manager."""
-        from intelligence.scraper import IntelStorage
         from intelligence.sources.hn import HackerNewsScraper
-
-        storage = IntelStorage(temp_dirs["intel_db"])
 
         async with HackerNewsScraper(storage) as scraper:
             assert scraper.source_name == "hackernews"

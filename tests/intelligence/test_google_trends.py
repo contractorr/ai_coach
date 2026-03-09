@@ -6,15 +6,14 @@ from unittest.mock import MagicMock, patch
 import pandas as pd
 import pytest
 
-from intelligence.scraper import IntelStorage
 from intelligence.sources.google_trends import GoogleTrendsScraper
 from shared_types import IntelSource
 
 
 class TestGoogleTrendsScraper:
-    @pytest.fixture
-    def storage(self, tmp_path):
-        return IntelStorage(tmp_path / "intel.db")
+    @pytest.fixture(scope="class")
+    def storage(self):
+        return MagicMock(name="intel_storage")
 
     @pytest.fixture
     def scraper(self, storage):
@@ -109,7 +108,12 @@ class TestGoogleTrendsScraper:
     @pytest.mark.asyncio
     async def test_batching_over_5_keywords(self, storage):
         keywords = ["a", "b", "c", "d", "e", "f", "g"]
-        scraper = GoogleTrendsScraper(storage, keywords=keywords)
+        sleep_calls = []
+
+        async def no_sleep(delay):
+            sleep_calls.append(delay)
+
+        scraper = GoogleTrendsScraper(storage, keywords=keywords, sleep_fn=no_sleep)
 
         call_count = 0
 
@@ -122,6 +126,7 @@ class TestGoogleTrendsScraper:
             await scraper.scrape()
 
         assert call_count == 2  # 5 + 2 = 2 batches
+        assert sleep_calls == [2.0]
 
     def test_query_batch_short_series(self, scraper):
         """Series with < 5 data points is skipped."""

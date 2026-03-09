@@ -1,17 +1,33 @@
-"""Research routes wrapping src/research/agent.py (per-user)."""
+"""Research routes wrapping `src/research/agent.py` for each user."""
 
 import asyncio
 
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, Field
 
 from web.auth import get_current_user
-from web.deps import get_api_key_with_source, get_config, get_user_paths, safe_user_id
+from web.deps import (
+    get_config,
+    get_intel_storage,
+    get_user_paths,
+    require_personal_research_key,
+    safe_user_id,
+)
 
 router = APIRouter(prefix="/api/research", tags=["research"])
 
 
+class DossierCreateRequest(BaseModel):
+    topic: str
+    scope: str = ""
+    core_questions: list[str] = Field(default_factory=list)
+    assumptions: list[str] = Field(default_factory=list)
+    related_goals: list[str] = Field(default_factory=list)
+    tracked_subtopics: list[str] = Field(default_factory=list)
+    open_questions: list[str] = Field(default_factory=list)
+
+
 def _get_agent(user_id: str):
-    from intelligence.scraper import IntelStorage
     from journal.embeddings import EmbeddingManager
     from journal.storage import JournalStorage
     from research.agent import DeepResearchAgent
@@ -24,11 +40,10 @@ def _get_agent(user_id: str):
         paths["chroma_dir"],
         collection_name=f"journal_{safe_user_id(user_id)}",
     )
-    intel_storage = IntelStorage(paths["intel_db"])  # shared
+    intel_storage = get_intel_storage()
 
     cfg = config.to_dict()
 
-    # Overlay user's tavily_api_key if stored
     from web.deps import get_secret_key
     from web.user_store import get_user_secret
 
@@ -47,19 +62,11 @@ def _get_agent(user_id: str):
     )
 
 
-def _check_shared_key(user_id: str):
-    """Block deep research for shared-key users — quality too poor on Haiku."""
-    _key, source = get_api_key_with_source(user_id)
-    if source == "shared":
-        raise HTTPException(
-            status_code=403,
-            detail="Deep research requires your own API key. Add one in Settings to unlock.",
-        )
-
-
 @router.get("/topics")
-async def get_topics(user: dict = Depends(get_current_user)):
-    _check_shared_key(user["id"])
+async def get_topics(
+    user: dict = Depends(get_current_user),
+    _private_key: None = Depends(require_personal_research_key),
+):
     try:
         agent = _get_agent(user["id"])
         return await asyncio.to_thread(agent.get_suggested_topics)
@@ -70,12 +77,69 @@ async def get_topics(user: dict = Depends(get_current_user)):
 @router.post("/run")
 async def run_research(
     topic: str | None = None,
+    dossier_id: str | None = None,
     user: dict = Depends(get_current_user),
+    _private_key: None = Depends(require_personal_research_key),
 ):
-    _check_shared_key(user["id"])
     try:
         agent = _get_agent(user["id"])
-        results = await asyncio.to_thread(agent.run, specific_topic=topic)
+        results = await asyncio.to_thread(agent.run, specific_topic=topic, dossier_id=dossier_id)
         return {"results": results}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/dossiers")
+async def list_dossiers(
+    include_archived: bool = False,
+    limit: int = 50,
+    user: dict = Depends(get_current_user),
+    _private_key: None = Depends(require_personal_research_key),
+):
+    try:
+        agent = _get_agent(user["id"])
+        return await asyncio.to_thread(agent.list_dossiers, include_archived, limit)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/dossiers")
+async def create_dossier(
+    payload: DossierCreateRequest,
+    user: dict = Depends(get_current_user),
+    _private_key: None = Depends(require_personal_research_key),
+):
+    try:
+        agent = _get_agent(user["id"])
+        return await asyncio.to_thread(
+            agent.create_dossier,
+            topic=payload.topic,
+            scope=payload.scope,
+            core_questions=payload.core_questions,
+            assumptions=payload.assumptions,
+            related_goals=payload.related_goals,
+            tracked_subtopics=payload.tracked_subtopics,
+            open_questions=payload.open_questions,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/dossiers/{dossier_id}")
+async def get_dossier(
+    dossier_id: str,
+    user: dict = Depends(get_current_user),
+    _private_key: None = Depends(require_personal_research_key),
+):
+    try:
+        agent = _get_agent(user["id"])
+        dossier = await asyncio.to_thread(agent.get_dossier, dossier_id)
+        if not dossier:
+            raise HTTPException(status_code=404, detail="Dossier not found")
+        return dossier
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

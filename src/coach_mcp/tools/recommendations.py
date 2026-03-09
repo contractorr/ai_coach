@@ -1,15 +1,22 @@
-"""Recommendations MCP tools — list, update status, rate."""
+"""Recommendations MCP tools — list, execution actions, update status, rate."""
 
-from coach_mcp.bootstrap import get_components
+from coach_mcp.bootstrap import get_recommendation_storage
+from services.recommendation_actions import (
+    build_weekly_plan as build_weekly_action_plan,
+)
+from services.recommendation_actions import (
+    create_action_item as create_tracked_action,
+)
+from services.recommendation_actions import (
+    list_action_items as list_tracked_actions,
+)
+from services.recommendation_actions import (
+    update_action_item as update_tracked_action,
+)
 
 
 def _get_rec_storage():
-    from advisor.recommendation_storage import RecommendationStorage
-    from cli.utils import get_rec_db_path
-
-    c = get_components()
-    db_path = get_rec_db_path(c["config"])
-    return RecommendationStorage(db_path)
+    return get_recommendation_storage()
 
 
 def _list_recs(args: dict) -> dict:
@@ -35,10 +42,102 @@ def _list_recs(args: dict) -> dict:
                 "score": r.score,
                 "status": r.status,
                 "created_at": r.created_at,
+                "action_item": (r.metadata or {}).get("action_item"),
             }
             for r in recs
         ],
         "count": len(recs),
+    }
+
+
+def _create_action(args: dict) -> dict:
+    """Create a tracked action item from a recommendation."""
+    rec_storage = _get_rec_storage()
+    rec_id = args["rec_id"]
+    result = create_tracked_action(
+        rec_storage,
+        rec_id,
+        goal_path=args.get("goal_path"),
+        goal_title=args.get("goal_title"),
+        effort=args.get("effort"),
+        due_window=args.get("due_window"),
+        next_step=args.get("next_step"),
+        success_criteria=args.get("success_criteria"),
+    )
+    return {
+        "success": result["success"],
+        "rec_id": rec_id,
+        "action_item": result["action_item"],
+    }
+
+
+def _update_action(args: dict) -> dict:
+    """Update a tracked recommendation action item."""
+    rec_storage = _get_rec_storage()
+    rec_id = args["rec_id"]
+    result = update_tracked_action(
+        rec_storage,
+        rec_id,
+        status=args.get("status"),
+        effort=args.get("effort"),
+        due_window=args.get("due_window"),
+        blockers=args.get("blockers"),
+        review_notes=args.get("review_notes"),
+        next_step=args.get("next_step"),
+        success_criteria=args.get("success_criteria"),
+        goal_path=args.get("goal_path"),
+        goal_title=args.get("goal_title"),
+    )
+    return {"success": result["success"], "rec_id": rec_id, "action_item": result["action_item"]}
+
+
+def _list_actions(args: dict) -> dict:
+    """List tracked recommendation action items."""
+    rec_storage = _get_rec_storage()
+    result = list_tracked_actions(
+        rec_storage,
+        status=args.get("status"),
+        goal_path=args.get("goal_path"),
+        limit=args.get("limit", 20),
+    )
+    return {
+        "actions": [
+            {
+                "rec_id": action["recommendation_id"],
+                "title": action["recommendation_title"],
+                "category": action["category"],
+                "score": action["score"],
+                "recommendation_status": action["recommendation_status"],
+                "action_item": action["action_item"],
+            }
+            for action in result["actions"]
+        ],
+        "count": result["count"],
+    }
+
+
+def _weekly_plan(args: dict) -> dict:
+    """Build a weekly plan from accepted action items."""
+    rec_storage = _get_rec_storage()
+    plan = build_weekly_action_plan(
+        rec_storage,
+        capacity_points=args.get("capacity_points", 6),
+        goal_path=args.get("goal_path"),
+    )
+    return {
+        "items": [
+            {
+                "rec_id": action["recommendation_id"],
+                "title": action["recommendation_title"],
+                "category": action["category"],
+                "score": action["score"],
+                "action_item": action["action_item"],
+            }
+            for action in plan["items"]
+        ],
+        "capacity_points": plan["capacity_points"],
+        "used_points": plan["used_points"],
+        "remaining_points": plan["remaining_points"],
     }
 
 
@@ -101,6 +200,93 @@ TOOLS = [
             "required": ["rec_id", "status"],
         },
         _update_status,
+    ),
+    (
+        "recommendations_action_create",
+        {
+            "description": "Convert a recommendation into a tracked action item.",
+            "type": "object",
+            "properties": {
+                "rec_id": {"type": "string", "description": "Recommendation ID"},
+                "goal_path": {"type": "string", "description": "Optional linked goal path"},
+                "goal_title": {"type": "string", "description": "Optional linked goal title"},
+                "effort": {
+                    "type": "string",
+                    "enum": ["small", "medium", "large"],
+                    "description": "Effort estimate",
+                },
+                "due_window": {
+                    "type": "string",
+                    "enum": ["today", "this_week", "later"],
+                    "description": "Planning bucket",
+                },
+                "next_step": {"type": "string", "description": "Optional override for next step"},
+                "success_criteria": {
+                    "type": "string",
+                    "description": "Optional override for success criteria",
+                },
+            },
+            "required": ["rec_id"],
+        },
+        _create_action,
+    ),
+    (
+        "recommendations_action_update",
+        {
+            "description": "Update a tracked action item for a recommendation.",
+            "type": "object",
+            "properties": {
+                "rec_id": {"type": "string", "description": "Recommendation ID"},
+                "status": {
+                    "type": "string",
+                    "enum": ["accepted", "deferred", "blocked", "completed", "abandoned"],
+                },
+                "effort": {"type": "string", "enum": ["small", "medium", "large"]},
+                "due_window": {"type": "string", "enum": ["today", "this_week", "later"]},
+                "blockers": {"type": "array", "items": {"type": "string"}},
+                "review_notes": {"type": "string"},
+                "next_step": {"type": "string"},
+                "success_criteria": {"type": "string"},
+                "goal_path": {"type": "string"},
+                "goal_title": {"type": "string"},
+            },
+            "required": ["rec_id"],
+        },
+        _update_action,
+    ),
+    (
+        "recommendations_action_list",
+        {
+            "description": "List tracked recommendation action items.",
+            "type": "object",
+            "properties": {
+                "limit": {"type": "integer", "description": "Max results", "default": 20},
+                "status": {
+                    "type": "string",
+                    "enum": ["accepted", "deferred", "blocked", "completed", "abandoned"],
+                },
+                "goal_path": {"type": "string", "description": "Optional linked goal path filter"},
+            },
+            "required": [],
+        },
+        _list_actions,
+    ),
+    (
+        "recommendations_action_weekly_plan",
+        {
+            "description": "Build a weekly plan from accepted tracked recommendation actions.",
+            "type": "object",
+            "properties": {
+                "capacity_points": {
+                    "type": "integer",
+                    "description": "Weekly capacity budget",
+                    "default": 6,
+                },
+                "goal_path": {"type": "string", "description": "Optional linked goal path filter"},
+            },
+            "required": [],
+        },
+        _weekly_plan,
     ),
     (
         "recommendations_rate",

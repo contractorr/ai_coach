@@ -7,8 +7,8 @@ from typing import Optional
 import httpx
 from bs4 import BeautifulSoup
 
-from cli.retry import http_retry
 from intelligence.scraper import BaseScraper, IntelItem, IntelStorage
+from retry_utils import http_retry
 from shared_types import IntelSource
 
 

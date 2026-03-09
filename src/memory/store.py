@@ -7,11 +7,13 @@ from pathlib import Path
 
 import structlog
 
-from db import wal_connect
+from db import ensure_schema_version, wal_connect
 
 from .models import FactCategory, FactSource, StewardFact
 
 logger = structlog.get_logger()
+
+SCHEMA_VERSION = 1
 
 
 class FactStore:
@@ -51,6 +53,7 @@ class FactStore:
                 CREATE INDEX IF NOT EXISTS idx_facts_category
                 ON steward_facts(category)
             """)
+            ensure_schema_version(conn, SCHEMA_VERSION)
 
     @property
     def _chroma(self):

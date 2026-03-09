@@ -29,8 +29,8 @@ class GitHubIssuesScraper(BaseScraper):
         self.languages = languages or ["python"]
         self.labels = labels or ["good-first-issue", "help-wanted"]
         if token:
-            self.client.headers["Authorization"] = f"token {token}"
-        self.client.headers["Accept"] = "application/vnd.github.v3+json"
+            self.set_client_headers(Authorization=f"token {token}")
+        self.set_client_headers(Accept="application/vnd.github.v3+json")
 
     @property
     def source_name(self) -> str:
