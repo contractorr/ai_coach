@@ -45,7 +45,7 @@ export function WorkspacePageHeader({
         </div>
 
         {actions ? (
-          <div className="flex flex-wrap items-center gap-2 lg:justify-end">{actions}</div>
+          <div className="flex shrink-0 flex-wrap items-center gap-2 lg:justify-end">{actions}</div>
         ) : null}
       </div>
     </div>
