@@ -32,5 +32,9 @@ This index summarizes each file in `specs/technical/` after the v2 simplificatio
 | `research-dossiers.md` | Active/archived dossier lifecycle | Research route, escalation route, Radar, Library | Refresh dossier, archive to Library |
 | `research.md` | Research orchestration and outputs | Research services, research route, Library | Start research, produce report, persist output |
 | `since-you-were-away-why-now.md` | Timing/prioritization evidence | Greeting route, suggestions, why-now chips | Re-orient returning user, explain priority |
+| `infra-hardening.md` | Expanded redaction (25+ patterns), RedactingFormatter, MCP traceback removal, thread-safe Metrics with cost tracking | `services/redact.py`, `cli/logging_config.py`, `coach_mcp/server.py`, `observability.py` | Redact, log, track costs |
+| `unified-tool-registry.md` | Single ToolRegistry replacing MCP tuples + advisor registry, with check_fn gates and uniform dispatch | `services/tool_registry.py`, `coach_mcp/server.py`, `advisor/agentic.py`, `advisor/tools.py` | Register, gate, execute |
+| `agentic-context-compression.md` | Token-aware compression with boundary-aligned eviction and LLM summarization | `advisor/context_compressor.py`, `advisor/agentic.py`, `advisor/engine.py` | Track tokens, evict pairs, summarize |
+| `prompt-caching.md` | Anthropic cache_control injection on system prompt + first 3 messages | `llm/providers/anthropic.py`, `advisor/agentic.py`, `observability.py` | Cache prefix, track hits, bill correctly |
 | `TEMPLATE.md` | Template for future technical docs | Module paths, interfaces, product mapping | Describe module, boundaries, consumers |
 | `web.md` | Frontend route map and navigation model | Sidebar, dashboard pages, pageview tracking | Navigate five workspaces and deep links |

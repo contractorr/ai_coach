@@ -31,5 +31,9 @@ This index summarizes each file in `specs/functional/` after the v2 simplificati
 | `research-dossiers.md` | Active-versus-archived dossier lifecycle | Research routes, dossier routes, Radar, Library | Start dossier, refresh dossier, archive dossier |
 | `settings-account.md` | Account, keys, tracked topics, memory | Settings page, settings route, intel route, memory route | Manage account, track topics, delete memory facts |
 | `since-you-were-away-why-now.md` | Return brief plus why-now context | Greeting route, suggestions, Home cards | Return after absence, inspect priorities, open related workspace |
+| `infra-hardening.md` | Expanded secret redaction, MCP error cleanup, thread-safe observability with cost tracking | Logging, MCP server, observability | Redact secrets, track token costs, remove tracebacks |
+| `unified-tool-registry.md` | Single tool registry with availability checks for MCP + advisor | Tool registry, MCP server, agentic orchestrator | Register tool, check availability, execute with uniform errors |
+| `agentic-context-compression.md` | Token-aware context window management for agentic mode | Agentic orchestrator, context compressor, cheap_llm | Compress old turns, summarize evicted context, protect recent turns |
+| `prompt-caching.md` | Anthropic prompt caching for Claude to reduce input token costs | Claude provider, agentic orchestrator | Cache system prompt, track cache hits, reduce costs |
 | `TEMPLATE.md` | Template for future functional docs | Functional spec structure, workspace placement | Define problem, map workspace, list flows |
 | `archive/v2-simplified-product.md` | Accepted simplification decision record | Home, Focus, Radar, Library, Settings, onboarding | Explain five jobs, define simplified flows, list acceptance criteria |
