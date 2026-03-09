@@ -78,6 +78,24 @@ def test_get_dossier_not_found(client, auth_headers):
     assert res.status_code == 404
 
 
+def test_archive_dossier(client, auth_headers):
+    mock_agent = MagicMock()
+    mock_agent.dossiers.update_dossier_metadata.return_value = {
+        "dossier_id": "abc123",
+        "topic": "AI agents",
+        "status": "archived",
+    }
+    with patch(_AGENT_PATCH, return_value=mock_agent):
+        res = client.post("/api/research/dossiers/abc123/archive", headers=auth_headers)
+
+    assert res.status_code == 200
+    assert res.json()["status"] == "archived"
+    mock_agent.dossiers.update_dossier_metadata.assert_called_once_with(
+        "abc123",
+        status="archived",
+    )
+
+
 def test_get_agent_injects_user_tavily_key(client, auth_headers, secret_key):
     captured_config = {}
     mock_agent = MagicMock()

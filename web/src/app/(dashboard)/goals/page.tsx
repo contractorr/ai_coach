@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useToken } from "@/hooks/useToken";
@@ -154,7 +155,7 @@ export default function GoalsPage() {
 
   const loadUnanchored = () => {
     if (!token) return;
-    apiFetch<BriefingRecommendation[]>("/api/recommendations?limit=4", {}, token)
+    apiFetch<BriefingRecommendation[]>("/api/recommendations?limit=3", {}, token)
       .then(setUnanchored)
       .catch(() => {});
   };
@@ -718,56 +719,61 @@ export default function GoalsPage() {
     <div className="mx-auto max-w-3xl space-y-6 p-4 md:p-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-1">
-          <h1 className="text-2xl font-semibold">Goals</h1>
+          <h1 className="text-2xl font-semibold">Focus</h1>
           <p className="text-sm text-muted-foreground">
-            Keep active commitments in focus, catch stale goals early, and turn advice into execution.
+            See your best next moves, keep active goals moving, and turn opportunities into progress.
           </p>
         </div>
-        <Sheet open={createOpen} onOpenChange={setCreateOpen}>
-          <SheetTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" /> New Goal
-            </Button>
-          </SheetTrigger>
-          <SheetContent className="sm:max-w-lg overflow-y-auto">
-            <SheetHeader>
-              <SheetTitle>New goal</SheetTitle>
-              <SheetDescription>
-                What are you committing to next? New web goals start as general goals and can be broken into milestones after creation.
-              </SheetDescription>
-            </SheetHeader>
-            <div className="mt-6 space-y-4 px-6 pb-6">
-              <div className="space-y-1.5">
-                <Label>Title</Label>
-                <Input
-                  value={form.title}
-                  onChange={(e) => setForm({ ...form, title: e.target.value })}
-                  placeholder="Ship the portfolio refresh"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Description</Label>
-                <Textarea
-                  rows={6}
-                  value={form.content}
-                  onChange={(e) => setForm({ ...form, content: e.target.value })}
-                  placeholder="Why this matters, what done looks like, and any constraints to keep in mind."
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Tags (comma-separated)</Label>
-                <Input
-                  value={form.tags}
-                  onChange={(e) => setForm({ ...form, tags: e.target.value })}
-                  placeholder="career, portfolio"
-                />
-              </div>
-              <Button onClick={handleCreate} disabled={creating || !form.title.trim()}>
-                {creating ? "Saving..." : "Add Goal"}
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" asChild>
+            <Link href="/projects">More opportunities</Link>
+          </Button>
+          <Sheet open={createOpen} onOpenChange={setCreateOpen}>
+            <SheetTrigger asChild>
+              <Button>
+                <Plus className="mr-2 h-4 w-4" /> New Goal
               </Button>
-            </div>
-          </SheetContent>
-        </Sheet>
+            </SheetTrigger>
+            <SheetContent className="sm:max-w-lg overflow-y-auto">
+              <SheetHeader>
+                <SheetTitle>New goal</SheetTitle>
+                <SheetDescription>
+                  What are you committing to next? New web goals start as general goals and can be broken into milestones after creation.
+                </SheetDescription>
+              </SheetHeader>
+              <div className="mt-6 space-y-4 px-6 pb-6">
+                <div className="space-y-1.5">
+                  <Label>Title</Label>
+                  <Input
+                    value={form.title}
+                    onChange={(e) => setForm({ ...form, title: e.target.value })}
+                    placeholder="Ship the portfolio refresh"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Description</Label>
+                  <Textarea
+                    rows={6}
+                    value={form.content}
+                    onChange={(e) => setForm({ ...form, content: e.target.value })}
+                    placeholder="Why this matters, what done looks like, and any constraints to keep in mind."
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Tags (comma-separated)</Label>
+                  <Input
+                    value={form.tags}
+                    onChange={(e) => setForm({ ...form, tags: e.target.value })}
+                    placeholder="career, portfolio"
+                  />
+                </div>
+                <Button onClick={handleCreate} disabled={creating || !form.title.trim()}>
+                  {creating ? "Saving..." : "Add Goal"}
+                </Button>
+              </div>
+            </SheetContent>
+          </Sheet>
+        </div>
       </div>
 
       {/* Loading */}
@@ -785,10 +791,9 @@ export default function GoalsPage() {
           <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-muted">
             <Target className="h-7 w-7 text-muted-foreground" />
           </div>
-          <h3 className="text-lg font-medium">No commitments tracked yet</h3>
+          <h3 className="text-lg font-medium">Nothing in focus yet</h3>
           <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-            Set a goal and I&apos;ll track your progress, flag when it goes stale,
-            and surface it in your daily brief.
+            Start by setting a goal or exploring opportunities. I&apos;ll keep the strongest next steps at the top.
           </p>
           <Button className="mt-4" variant="outline" onClick={() => setCreateOpen(true)}>
             <Plus className="h-4 w-4" /> Create your first goal
@@ -891,6 +896,22 @@ export default function GoalsPage() {
               : `Showing ${filteredGoals.length} of ${goals.length} goals`}
           </p>
         </>
+      )}
+
+      {!loading && unanchored.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+            <Lightbulb className="h-4 w-4" />
+            Best next moves
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {unanchored.map((rec) =>
+              renderRecommendationCard(rec, {
+                ctaLabel: "Track",
+              })
+            )}
+          </div>
+        </div>
       )}
 
       {weeklyPlan && weeklyPlan.items.length > 0 && (
@@ -1153,22 +1174,6 @@ export default function GoalsPage() {
         </div>
       )}
 
-      {/* Unanchored recommendations */}
-      {!loading && goals.length > 0 && unanchored.length > 0 && (
-        <div className="space-y-3">
-          <h2 className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-            <Lightbulb className="h-4 w-4" />
-            Worth exploring
-          </h2>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {unanchored.map((rec) =>
-              renderRecommendationCard(rec, {
-                ctaLabel: "Track",
-              })
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

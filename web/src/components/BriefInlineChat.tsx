@@ -147,7 +147,7 @@ export function BriefInlineChat({
           {conversationId && (
             <Button variant="ghost" size="sm" className="h-7 text-xs gap-1" asChild>
               <Link href={`/advisor?conv=${conversationId}`}>
-                Open in Conversations <ExternalLink className="h-3 w-3" />
+                Open full chat <ExternalLink className="h-3 w-3" />
               </Link>
             </Button>
           )}

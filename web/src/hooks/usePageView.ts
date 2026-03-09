@@ -4,7 +4,16 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
 import { useToken } from "./useToken";
 
-const TRACKED = new Set(["/", "/journal", "/goals", "/intel", "/settings"]);
+const TRACKED = new Set([
+  "/",
+  "/journal",
+  "/focus",
+  "/goals",
+  "/radar",
+  "/intel",
+  "/library",
+  "/settings",
+]);
 
 export function usePageView() {
   const pathname = usePathname();

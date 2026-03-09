@@ -6,11 +6,9 @@ import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import {
   BookOpen,
-  Brain,
   FileText,
   HelpCircle,
   Home,
-  Lightbulb,
   Newspaper,
   Settings,
   Target,
@@ -29,17 +27,14 @@ import {
 import { guideCards } from "@/app/(dashboard)/onboarding/page";
 
 const primaryNav = [
-  { href: "/", label: "Brief", icon: Home },
-  { href: "/journal", label: "Journal", icon: BookOpen },
-  { href: "/goals", label: "Goals", icon: Target },
+  { href: "/", label: "Home", icon: Home },
+  { href: "/focus", label: "Focus", icon: Target },
+  { href: "/radar", label: "Radar", icon: Newspaper },
+  { href: "/library", label: "Library", icon: FileText },
+  { href: "/settings", label: "Settings", icon: Settings },
 ];
 
-const discoverNav = [
-  { href: "/advisor", label: "Conversations", icon: Brain },
-  { href: "/intel", label: "Radar", icon: Newspaper },
-  { href: "/projects", label: "Projects", icon: Lightbulb },
-  { href: "/library", label: "Library", icon: FileText },
-];
+const shortcutsNav = [{ href: "/journal", label: "Journal", icon: BookOpen }];
 
 function NavItem({
   href,
@@ -132,9 +127,9 @@ export function Sidebar({
           </div>
           <div className="flex flex-col gap-0.5">
             <span className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-sidebar-foreground/35">
-              Explore
+              Shortcuts
             </span>
-            {discoverNav.map((item) => (
+            {shortcutsNav.map((item) => (
               <NavItem
                 key={item.href}
                 {...item}
@@ -147,13 +142,6 @@ export function Sidebar({
 
         {/* Footer */}
         <div className="shrink-0 border-t border-sidebar-border p-3 space-y-1">
-          <NavItem
-            href="/settings"
-            label="Settings"
-            icon={Settings}
-            active={pathname === "/settings"}
-            onClick={() => onOpenChange(false)}
-          />
           <button
             onClick={() => setGuideOpen(true)}
             className="group relative flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-sidebar-foreground/60 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground transition-all"
