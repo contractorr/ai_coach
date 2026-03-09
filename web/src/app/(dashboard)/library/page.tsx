@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Download, FileText, FolderOpen, RefreshCcw, Search } from "lucide-react";
@@ -18,8 +19,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import type { LibraryReport, LibraryReportListItem } from "@/types/library";
+import type { ResearchDossier } from "@/types/radar";
 
 type StatusFilter = "all" | "ready" | "archived";
+type ContentFilter = "all" | "documents" | "reports" | "dossiers";
 
 const reportTypes = [
   ["crash_course", "Crash course"],
@@ -57,7 +60,10 @@ export default function LibraryPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [contentFilter, setContentFilter] = useState<ContentFilter>("all");
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
+  const [dossiers, setDossiers] = useState<ResearchDossier[]>([]);
+  const [selectedDossierId, setSelectedDossierId] = useState<string | null>(null);
   const [createForm, setCreateForm] = useState({
     prompt: "",
     report_type: "crash_course",
@@ -109,6 +115,17 @@ export default function LibraryPage() {
   useEffect(() => {
     loadReports();
   }, [token, search, statusFilter]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!token) return;
+    apiFetch<ResearchDossier[]>("/api/research/dossiers?include_archived=true&limit=50", {}, token)
+      .then((items) => {
+        const archived = items.filter((item) => (item.status || "active") === "archived");
+        setDossiers(archived);
+        setSelectedDossierId((current) => current ?? archived[0]?.dossier_id ?? null);
+      })
+      .catch(() => {});
+  }, [token]);
 
   useEffect(() => {
     if (selectedId) {
@@ -172,10 +189,28 @@ export default function LibraryPage() {
   const counts = useMemo(
     () => ({
       all: reports.length,
+      documents: reports.filter((report) => report.source_kind === "uploaded_pdf").length,
+      reports: reports.filter((report) => report.source_kind !== "uploaded_pdf").length,
+      dossiers: dossiers.length,
       ready: reports.filter((report) => report.status === "ready").length,
       archived: reports.filter((report) => report.status === "archived").length,
     }),
-    [reports]
+    [dossiers.length, reports]
+  );
+
+  const visibleReports = useMemo(() => {
+    if (contentFilter === "documents") {
+      return reports.filter((report) => report.source_kind === "uploaded_pdf");
+    }
+    if (contentFilter === "reports") {
+      return reports.filter((report) => report.source_kind !== "uploaded_pdf");
+    }
+    return reports;
+  }, [contentFilter, reports]);
+
+  const selectedDossier = useMemo(
+    () => dossiers.find((item) => item.dossier_id === selectedDossierId) ?? null,
+    [dossiers, selectedDossierId]
   );
 
   const handleCreate = async () => {
@@ -286,7 +321,7 @@ export default function LibraryPage() {
       <div className="space-y-1">
         <h1 className="text-2xl font-semibold">Library</h1>
         <p className="text-sm text-muted-foreground">
-          Generate durable reports from prompts and keep longer-form work outside the chat stream.
+          Keep your durable documents, reports, and completed dossier outputs in one reference workspace.
         </p>
       </div>
 
@@ -351,7 +386,7 @@ export default function LibraryPage() {
             <CardHeader>
               <CardTitle>Browse library</CardTitle>
               <CardDescription>
-                Search saved reports, focus the list, and jump back into longer work quickly.
+                Filter by content type, search durable material, and jump back into the right workspace quickly.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -359,10 +394,30 @@ export default function LibraryPage() {
                 <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
                   className="pl-9"
-                  placeholder="Search reports"
+                  placeholder="Search reference material"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                 />
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {([
+                  ["all", `All ${counts.all}`],
+                  ["documents", `Documents ${counts.documents}`],
+                  ["reports", `Reports ${counts.reports}`],
+                  ["dossiers", `Dossiers ${counts.dossiers}`],
+                ] as const).map(([value, label]) => (
+                  <Button
+                    key={value}
+                    size="sm"
+                    variant={contentFilter === value ? "default" : "outline"}
+                    onClick={() => setContentFilter(value)}
+                  >
+                    {label}
+                  </Button>
+                ))}
+                <Button size="sm" variant="outline" asChild>
+                  <Link href="/journal">Journal</Link>
+                </Button>
               </div>
               <div className="flex flex-wrap gap-2">
                 {([
@@ -382,14 +437,42 @@ export default function LibraryPage() {
               </div>
 
               <div className="space-y-2">
-                {loadingList && <p className="text-sm text-muted-foreground">Loading reports...</p>}
-                {!loadingList && reports.length === 0 && (
+                {contentFilter !== "dossiers" && loadingList && <p className="text-sm text-muted-foreground">Loading library items...</p>}
+                {contentFilter === "dossiers" && dossiers.length === 0 && (
                   <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-                    No reports yet. Generate your first long-form report to start your library.
+                    No archived dossiers yet. Active dossiers live in Radar until you archive them to the Library.
                   </div>
                 )}
-                {!loadingList &&
-                  reports.map((report) => (
+                {contentFilter !== "dossiers" && !loadingList && visibleReports.length === 0 && (
+                  <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                    No matching items yet. Upload a document or generate a report to start your library.
+                  </div>
+                )}
+                {contentFilter === "dossiers" &&
+                  dossiers.map((dossier) => (
+                    <button
+                      key={dossier.dossier_id}
+                      type="button"
+                      onClick={() => setSelectedDossierId(dossier.dossier_id)}
+                      className={`w-full rounded-lg border p-3 text-left transition ${
+                        selectedDossierId === dossier.dossier_id ? "border-primary bg-muted/50" : "hover:bg-muted/40"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-medium">{dossier.topic}</span>
+                            <Badge variant="outline" className="text-xs">archived dossier</Badge>
+                          </div>
+                          {dossier.latest_change_summary ? (
+                            <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{dossier.latest_change_summary}</p>
+                          ) : null}
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                {contentFilter !== "dossiers" && !loadingList &&
+                  visibleReports.map((report) => (
                     <button
                       key={report.id}
                       type="button"
@@ -429,13 +512,26 @@ export default function LibraryPage() {
 
         <Card className="min-h-[680px]">
           <CardHeader>
-            <CardTitle>Selected report</CardTitle>
+            <CardTitle>{contentFilter === "dossiers" ? "Selected dossier" : "Selected report"}</CardTitle>
             <CardDescription>
-              Edit the current version, refresh it from the original prompt, or archive it without losing the artifact.
+              {contentFilter === "dossiers"
+                ? "Completed dossier outputs stay here as reusable reference material."
+                : "Edit the current version, refresh it from the original prompt, or archive it without losing the artifact."}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {!selectedId && !loadingList && (
+            {contentFilter === "dossiers" && !selectedDossier && (
+              <div className="flex min-h-[420px] flex-col items-center justify-center gap-3 rounded-lg border border-dashed text-center">
+                <FileText className="h-8 w-8 text-muted-foreground" />
+                <div className="space-y-1">
+                  <p className="font-medium">Pick a dossier</p>
+                  <p className="text-sm text-muted-foreground">
+                    Archived dossiers stay in Library once the active tracking work is done.
+                  </p>
+                </div>
+              </div>
+            )}
+            {contentFilter !== "dossiers" && !selectedId && !loadingList && (
               <div className="flex min-h-[420px] flex-col items-center justify-center gap-3 rounded-lg border border-dashed text-center">
                 <FileText className="h-8 w-8 text-muted-foreground" />
                 <div className="space-y-1">
@@ -446,8 +542,44 @@ export default function LibraryPage() {
                 </div>
               </div>
             )}
-            {loadingDetail && <p className="text-sm text-muted-foreground">Loading report...</p>}
-            {selectedReport && !loadingDetail && (
+            {contentFilter !== "dossiers" && loadingDetail && <p className="text-sm text-muted-foreground">Loading report...</p>}
+            {contentFilter === "dossiers" && selectedDossier && (
+              <div className="space-y-4">
+                <div className="space-y-1">
+                  <h2 className="text-xl font-semibold">{selectedDossier.topic}</h2>
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                    <Badge variant="outline">archived dossier</Badge>
+                    <span>Updated {formatDate(selectedDossier.last_updated || selectedDossier.updated || selectedDossier.created || "")}</span>
+                    <span>{selectedDossier.update_count || 0} updates recorded</span>
+                  </div>
+                </div>
+
+                <div className="rounded-lg border bg-muted/20 p-4 text-sm text-muted-foreground">
+                  {selectedDossier.latest_change_summary || "No summary was captured for the latest change."}
+                </div>
+
+                {selectedDossier.open_questions?.length ? (
+                  <div className="space-y-2">
+                    <div className="text-sm font-medium">Open questions</div>
+                    <ul className="space-y-1 text-sm text-muted-foreground">
+                      {selectedDossier.open_questions.map((question) => (
+                        <li key={question}>• {question}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="outline" asChild>
+                    <Link href="/radar">Open Radar</Link>
+                  </Button>
+                  <Button variant="outline" asChild>
+                    <Link href="/journal">Open Journal</Link>
+                  </Button>
+                </div>
+              </div>
+            )}
+            {contentFilter !== "dossiers" && selectedReport && !loadingDetail && (
               <div className="space-y-4">
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-1.5">

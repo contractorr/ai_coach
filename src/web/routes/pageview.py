@@ -7,7 +7,16 @@ from web.user_store import log_event
 
 router = APIRouter(tags=["analytics"])
 
-_ALLOWED_PATHS = {"/", "/journal", "/goals", "/intel", "/settings"}
+_ALLOWED_PATHS = {
+    "/",
+    "/journal",
+    "/focus",
+    "/goals",
+    "/radar",
+    "/intel",
+    "/library",
+    "/settings",
+}
 
 
 @router.post("/api/page-view", status_code=204)

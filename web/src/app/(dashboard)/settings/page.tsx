@@ -100,6 +100,23 @@ interface ProfileData {
   is_stale: boolean;
 }
 
+interface MemoryFact {
+  id: string;
+  text: string;
+  category: string;
+  source_type: string;
+  source_id: string;
+  confidence: number;
+  created_at: string;
+  updated_at: string;
+}
+
+interface MemoryStats {
+  total_active: number;
+  total_superseded: number;
+  by_category: Record<string, number>;
+}
+
 // Editable field config
 type FieldType = "text" | "textarea" | "tags" | "skills";
 
@@ -409,6 +426,9 @@ export default function SettingsPage() {
   const [rssAdding, setRssAdding] = useState(false);
   const [rssRemoving, setRssRemoving] = useState<string | null>(null);
   const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
+  const [memoryFacts, setMemoryFacts] = useState<MemoryFact[]>([]);
+  const [memoryStats, setMemoryStats] = useState<MemoryStats | null>(null);
+  const [deletingFactId, setDeletingFactId] = useState<string | null>(null);
   const [watchLabel, setWatchLabel] = useState("");
   const [watchKind, setWatchKind] = useState("theme");
   const [watchWhy, setWatchWhy] = useState("");
@@ -433,6 +453,7 @@ export default function SettingsPage() {
     { id: "rss-feeds", label: "RSS" },
     { id: "watchlist", label: "Watchlist" },
     { id: "profile", label: "Profile" },
+    { id: "memory", label: "Memory" },
     { id: "danger-zone", label: "Danger" },
   ];
 
@@ -454,6 +475,12 @@ export default function SettingsPage() {
       .catch(() => {});
     apiFetch<WatchlistItem[]>("/api/intel/watchlist", {}, token)
       .then(setWatchlist)
+      .catch(() => {});
+    apiFetch<MemoryFact[]>("/api/memory/facts?limit=50", {}, token)
+      .then(setMemoryFacts)
+      .catch(() => {});
+    apiFetch<MemoryStats>("/api/memory/stats", {}, token)
+      .then(setMemoryStats)
       .catch(() => {});
   }, [token]);
 
@@ -513,6 +540,33 @@ export default function SettingsPage() {
       toast.error((e as Error).message);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDeleteFact = async (factId: string) => {
+    if (!token) return;
+    setDeletingFactId(factId);
+    try {
+      await apiFetch(`/api/memory/facts/${encodeURIComponent(factId)}`, { method: "DELETE" }, token);
+      setMemoryFacts((prev) => prev.filter((fact) => fact.id !== factId));
+      setMemoryStats((prev) => {
+        if (!prev) return prev;
+        const removed = memoryFacts.find((fact) => fact.id === factId);
+        const nextByCategory = { ...prev.by_category };
+        if (removed?.category && nextByCategory[removed.category]) {
+          nextByCategory[removed.category] = Math.max(0, nextByCategory[removed.category] - 1);
+        }
+        return {
+          ...prev,
+          total_active: Math.max(0, prev.total_active - 1),
+          by_category: nextByCategory,
+        };
+      });
+      toast.success("Memory fact deleted");
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setDeletingFactId(null);
     }
   };
 
@@ -1096,6 +1150,65 @@ export default function SettingsPage() {
             <RefreshCw className="mr-2 h-4 w-4" />
             Restart Onboarding
           </Button>
+        </CardContent>
+      </Card>
+      </section>
+
+      <section id="memory">
+      <Card>
+        <CardHeader>
+          <CardTitle>What I know about you</CardTitle>
+          <CardDescription>
+            Transparent memory facts that help StewardMe personalize advice, focus, and monitoring.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {memoryStats ? (
+            <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+              <Badge variant="secondary">{memoryStats.total_active} active facts</Badge>
+              {Object.entries(memoryStats.by_category).map(([category, count]) => (
+                <Badge key={category} variant="outline">
+                  {category}: {count}
+                </Badge>
+              ))}
+            </div>
+          ) : null}
+
+          {memoryFacts.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No active memory facts yet. As you capture notes and ask questions, durable facts will show up here.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {memoryFacts.map((fact) => (
+                <div key={fact.id} className="flex items-start justify-between gap-3 rounded-lg border p-3">
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                      <Badge variant="secondary">{fact.category}</Badge>
+                      <Badge variant="outline">Confidence {Math.round(fact.confidence * 100)}%</Badge>
+                      <span>
+                        Updated {fact.updated_at ? new Date(fact.updated_at).toLocaleDateString() : "recently"}
+                      </span>
+                    </div>
+                    <p className="text-sm">{fact.text}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Source: {fact.source_type}{fact.source_id ? ` • ${fact.source_id}` : ""}
+                    </p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 shrink-0"
+                    onClick={() => handleDeleteFact(fact.id)}
+                    disabled={deletingFactId === fact.id}
+                    aria-label={`Delete memory fact ${fact.id}`}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
       </section>

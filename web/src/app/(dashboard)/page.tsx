@@ -1,22 +1,71 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
 import Link from "next/link";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Check, ExternalLink, PenLine, Send, Sparkles } from "lucide-react";
 import { toast } from "sonner";
+
 import { ChatAttachmentBadges, ChatPdfAttachmentPicker } from "@/components/ChatPdfAttachments";
 import { ReturnBriefCard } from "@/components/home/ReturnBriefCard";
-import { useToken } from "@/hooks/useToken";
-import { useChatPdfAttachments } from "@/hooks/useChatPdfAttachments";
-import { MessageRenderer } from "@/components/MessageRenderer";
-import { Check, ExternalLink, PenLine, Send } from "lucide-react";
+import { WhyNowChip } from "@/components/shared/WhyNowChip";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
+import { useChatPdfAttachments } from "@/hooks/useChatPdfAttachments";
+import { useToken } from "@/hooks/useToken";
 import { apiFetch, apiFetchSSE } from "@/lib/api";
 import { TOOL_LABELS } from "@/lib/constants";
 import type { ChatMessage } from "@/types/chat";
 import type { GreetingResponse, ReturnBrief } from "@/types/greeting";
+import type { SuggestionItem } from "@/types/suggestions";
+import { MessageRenderer } from "@/components/MessageRenderer";
 
 type InputMode = "ask" | "capture";
+
+interface CapturedNote {
+  path: string;
+  text: string;
+  title: string;
+}
+
+const QUESTION_PREFIXES = [
+  "who",
+  "what",
+  "when",
+  "where",
+  "why",
+  "how",
+  "should",
+  "can",
+  "could",
+  "would",
+  "will",
+  "do",
+  "does",
+  "did",
+  "is",
+  "are",
+  "am",
+];
+
+function looksLikeQuestion(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return false;
+  if (trimmed.endsWith("?")) return true;
+  const firstWord = trimmed.split(/\s+/, 1)[0]?.toLowerCase() ?? "";
+  return QUESTION_PREFIXES.includes(firstWord);
+}
+
+function sourceWorkspace(item: SuggestionItem) {
+  if (["company_movement", "hiring_signal", "regulatory_alert", "dossier_escalation"].includes(item.kind)) {
+    return "/radar";
+  }
+  if (item.kind === "assumption_alert") {
+    return "/settings#watchlist";
+  }
+  return "/focus";
+}
 
 export default function HomePage() {
   const token = useToken();
@@ -25,14 +74,16 @@ export default function HomePage() {
   const [dismissedReturnBriefAt, setDismissedReturnBriefAt] = useState<string | null>(null);
   const [greetingLoaded, setGreetingLoaded] = useState(false);
   const [userName, setUserName] = useState<string | null>(null);
+  const [nextSteps, setNextSteps] = useState<SuggestionItem[]>([]);
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
-  const [mode, setMode] = useState<InputMode>("ask");
+  const [mode, setMode] = useState<InputMode>("capture");
   const [loading, setLoading] = useState(false);
   const [toolStatus, setToolStatus] = useState<string | null>(null);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [captured, setCaptured] = useState(false);
+  const [lastCapturedNote, setLastCapturedNote] = useState<CapturedNote | null>(null);
   const { attachments, addFiles, removeAttachment, uploadPending, uploading, clearAttachments } =
     useChatPdfAttachments(token);
 
@@ -54,7 +105,6 @@ export default function HomePage() {
     lastReturnBriefAt.current = nextGeneratedAt;
   }, []);
 
-  // Fetch greeting + user on mount
   useEffect(() => {
     if (!token) return;
     let cancelled = false;
@@ -63,7 +113,6 @@ export default function HomePage() {
       .then((data) => {
         if (cancelled) return;
         applyGreetingResponse(data);
-        // If stale, retry once after 5s
         if (data.stale && !retried.current) {
           retried.current = true;
           setTimeout(() => {
@@ -86,12 +135,17 @@ export default function HomePage() {
       })
       .catch(() => {});
 
+    apiFetch<SuggestionItem[]>("/api/suggestions?limit=3", {}, token)
+      .then((items) => {
+        if (!cancelled) setNextSteps(items.slice(0, 3));
+      })
+      .catch(() => {});
+
     return () => {
       cancelled = true;
     };
   }, [token, applyGreetingResponse]);
 
-  // Auto-scroll
   useEffect(() => {
     scrollRef.current?.scrollTo({
       top: scrollRef.current.scrollHeight,
@@ -124,18 +178,13 @@ export default function HomePage() {
           (event) => {
             const type = event.type as string;
             if (type === "tool_start") {
-              setToolStatus(
-                TOOL_LABELS[event.tool as string] || `Running ${event.tool}`,
-              );
+              setToolStatus(TOOL_LABELS[event.tool as string] || `Running ${event.tool}`);
             } else if (type === "tool_done") {
               setToolStatus(null);
             } else if (type === "answer") {
               const cid = event.conversation_id as string;
               setConversationId(cid);
-              setMessages((prev) => [
-                ...prev,
-                { role: "assistant", content: event.content as string },
-              ]);
+              setMessages((prev) => [...prev, { role: "assistant", content: event.content as string }]);
             } else if (type === "error") {
               toast.error(event.detail as string);
               setMessages((prev) => [
@@ -143,89 +192,109 @@ export default function HomePage() {
                 { role: "assistant", content: "Error: " + (event.detail as string) },
               ]);
             }
-          },
+          }
         );
-      } catch (e) {
-        toast.error((e as Error).message);
+      } catch (error) {
+        toast.error((error as Error).message);
         setMessages((prev) => [
           ...prev,
-          { role: "assistant", content: "Error: " + (e as Error).message },
+          { role: "assistant", content: "Error: " + (error as Error).message },
         ]);
       } finally {
         setLoading(false);
         setToolStatus(null);
       }
     },
-    [token],
+    [token]
   );
 
-  const handleAsk = useCallback(async () => {
-    if (!input.trim() || loading) return;
-    const question = input.trim();
-    setInput("");
-    setLoading(true);
-    setToolStatus(attachments.length ? "Uploading PDFs..." : null);
-    try {
-      const uploaded = await uploadPending();
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "user",
-          content: question,
-          attachments: uploaded.map((item) => ({
-            library_item_id: item.attachment_id,
-            file_name: item.file_name,
-            mime_type: item.mime_type,
-            index_status: item.index_status,
-            visibility_state: item.visibility_state,
-            warning: item.warning,
-          })),
-        },
-      ]);
-      clearAttachments();
-      sendMessage(
-        question,
-        conversationId,
-        uploaded.map((item) => item.attachment_id),
-      );
-    } catch (e) {
-      toast.error((e as Error).message);
-      setLoading(false);
-      setToolStatus(null);
-    }
-  }, [input, loading, conversationId, sendMessage, uploadPending, attachments.length, clearAttachments]);
+  const handleAsk = useCallback(
+    async (questionOverride?: string) => {
+      const question = (questionOverride ?? input).trim();
+      const useComposerState = !questionOverride;
+      if (!question || loading) return;
+
+      if (useComposerState) {
+        setInput("");
+      }
+      setLoading(true);
+      setToolStatus(useComposerState && attachments.length ? "Uploading PDFs..." : null);
+
+      try {
+        const uploaded = useComposerState ? await uploadPending() : [];
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "user",
+            content: question,
+            attachments: uploaded.map((item) => ({
+              library_item_id: item.attachment_id,
+              file_name: item.file_name,
+              mime_type: item.mime_type,
+              index_status: item.index_status,
+              visibility_state: item.visibility_state,
+              warning: item.warning,
+            })),
+          },
+        ]);
+        if (useComposerState) {
+          clearAttachments();
+        }
+        await sendMessage(
+          question,
+          conversationId,
+          uploaded.map((item) => item.attachment_id)
+        );
+      } catch (error) {
+        toast.error((error as Error).message);
+        setLoading(false);
+        setToolStatus(null);
+      }
+    },
+    [attachments.length, clearAttachments, conversationId, input, loading, sendMessage, uploadPending]
+  );
 
   const handleCapture = useCallback(async () => {
     if (!input.trim() || !token) return;
     const text = input.trim();
     setInput("");
     try {
-      await apiFetch(
+      const entry = await apiFetch<{ path: string; title: string }>(
         "/api/journal/quick",
         { method: "POST", body: JSON.stringify({ content: text }) },
-        token,
+        token
       );
       setCaptured(true);
-      toast.success("Captured");
+      setLastCapturedNote({ path: entry.path, text, title: entry.title });
+      toast.success("Saved to journal");
       setTimeout(() => setCaptured(false), 2000);
-    } catch (e) {
-      toast.error((e as Error).message);
+    } catch (error) {
+      toast.error((error as Error).message);
     }
   }, [input, token]);
 
+  const effectiveMode = useMemo<InputMode>(() => {
+    if (mode === "ask") return "ask";
+    return looksLikeQuestion(input) ? "ask" : "capture";
+  }, [input, mode]);
+
   const handleSubmit = useCallback(() => {
-    if (mode === "ask") handleAsk();
-    else handleCapture();
-  }, [mode, handleAsk, handleCapture]);
+    if (effectiveMode === "ask") {
+      void handleAsk();
+      return;
+    }
+    void handleCapture();
+  }, [effectiveMode, handleAsk, handleCapture]);
 
   if (!token || !greetingLoaded) {
     return (
       <div className="flex h-full flex-col">
-        <div className="mx-auto w-full max-w-2xl flex-1 animate-pulse space-y-4 px-4 py-8">
+        <div className="mx-auto w-full max-w-3xl flex-1 animate-pulse space-y-4 px-4 py-8">
           <div className="h-16 rounded-2xl bg-muted" />
-          <div className="space-y-2">
-            <div className="h-3 w-5/6 rounded bg-muted" />
-            <div className="h-3 w-2/3 rounded bg-muted" />
+          <div className="grid gap-3 md:grid-cols-3">
+            <div className="h-28 rounded-2xl bg-muted" />
+            <div className="h-28 rounded-2xl bg-muted" />
+            <div className="h-28 rounded-2xl bg-muted" />
           </div>
         </div>
       </div>
@@ -233,14 +302,13 @@ export default function HomePage() {
   }
 
   const hasConversation = messages.length > 0;
-  const showReturnBrief =
-    returnBrief && returnBrief.generated_at !== dismissedReturnBriefAt;
+  const showReturnBrief = Boolean(returnBrief && returnBrief.generated_at !== dismissedReturnBriefAt);
+  const replaceGreeting = Boolean(showReturnBrief && returnBrief && returnBrief.absent_hours >= 24 * 7);
 
   return (
     <div className="flex h-full flex-col">
-      {/* Messages area */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4">
-        <div className="mx-auto max-w-2xl space-y-3">
+        <div className="mx-auto max-w-3xl space-y-4">
           {showReturnBrief && returnBrief ? (
             <ReturnBriefCard
               brief={returnBrief}
@@ -248,22 +316,73 @@ export default function HomePage() {
             />
           ) : null}
 
-          {/* Greeting as first assistant message */}
-          {greeting && (
+          {!replaceGreeting && greeting ? (
             <div className="mr-4 rounded-2xl rounded-bl-sm px-4 py-2.5">
               <p className="text-sm">
-                {userName && (
-                  <span className="font-medium">{userName}, </span>
-                )}
+                {userName ? <span className="font-medium">{userName}, </span> : null}
                 {greeting}
               </p>
             </div>
-          )}
+          ) : null}
 
-          {/* Conversation messages */}
-          {messages.map((msg, i) => (
+          {nextSteps.length > 0 ? (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 px-1 text-sm font-medium text-muted-foreground">
+                <Sparkles className="h-4 w-4" />
+                What to do next
+              </div>
+              <div className="grid gap-3 md:grid-cols-3">
+                {nextSteps.map((item, index) => (
+                  <Card key={`${item.kind}-${item.title}-${index}`} className="gap-3 py-4">
+                    <CardHeader className="px-4 pb-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant="secondary" className="text-[11px]">
+                          {item.kind.replaceAll("_", " ")}
+                        </Badge>
+                      </div>
+                      <CardTitle className="text-base leading-snug">{item.title}</CardTitle>
+                      <CardDescription>{item.description || item.action}</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-3 px-4">
+                      {item.why_now?.length ? (
+                        <div className="flex flex-wrap gap-2">
+                          {item.why_now.map((chip, chipIndex) => (
+                            <WhyNowChip key={`${chip.code}-${chipIndex}`} chip={chip} />
+                          ))}
+                        </div>
+                      ) : null}
+                      <Button size="sm" variant="outline" asChild>
+                        <Link href={sourceWorkspace(item)}>Open</Link>
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          {lastCapturedNote ? (
+            <Card className="border-primary/20 bg-primary/5 py-4 shadow-none">
+              <CardHeader className="px-4 pb-0">
+                <CardTitle className="text-base">Saved to journal</CardTitle>
+                <CardDescription>
+                  {lastCapturedNote.title} is captured. Want help thinking through it next?
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-wrap gap-2 px-4">
+                <Button size="sm" onClick={() => void handleAsk(lastCapturedNote.text)}>
+                  Get advice on this
+                </Button>
+                <Button size="sm" variant="outline" asChild>
+                  <Link href="/journal">Open journal</Link>
+                </Button>
+              </CardContent>
+            </Card>
+          ) : null}
+
+          {messages.map((msg, index) => (
             <div
-              key={i}
+              key={`${msg.role}-${index}`}
               className={
                 msg.role === "user"
                   ? "ml-12 rounded-2xl rounded-br-sm bg-primary/10 px-4 py-2.5"
@@ -275,75 +394,82 @@ export default function HomePage() {
                   content={msg.content}
                   onAction={(text) => {
                     setInput(text);
+                    setMode("ask");
                     setTimeout(() => textareaRef.current?.focus(), 100);
                   }}
                 />
               ) : (
-                <div>
-                  <ChatAttachmentBadges attachments={msg.attachments} token={token} />
-                  <p className="text-sm">{msg.content}</p>
+                <div className="space-y-2">
+                  <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                  {msg.attachments?.length ? <ChatAttachmentBadges attachments={msg.attachments} /> : null}
                 </div>
               )}
             </div>
           ))}
 
-          {/* Loading indicator */}
-          {loading && (
-            <div className="mr-4 rounded-2xl rounded-bl-sm px-4 py-3">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <div className="flex gap-1">
-                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground [animation-delay:0ms]" />
-                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground [animation-delay:150ms]" />
-                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground [animation-delay:300ms]" />
-                </div>
-                {toolStatus || "Thinking..."}
-              </div>
+          {loading ? (
+            <div className="mr-4 rounded-2xl rounded-bl-sm px-4 py-2.5 text-sm text-muted-foreground">
+              {toolStatus || "Thinking..."}
             </div>
-          )}
+          ) : null}
 
-          {/* Empty state hint (no messages yet) */}
-          {!hasConversation && !loading && (
-            <div className="pt-4 text-center">
-              <p className="text-sm text-muted-foreground">
-                Ask me anything — a decision, a priority, a goal, or what to do next.
-              </p>
+          {!hasConversation && !loading ? (
+            <div className="pt-2 text-center text-sm text-muted-foreground">
+              Write a note, ask a question, or jump into your full <Link href="/journal" className="underline underline-offset-4">journal</Link>.
             </div>
-          )}
+          ) : null}
         </div>
       </div>
 
-      {/* Conversation link */}
-      {conversationId && (
+      {conversationId ? (
         <div className="flex justify-center border-t px-4 py-1">
-          <Button variant="ghost" size="sm" className="h-7 text-xs gap-1" asChild>
+          <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs" asChild>
             <Link href={`/advisor?conv=${conversationId}`}>
-              Open in Conversations <ExternalLink className="h-3 w-3" />
+              Open full chat <ExternalLink className="h-3 w-3" />
             </Link>
           </Button>
         </div>
-      )}
+      ) : null}
 
-      {/* Input area */}
       <div className="border-t px-4 py-3">
-        <div className="mx-auto max-w-2xl">
-          {mode === "ask" && (
+        <div className="mx-auto max-w-3xl space-y-3">
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <span>Write a note or ask a question</span>
+            <div className="flex items-center gap-1 rounded-full border bg-muted/30 p-1">
+              <button
+                onClick={() => setMode("capture")}
+                className={`rounded-full px-2.5 py-1 transition-colors ${mode === "capture" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+              >
+                Capture
+              </button>
+              <button
+                onClick={() => setMode("ask")}
+                className={`rounded-full px-2.5 py-1 transition-colors ${mode === "ask" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+              >
+                Ask
+              </button>
+            </div>
+          </div>
+
+          {mode === "ask" ? (
             <ChatPdfAttachmentPicker
               attachments={attachments}
               disabled={loading || uploading}
               onAddFiles={addFiles}
               onRemove={removeAttachment}
             />
-          )}
+          ) : null}
+
           <div className={`flex gap-2 ${mode === "ask" ? "mt-3" : ""}`}>
             <Textarea
               ref={textareaRef}
               rows={1}
-              placeholder={mode === "ask" ? "Ask anything..." : "Quick thought..."}
+              placeholder="Write a note or ask a question"
               value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
+              onChange={(event) => setInput(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && !event.shiftKey) {
+                  event.preventDefault();
                   handleSubmit();
                 }
               }}
@@ -361,19 +487,12 @@ export default function HomePage() {
                   disabled={!input.trim() || loading || uploading}
                   className="h-9 w-9"
                 >
-                  {mode === "ask" ? (
-                    <Send className="h-4 w-4" />
-                  ) : (
-                    <PenLine className="h-4 w-4" />
-                  )}
+                  {effectiveMode === "ask" ? <Send className="h-4 w-4" /> : <PenLine className="h-4 w-4" />}
                 </Button>
               )}
-              <button
-                onClick={() => setMode((m) => (m === "ask" ? "capture" : "ask"))}
-                className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
-              >
-                {mode === "ask" ? "capture" : "ask"}
-              </button>
+              <span className="text-center text-[10px] text-muted-foreground">
+                {effectiveMode === "ask" ? "ask" : "save"}
+              </span>
             </div>
           </div>
         </div>

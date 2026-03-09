@@ -16,6 +16,7 @@ specs/
   functional/        # What & why (PM-authored)
     TEMPLATE.md
     {feature}.md
+    archive/         # Accepted decision records and retired proposals
   technical/         # How (Claude-generated, developer-reviewed)
     TEMPLATE.md
     {module}.md
@@ -42,7 +43,7 @@ specs/
 | [settings-account](functional/settings-account.md) | Stable | Keys, lite mode, watchlist, profile editing, account deletion |
 | [memory-threads](functional/memory-threads.md) | Experimental | Persistent facts, recurring topic detection, document-derived memory |
 | [library-reports](functional/library-reports.md) | Partially Implemented | Library workspace for durable AI-generated reports and uploaded PDFs, manual generation, document storage, refresh, collections |
-| [v2-simplified-product](functional/v2-simplified-product.md) | Draft | Simplified information architecture, merged workflows, progressive disclosure across existing features |
+| [v2-simplified-product](functional/archive/v2-simplified-product.md) | Accepted (Archived decision) | Simplified information architecture, merged workflows, progressive disclosure across existing features |
 
 ## Technical Specs (modules)
 

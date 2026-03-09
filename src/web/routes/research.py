@@ -143,3 +143,25 @@ async def get_dossier(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/dossiers/{dossier_id}/archive")
+async def archive_dossier(
+    dossier_id: str,
+    user: dict = Depends(get_current_user),
+    _private_key: None = Depends(require_personal_research_key),
+):
+    try:
+        agent = _get_agent(user["id"])
+        dossier = await asyncio.to_thread(
+            agent.dossiers.update_dossier_metadata,
+            dossier_id,
+            status="archived",
+        )
+        if not dossier:
+            raise HTTPException(status_code=404, detail="Dossier not found")
+        return dossier
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

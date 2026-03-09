@@ -1,4 +1,4 @@
-﻿# StewardMe Web App
+# StewardMe Web App
 
 The `web` workspace contains the Next.js dashboard for StewardMe.
 
@@ -28,53 +28,62 @@ Open `http://localhost:3000` and sign in.
 
 ## Main dashboard areas
 
-- `/` — daily brief and dashboard overview
-- `/advisor` — chat and advice flows
-- `/goals` — goal tracking, milestones, check-ins, and action plans
-- `/journal` — writing, browsing, and filtering journal history
-- `/intel` — intelligence feed, trending topics, source health, and saved follow-ups
-- `/projects` — matched issues and project-idea exploration
-- `/settings` — API keys, preferences, and account actions
+- `/` - Home for capture, ask, greeting/return brief, and top next steps
+- `/focus` - Focus for goals, weekly plan, and best next moves
+- `/radar` - Radar for signals, threads, dossiers, saved follow-ups, and tracked topics
+- `/library` - Library for documents, reports, and archived dossiers
+- `/settings` - Profile, keys, tracked topics, memory, and advanced controls
+- `/journal` - Deeper Journal workspace reached from the sidebar shortcut
+- Secondary deep links: `/advisor`, `/intel`, `/projects`
 
-## Goals workspace
+## Focus workspace
 
-The goals page is optimized for active work rather than archival browsing:
+The Focus page is optimized for active work rather than archival browsing:
 
 - `Focus` shows active and paused goals by default
 - `Needs check-in` isolates stale goals that need attention
-- `Archived` keeps completed and abandoned goals available without cluttering the main list
-- Goal cards support quick status actions: complete, pause, resume, abandon, and reactivate abandoned goals
-- Recommendation cards support inline 1-5 rating with optional notes to tune future suggestions
+- `Archived` keeps completed and abandoned goals available without crowding current work
+- Recommendation cards support inline tracking, feedback, and follow-through
 - Search filters the currently loaded goal list by title
 
-## Journal workspace
+## Journal shortcut
 
-The journal page is designed for quick retrieval after capture:
+The Journal page remains designed for quick retrieval after capture:
 
-- Local search narrows the loaded journal entries by title, preview text, tags, and loaded content
+- Local search narrows loaded entries by title, preview text, tags, and content
 - Type filters help separate daily, project, goal, and reflection entries
-- Tag chips give a fast way to pivot into a theme without a dedicated backend search route
-- Empty states stay actionable and offer a one-click filter reset
+- Tag chips provide a fast way to pivot into a theme
+- Empty states stay actionable and offer a one-click reset
 - The composer clarifies that titles are optional and can be auto-generated
 
-## Intel workspace
+## Radar workspace
 
-The radar page is designed for triage, not just passive reading:
+Radar is designed for triage, not just passive reading:
 
-- `Trending` highlights cross-source topic convergence
-- `Feed` includes quick filters for all items, personalized items, watchlist matches, and saved follow-ups
-- Search can be reset in place to return to the recent feed
-- Follow-up notes are edited in a side sheet so users can capture next steps without a browser prompt
+- `For you` highlights the strongest cross-source signals
+- Tabs keep threads, dossiers, saved follow-ups, and tracked topics in one monitoring workspace
+- Scan can be triggered on demand from the page header
 - Saved items remain available as a lightweight follow-up queue
+- The advanced `/intel` page still exists for deeper filtering when needed
 
-## Projects workspace
+## Advanced opportunities page
 
-The projects page bridges tactical opportunities and broader ideation:
+The advanced opportunities page supports deeper browsing when the lightweight Focus surface is not enough:
 
-- `Issue matches` surfaces ranked GitHub opportunities from recent radar data
+- `Issue matches` surfaces ranked GitHub opportunities from recent Radar data
 - Filters let users widen or narrow the recent-day window and result count
-- `Project ideas` stays in the same workspace so users can move from execution to exploration without switching tools
-- Empty and error states keep the workspace useful even when radar data or model access is thin
+- `Project ideas` stay available without becoming a primary navigation concept
+- Empty and error states keep the page useful even when data or model access is thin
+
+## Library workspace
+
+The Library page is the durable reference workspace:
+
+- Browse documents, reports, and archived dossiers
+- Organize reports with simple collection labels
+- Refresh a report in place instead of creating duplicates
+- Edit, archive, and restore saved report artifacts
+- Jump back to Journal when source notes are more useful than durable outputs
 
 ## Quality checks
 
@@ -82,14 +91,3 @@ The projects page bridges tactical opportunities and broader ideation:
 npm run lint
 npm run build
 ```
-
-
-## Library workspace
-
-The Library page is the first durable long-form artifact workspace:
-
-- Generate a saved report directly from a prompt instead of leaving it only in chat
-- Use lightweight report types like crash course, overview, memo, plan, and custom
-- Organize reports with simple collection labels
-- Refresh a report in place from its original prompt instead of creating duplicates
-- Edit, archive, and restore reports without losing the saved artifact

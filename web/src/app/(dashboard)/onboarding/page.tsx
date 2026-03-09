@@ -131,7 +131,7 @@ export const guideCards = [
 export default function OnboardingPage() {
   const token = useToken();
   const router = useRouter();
-  const [phase, setPhase] = useState<Phase>("intro");
+  const [phase, setPhase] = useState<Phase>("name");
   const [provider, setProvider] = useState("auto");
   const [apiKey, setApiKey] = useState("");
   const [saving, setSaving] = useState(false);
@@ -315,10 +315,10 @@ export default function OnboardingPage() {
         setSelectedFeeds(new Set(cats.filter((c) => c.preselected).map((c) => c.id)));
       } catch (e) {
         toast.error((e as Error).message);
-        setPhase("guide"); // fallback if fetch fails
+        handleDone();
       }
     })();
-  }, [phase, token]);
+  }, [phase, token, handleDone]);
 
   const handleToggleFeed = (id: string) => {
     setSelectedFeeds((prev) => {
@@ -342,7 +342,7 @@ export default function OnboardingPage() {
         token
       );
       setFeedsAdded(res.feeds_added);
-      setPhase("guide");
+      handleDone();
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
@@ -655,7 +655,7 @@ export default function OnboardingPage() {
                 {!savingFeeds && <ArrowRight className="ml-2 h-4 w-4" />}
               </Button>
               <button
-                onClick={() => setPhase("guide")}
+                onClick={handleDone}
                 className="mt-2 w-full text-center text-xs text-muted-foreground hover:text-foreground"
               >
                 Skip for now
