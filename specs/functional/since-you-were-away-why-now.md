@@ -1,6 +1,6 @@
 # Since-You-Were-Away + Why-Now Surfaces
 
-**Status:** Draft
+**Status:** Partially Implemented
 **Author:** -
 **Date:** 2026-03-08
 
@@ -34,7 +34,7 @@ Returning users who do not open the app every day, and users who want higher tru
 - Reuses signals from threads, dossiers, goals, and intelligence feed.
 - Can incorporate outcomes from `specs/functional/outcome-harvester.md` when that feature exists.
 - Depends on last-seen or recent-activity tracking from existing analytics and engagement plumbing.
-- Not yet built: a return-briefing aggregator, durable last-briefed state, and an expandable evidence-chain view for chips.
+- Current implementation includes a return-briefing aggregator, a dedicated home-surface return brief card, and expandable why-now chips. Durable cross-session last-briefed state is still a follow-up item.
 
 ## Detailed Behavior
 
@@ -51,10 +51,11 @@ When shown, the return briefing can summarize:
 
 1. elapsed time since the user's last session
 2. notable new intel matched to goals or watchlist items
-3. recurring thread changes or newly active threads
-4. dossier updates or newly changed change-summaries
-5. stale-goal or check-in reminders when relevant
-6. a short set of suggested next actions
+3. specialized pipeline updates such as company movements, hiring signals, regulatory alerts, or assumption changes when available
+4. recurring thread changes or newly active threads
+5. dossier updates or newly changed change-summaries
+6. stale-goal or check-in reminders when relevant
+7. a short set of suggested next actions
 
 The briefing should be selective and short rather than an exhaustive digest.
 

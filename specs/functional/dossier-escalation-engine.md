@@ -1,12 +1,12 @@
 # Dossier Escalation Engine
 
-**Status:** Draft
+**Status:** Partially Implemented
 **Author:** -
 **Date:** 2026-03-08
 
 ## Problem
 
-Users can journal repeatedly about a topic and the system can already detect threads, but there is no strong bridge from repeated reflection into active monitored research. As a result, strategically important topics can remain passive themes instead of becoming ongoing dossiers.
+Users can journal repeatedly about a topic and the system can already detect threads, but the bridge from repeated reflection into active monitored research still needs to be selective and trustworthy. The product now has a dossier-escalation path, but it still needs tuning so strategically important topics graduate reliably without noisy prompts.
 
 ## Overview
 
@@ -29,7 +29,7 @@ Users who journal regularly, follow external intelligence, and benefit from ongo
 - Can surface in suggestions alongside `specs/functional/recommendations.md` and in return briefings from `specs/functional/since-you-were-away-why-now.md`.
 - Can be seeded by extraction receipts from `specs/functional/extraction-receipt.md`.
 - Reuses watchlist, intel matching, and research context from `specs/functional/intelligence-feed.md` and `specs/functional/deep-research.md`.
-- Not yet built: an escalation scoring engine, topic-suppression store, and suggestion-snooze behavior for dossiers.
+- Current implementation includes escalation scoring, persisted escalation rows, dismiss/snooze/accept flows, and suggestion/briefing surfacing. Follow-up work is mainly threshold tuning and richer suppression heuristics.
 
 ## Detailed Behavior
 

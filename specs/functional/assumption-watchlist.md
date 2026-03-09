@@ -1,12 +1,12 @@
 # Assumption Watchlist
 
-**Status:** Draft
+**Status:** Partially Implemented
 **Author:** -
 **Date:** 2026-03-08
 
 ## Problem
 
-Users often make plans based on implicit assumptions, but those assumptions are easy to forget and hard to monitor over time. The product can already track goals, dossiers, and personal patterns, but it does not yet maintain a structured watchlist of assumptions that can be confirmed or invalidated as evidence shifts.
+Users often make plans based on implicit assumptions, but those assumptions are easy to forget and hard to monitor over time. The product now has a structured assumption store and alerting path, but it still needs stronger extraction quality and tighter workflow integration to make assumptions feel first-class.
 
 ## Overview
 
@@ -28,7 +28,7 @@ Users making strategic plans, monitoring markets or companies, or using dossiers
 - Can extract assumptions from journals, action plans, and dossier context from `specs/functional/journaling.md`, `specs/functional/action-plans.md`, and `specs/functional/research-dossiers.md`.
 - Can consume signals from `specs/functional/company-movement-pipeline.md`, `specs/functional/hiring-activity-pipeline.md`, and `specs/functional/regulatory-change-pipeline.md`.
 - Can surface in return briefings from `specs/functional/since-you-were-away-why-now.md`.
-- Not yet built: an assumption store, assumption extraction pass, signal-matching logic for assumptions, and user-facing assumption management flows.
+- Current implementation includes a per-user assumption store, journal-based suggestion extraction, signal refresh against company/hiring/regulatory intel, manual CRUD plus activate/resolve/archive flows, and alert surfacing in suggestions and return briefings. Follow-up work is mainly richer review UX and deeper dossier-native authoring.
 
 ## Detailed Behavior
 

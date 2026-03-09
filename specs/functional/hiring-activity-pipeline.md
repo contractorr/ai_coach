@@ -1,12 +1,12 @@
 # Hiring Activity Pipeline
 
-**Status:** Draft
+**Status:** Partially Implemented
 **Author:** -
 **Date:** 2026-03-08
 
 ## Problem
 
-Hiring patterns often reveal strategic movement before formal announcements do, but the current product does not yet convert job-posting activity into structured company or sector insights. Users miss signals such as capability buildup, team expansion, geography shifts, or sharp changes in hiring intensity.
+Hiring patterns often reveal strategic movement before formal announcements do, but raw job data still needs interpretation before it becomes useful strategic insight. The product now has a hiring-signal pipeline, but it still needs broader adapters and stronger baselines so users do not miss capability buildup, expansion, geography shifts, or sharp changes in hiring intensity.
 
 ## Overview
 
@@ -27,7 +27,7 @@ Founders tracking competitors, operators reading market direction, investors mon
 
 - Shares watchlist, scheduling, normalization, and card-surfacing infrastructure with `specs/functional/company-movement-pipeline.md`.
 - Integrates with dossiers in `specs/functional/research-dossiers.md` and return briefings in `specs/functional/since-you-were-away-why-now.md`.
-- Not yet built: company-career-page adapters, ATS-hosted job-board adapters, hiring-pattern baselines, and a hiring-signal interpreter.
+- Current implementation includes hiring-signal persistence, scheduler support, watchlist-derived company matching, web routes, and briefing/suggestion surfacing. Follow-up work is mainly broader adapters, stronger baselines, and deeper signal interpretation.
 - External-source dependency note: LinkedIn support is not assumed because API and terms constraints may require a separate decision.
 
 ## Detailed Behavior

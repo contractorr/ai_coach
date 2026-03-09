@@ -28,12 +28,16 @@ Suggested payload shape:
 {
   "active": true,
   "absent_hours": 96,
-  "summary": "While you were away, two watchlist items moved and one dossier changed.",
+  "summary": "While you were away, two company movements landed, one assumption changed, and one dossier changed.",
   "sections": [
     {"kind": "intel", "items": [...]},
+    {"kind": "company_movements", "items": [...]},
+    {"kind": "hiring_signals", "items": [...]},
+    {"kind": "regulatory_alerts", "items": [...]},
     {"kind": "threads", "items": [...]},
     {"kind": "dossiers", "items": [...]},
-    {"kind": "goals", "items": [...]}
+    {"kind": "goals", "items": [...]},
+    {"kind": "assumptions", "items": [...]}
   ],
   "next_steps": [ ... ],
   "generated_at": "..."
@@ -82,6 +86,10 @@ Attaches compact evidence chips to suggestion and recommendation payloads. The r
 Supported chip codes can include:
 
 - `stale_goal`
+- `assumption_invalidated`
+- `assumption_confirmed`
+- `assumption_suggested`
+- `assumption_updated`
 - `watchlist_match`
 - `thread_reactivated`
 - `dossier_changed`

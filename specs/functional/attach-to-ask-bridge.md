@@ -1,12 +1,12 @@
 # Attach-to-Ask Bridge
 
-**Status:** Draft
+**Status:** Partially Implemented
 **Author:** -
 **Date:** 2026-03-08
 
 ## Problem
 
-The advisor is meant to answer questions using the user's documents, but the current web chat flow does not yet support in-thread document attachments. Users have to think in terms of the Library first, which breaks the immediacy of asking "here is my document; tell me what matters right now."
+The advisor is meant to answer questions using the user's documents, and the web product now supports in-thread PDF attachments. This spec documents the current chat-first behavior and its boundaries so the experience does not regress back into a Library-first workflow.
 
 ## Overview
 
@@ -29,7 +29,7 @@ Users asking advisor questions that depend on resumes, project briefs, strategy 
 - Depends on PDF upload, extracted-text indexing, and file download behaviors in `specs/functional/library-reports.md`.
 - Reuses the private document storage and indexing model described in the technical library and web specs.
 - May optionally feed memory extraction from uploaded documents as described in `specs/functional/memory-threads.md`.
-- Not yet built: in-thread upload UX, attachment-aware chat request payloads in web, conversation attachment persistence, and chat-first visibility rules for uploaded documents.
+- Current implementation includes in-thread PDF upload UX on home and advisor chat surfaces, attachment-aware ask payloads, conversation attachment persistence, and hidden chat-origin Library items with explicit save-to-Library promotion.
 
 ## Detailed Behavior
 
@@ -43,13 +43,14 @@ Users asking advisor questions that depend on resumes, project briefs, strategy 
 
 1. User opens a first-party web chat surface and selects one or more PDF files while composing a message.
 2. Each attachment appears as a pending attachment card in the composer.
-3. System uploads the file, extracts text, indexes it, and attaches it to the current conversation turn.
+3. System uploads the file, extracts text, indexes it, and prepares it for the current conversation turn.
 4. The user sees a clear readiness state for each attachment:
+   - `Pending`
    - `Uploading`
-   - `Extracting`
    - `Ready to use`
    - `Limited text extracted` when extraction succeeded poorly
-5. Once at least one attachment is ready, the user can submit or continue the current question with confidence that the document will influence the same response.
+   - `Upload failed`
+5. When the user submits, the client finishes uploading pending PDFs first, then sends the advisor request with the returned attachment ids so the same response can use them.
 
 ### Relationship to Library documents
 
@@ -57,14 +58,14 @@ Users asking advisor questions that depend on resumes, project briefs, strategy 
 2. Under the hood, chat attachments reuse the same private per-user document storage and indexing path as uploaded Library PDFs.
 3. A chat attachment should not require the user to leave chat or open the Library workspace first.
 4. User can choose `Save to Library` from the chat attachment UI so the document becomes a visible durable Library item.
-5. If the product introduces chat-only visibility before save, that hidden-origins behavior is a dependency of this feature rather than an already-shipped capability.
+5. Chat-origin uploads are stored as hidden Library items until the user explicitly saves them into the visible Library workspace.
 
 ### Ready-to-query moment
 
 1. The attachment UI should make it obvious when the document is available for the current turn.
 2. The advisor request should include the ready attachment ids with the same user message.
 3. The assistant answer should be allowed to reference the document in plain language.
-4. If the user submits before extraction finishes, the product should either hold the request briefly for ordinary uploads or explain that the attachment may affect a later reply if indexing is still incomplete.
+4. Current web send behavior waits for attachment upload and indexing to finish before the advisor request is sent; a failed upload blocks the turn and leaves the attachment in an error state.
 
 ### Large-document handling
 
@@ -102,7 +103,7 @@ Current interface scope:
 | Scenario | Expected Behavior |
 |----------|-------------------|
 | User uploads a scanned PDF with little extractable text | Upload can succeed, but the UI warns that the document may have limited effect |
-| User submits the chat message before indexing finishes | UI explains that the attachment is still processing and may affect the next turn if not ready in time |
+| User submits the chat message while PDFs are still pending | The client uploads and indexes them first, then sends the advisor request with any ready or limited-text attachment ids |
 | PDF exceeds upload limit | Upload is rejected before advisor submission |
 | User attaches multiple PDFs | Each attachment shows its own readiness state and can be included in the same turn |
 | User decides the attachment is not needed | They can remove it from the pending composer state before sending |
@@ -125,4 +126,4 @@ Current interface scope:
 ## Open Questions
 
 - Should chat attachments be visible in the main Library list immediately, or only after explicit save?
-- Should the product permit sending a message while attachments are still indexing, or require at least one attachment to reach `Ready to use` first?
+- Should a future version permit background indexing plus a follow-up answer, rather than waiting for upload processing before the first response?

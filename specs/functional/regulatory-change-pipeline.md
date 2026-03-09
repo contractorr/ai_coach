@@ -1,12 +1,12 @@
 # Regulatory Change Pipeline
 
-**Status:** Draft
+**Status:** Partially Implemented
 **Author:** -
 **Date:** 2026-03-08
 
 ## Problem
 
-Users operating in regulated or standards-sensitive areas need early visibility into policy, regulatory, and standards changes relevant to their sectors or geographies. The current intelligence feed can ingest broad sources, but it does not yet provide a focused regulatory monitoring loop with urgency and actionability.
+Users operating in regulated or standards-sensitive areas need early visibility into policy, regulatory, and standards changes relevant to their sectors or geographies. The product now has a focused regulatory alert path, but it still needs broader source coverage and better urgency/actionability shaping than the generic intelligence feed alone can provide.
 
 ## Overview
 
@@ -28,7 +28,7 @@ Founders, operators, investors, and technical leaders who care about policy shif
 - Builds on watchlist and intelligence ingestion from `specs/functional/intelligence-feed.md`.
 - Integrates with dossiers in `specs/functional/research-dossiers.md`, threads in `specs/functional/recurring-thread-inbox.md`, and return briefings in `specs/functional/since-you-were-away-why-now.md`.
 - Can feed assumption evaluation in `specs/functional/assumption-watchlist.md`.
-- Not yet built: regulatory-specific source adapters, regulatory classification logic, and a dedicated regulatory alert card.
+- Current implementation includes regulatory target resolution, alert persistence, scheduler support, web routes, and briefing/suggestion surfacing. Follow-up work is mainly broader adapters, richer classification, and UI polish.
 
 ## Detailed Behavior
 

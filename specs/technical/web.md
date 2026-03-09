@@ -213,7 +213,7 @@ def get_all_user_rss_feeds() -> list[dict]
 
 Thin wrapper over `users.db` `conversations` + `conversation_messages` tables (reuses `_get_conn` from `user_store`). Conversations are keyed by `uuid4().hex` IDs. `get_messages` uses a subquery: fetches last N by `DESC`, returns `ASC` (oldest-first for LLM history).
 
-For document-aware chat, the target shape adds a `conversation_message_attachments` table so each user turn can retain zero or more Library attachment references without inlining binary data into message rows.
+For document-aware chat, `conversation_message_attachments` lets each user turn retain zero or more Library attachment references without inlining binary data into message rows.
 
 `conversation_belongs_to(conv_id, user_id)` is used as an ownership check before operations; returns bool (no exception).
 
@@ -233,7 +233,7 @@ def conversation_belongs_to(conv_id, user_id) -> bool
 
 `list_conversations` returns: `{id, title, updated_at, message_count}` (LEFT JOIN count).
 
-Attachment-aware `get_messages()` / `get_conversation()` should return message objects with optional `attachments: list[{library_item_id, file_name, mime_type, title?, source_kind?}]`.
+Attachment-aware `get_messages()` / `get_conversation()` return message objects with optional `attachments: list[{library_item_id, file_name, mime_type, title?, source_kind?}]`.
 
 #### Invariants
 
@@ -333,9 +333,9 @@ Used by: `journal`, `goals`, `profile`, `recommendations`, `memory`, `threads`
 Each route: resolves user paths → instantiates storage class with per-user path → delegates to storage method → maps result to Pydantic response model. Path traversal protection on file-based routes via `_validate_journal_path()` (checks resolved path is inside `journal_dir`).
 
 **Pattern: advisor (non-trivial)**
-`POST /api/advisor/ask` — Creates or reuses a `conversation_id`, loads last 20 messages (trimmed to 64k chars), saves user message, calls `AdvisorEngine.ask()` in `asyncio.to_thread`, saves assistant response, logs `chat_query` usage event. Builds a fresh `AdvisorEngine` instance per request. Target shape adds `attachment_ids` so chat turns can reference already-uploaded Library items.
+`POST /api/advisor/ask` — Creates or reuses a `conversation_id`, loads last 20 messages (trimmed to 64k chars), saves user message, calls `AdvisorEngine.ask()` in `asyncio.to_thread`, saves assistant response, logs `chat_query` usage event. Builds a fresh `AdvisorEngine` instance per request. The JSON request accepts `attachment_ids` so chat turns can reference already-uploaded Library items.
 
-`POST /api/advisor/ask/stream` — SSE streaming variant. Uses `asyncio.Queue` as producer-consumer between engine thread and SSE generator. Engine runs in `loop.run_in_executor`. Events emitted: `tool_start`, `tool_done`, `answer`, `error`. `answer` event emitted by SSE generator only if agentic callback didn't already emit one. Returns `StreamingResponse(media_type="text/event-stream")`. Target shape keeps the SSE response format but adds JSON request support for `attachment_ids` referencing uploaded Library items.
+`POST /api/advisor/ask/stream` — SSE streaming variant. Uses `asyncio.Queue` as producer-consumer between engine thread and SSE generator. Engine runs in `loop.run_in_executor`. Events emitted: `tool_start`, `tool_done`, `answer`, `error`. `answer` event emitted by SSE generator only if agentic callback didn't already emit one. Returns `StreamingResponse(media_type="text/event-stream")`. The JSON request accepts `attachment_ids` referencing uploaded Library items.
 
 `library.py`:
 - `POST /api/library/reports/upload` validates and stores PDFs, extracts text, indexes content, and returns a Library item that chat can attach immediately.

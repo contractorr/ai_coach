@@ -1,6 +1,6 @@
 # Outcome Harvester
 
-**Status:** Draft
+**Status:** Partially Implemented
 **Author:** -
 **Date:** 2026-03-08
 
@@ -29,7 +29,7 @@ Users who receive recommendations, create action items, track goals, and journal
 - Depends on journal entries and goal check-ins from `specs/functional/journaling.md` and `specs/functional/goal-tracking.md`.
 - Can enrich why-now reasoning in `specs/functional/since-you-were-away-why-now.md`.
 - Can feed memory extraction from recommendation feedback and goal events described in `specs/functional/memory-threads.md`.
-- Not yet built: an outcome-inference pass over later user activity, structured harvested-outcome storage, and user-facing confirm/correct controls for inferred outcomes.
+- Current implementation includes harvested-outcome storage, recommendation outcome evaluation on read, user override controls, and why-now enrichment for positive prior outcomes. Follow-up work is mainly broader background inference across more activity types and richer review surfaces.
 
 ## Detailed Behavior
 

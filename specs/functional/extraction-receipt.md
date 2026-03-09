@@ -1,6 +1,6 @@
 # Extraction Receipt
 
-**Status:** Draft
+**Status:** Partially Implemented
 **Author:** -
 **Date:** 2026-03-08
 
@@ -29,7 +29,7 @@ All journaling users. It is especially valuable for new users, trust-sensitive u
 - Depends on memory extraction and thread detection described in `specs/functional/memory-threads.md`.
 - Integrates with goals from `specs/functional/goal-tracking.md`, research from `specs/functional/deep-research.md`, and dossiers from `specs/functional/research-dossiers.md`.
 - May surface escalation suggestions from `specs/functional/dossier-escalation-engine.md` when that feature exists.
-- Not yet built: a durable extraction-receipt store, user-review state for receipt items, and a goal-candidate extraction pass distinct from existing goal creation.
+- Current implementation includes a durable extraction-receipt store, post-create receipt finalization, and a receipt read API for journal entries. Follow-up work is mainly richer user-review controls and stronger goal-candidate extraction.
 
 ## Detailed Behavior
 

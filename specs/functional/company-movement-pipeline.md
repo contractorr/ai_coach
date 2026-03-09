@@ -1,12 +1,12 @@
 # Competitor / Company Movement Pipeline
 
-**Status:** Draft
+**Status:** Partially Implemented
 **Author:** -
 **Date:** 2026-03-08
 
 ## Problem
 
-Users often care about the strategic movement of specific companies, but the current intelligence feed is broad rather than company-centric. Without a structured company-monitoring pipeline, important changes such as product launches, pricing moves, partnerships, or leadership shifts are easy to miss or remain disconnected from dossiers and strategic briefings.
+Users often care about the strategic movement of specific companies, and a generic intelligence feed alone is not enough. The product now has a structured company-monitoring path, but it still needs broader source coverage, stronger identity resolution, and better significance ranking to make important company changes hard to miss.
 
 ## Overview
 
@@ -28,7 +28,7 @@ Founders tracking competitors, operators watching adjacent companies, investors 
 - Builds on watchlist and heartbeat behaviors in `specs/functional/intelligence-feed.md`.
 - Integrates with dossiers in `specs/functional/research-dossiers.md` and return briefings in `specs/functional/since-you-were-away-why-now.md`.
 - Shares infrastructure with `specs/functional/hiring-activity-pipeline.md` for company identity, scheduling, normalization, and ranking.
-- Not yet built: company-specific source adapters, company identity resolution, significance ranking for company events, and a dedicated company movement card type.
+- Current implementation includes watchlist-derived company resolution, movement persistence, scheduler support, web routes, and briefing/suggestion surfacing. Follow-up work is mainly broader source adapters, stronger entity resolution, and richer card polish.
 
 ## Detailed Behavior
 

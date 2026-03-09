@@ -61,8 +61,8 @@ Current interface scope:
 5. When a document contains durable user context, such as a CV or resume, the system can distill that into memory so later advice stays personalized without requiring repeated uploads.
 
 Current interface scope:
-- Web chat surfaces do not yet support in-thread PDF attachments.
-- The Library workspace already supports basic PDF upload, preview, and download, but extracted-text retrieval and advisor/memory ingestion are not yet wired through chat.
+- Home and advisor web chat surfaces support in-thread PDF attachments and pass `attachment_ids` through the ask flow.
+- Chat-origin PDFs are stored as private user documents, remain searchable for later retrieval, and can be explicitly promoted into the visible Library workspace.
 
 ### Proactive greeting (chat-first home)
 
