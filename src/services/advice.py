@@ -77,6 +77,26 @@ def run_advice(
 ) -> dict[str, Any]:
     """Run an advisor request and return the answer with latency metadata."""
     start = time.monotonic()
+    ask_result_method = getattr(type(engine), "ask_result", None)
+    if callable(ask_result_method):
+        result = engine.ask_result(
+            question,
+            advice_type=advice_type,
+            conversation_history=conversation_history,
+            attachment_ids=attachment_ids,
+            event_callback=event_callback,
+        )
+        payload = {
+            "answer": result.answer,
+            "latency_ms": int((time.monotonic() - start) * 1000),
+            "council_used": getattr(result, "council_used", False),
+            "council_member_count": getattr(result, "council_member_count", 0),
+            "council_providers": getattr(result, "council_providers", []),
+            "council_failed_providers": getattr(result, "council_failed_providers", []),
+            "council_partial": getattr(result, "council_partial", False),
+        }
+        return payload
+
     answer = engine.ask(
         question,
         advice_type=advice_type,
@@ -87,4 +107,9 @@ def run_advice(
     return {
         "answer": answer,
         "latency_ms": int((time.monotonic() - start) * 1000),
+        "council_used": False,
+        "council_member_count": 0,
+        "council_providers": [],
+        "council_failed_providers": [],
+        "council_partial": False,
     }

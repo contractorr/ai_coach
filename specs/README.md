@@ -16,6 +16,7 @@ specs/
   functional/        # What & why (PM-authored)
     TEMPLATE.md
     {feature}.md
+    archive/         # Accepted decision records and retired proposals
   technical/         # How (Claude-generated, developer-reviewed)
     TEMPLATE.md
     {module}.md
@@ -29,7 +30,8 @@ specs/
 | Spec | Status | Covers |
 |------|--------|--------|
 | [journaling](functional/journaling.md) | Stable | CRUD, search, templates, trends, threads, sentiment |
-| [ask-advice](functional/ask-advice.md) | Stable | RAG Q&A, agentic mode, advice types, chat surfaces, document-grounded answers, greeting, insights, suggestions |
+| [ask-advice](functional/ask-advice.md) | Stable | RAG Q&A, agentic mode, advice types, chat surfaces, document-grounded answers, council-assisted answers, greeting, insights, suggestions |
+| [llm-council](functional/llm-council.md) | Draft | Multi-provider API keys, council-assisted answers, synthesis of agreement/disagreement, path-forward guidance |
 | [intelligence-feed](functional/intelligence-feed.md) | Stable | 15 scrapers, dedup, trending radar, scheduling |
 | [recommendations](functional/recommendations.md) | Stable | Scoring, dedup, feedback loop, delivery |
 | [action-plans](functional/action-plans.md) | Stable | Recommendation-to-execution workflow, weekly planning, goal linkage |
@@ -39,10 +41,10 @@ specs/
 | [research-dossiers](functional/research-dossiers.md) | Experimental | Persistent research topics, timeline updates, advisor retrieval |
 | [goal-tracking](functional/goal-tracking.md) | Experimental | Goals, milestones, check-ins |
 | [projects-opportunities](functional/projects-opportunities.md) | Stable | Matched issues, project ideas, dedicated workspace |
-| [settings-account](functional/settings-account.md) | Stable | Keys, lite mode, watchlist, profile editing, account deletion |
+| [settings-account](functional/settings-account.md) | Stable | Multi-provider keys, council preferences, lite mode, watchlist, profile editing, account deletion |
 | [memory-threads](functional/memory-threads.md) | Experimental | Persistent facts, recurring topic detection, document-derived memory |
 | [library-reports](functional/library-reports.md) | Partially Implemented | Library workspace for durable AI-generated reports and uploaded PDFs, manual generation, document storage, refresh, collections |
-| [v2-simplified-product](functional/v2-simplified-product.md) | Draft | Simplified information architecture, merged workflows, progressive disclosure across existing features |
+| [v2-simplified-product](functional/archive/v2-simplified-product.md) | Accepted (Archived decision) | Simplified information architecture, merged workflows, progressive disclosure across existing features |
 
 ## Technical Specs (modules)
 

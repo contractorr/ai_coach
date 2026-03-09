@@ -30,8 +30,18 @@ from web.user_store import get_user_secrets
 
 logger = structlog.get_logger()
 
+SUPPORTED_LLM_PROVIDERS = ("claude", "openai", "gemini")
+LLM_PROVIDER_ENV_KEYS = {
+    "claude": "ANTHROPIC_API_KEY",
+    "openai": "OPENAI_API_KEY",
+    "gemini": "GOOGLE_API_KEY",
+}
+
 SECRET_KEY_FIELDS = [
     "llm_api_key",
+    "llm_api_key_claude",
+    "llm_api_key_openai",
+    "llm_api_key_gemini",
     "tavily_api_key",
     "github_token",
     "eventbrite_token",
@@ -218,32 +228,150 @@ def get_decrypted_secrets_for_user(user_id: str) -> dict:
 SHARED_LLM_MODEL = "claude-haiku-4-5"
 
 
+def llm_secret_key(provider: str) -> str:
+    """Return the per-provider secret key name."""
+    return f"llm_api_key_{provider}"
+
+
+def _normalize_llm_provider(provider: str | None) -> str | None:
+    if not provider:
+        return None
+    provider = provider.lower().strip()
+    if provider == "auto":
+        return "auto"
+    if provider in SUPPORTED_LLM_PROVIDERS:
+        return provider
+    return None
+
+
+def _parse_bool_secret(value: str | None, default: bool = True) -> bool:
+    if value is None:
+        return default
+    return str(value).strip().lower() not in {"0", "false", "no", "off"}
+
+
+def _detect_provider_from_key(api_key: str | None) -> str | None:
+    if not api_key:
+        return None
+    if api_key.startswith("sk-ant-"):
+        return "claude"
+    if api_key.startswith("sk-"):
+        return "openai"
+    if api_key.startswith("AI"):
+        return "gemini"
+    return None
+
+
+def _get_personal_llm_keys_from_secrets(secrets: dict[str, str]) -> dict[str, str]:
+    keys: dict[str, str] = {}
+    for provider in SUPPORTED_LLM_PROVIDERS:
+        value = secrets.get(llm_secret_key(provider))
+        if value:
+            keys[provider] = value
+
+    if keys:
+        return keys
+
+    legacy_key = secrets.get("llm_api_key")
+    if legacy_key:
+        provider = _normalize_llm_provider(secrets.get("llm_provider"))
+        if provider in SUPPORTED_LLM_PROVIDERS:
+            keys[provider] = legacy_key
+        else:
+            inferred = _detect_provider_from_key(legacy_key)
+            if inferred:
+                keys[inferred] = legacy_key
+    return keys
+
+
+def get_personal_llm_keys_for_user(user_id: str) -> dict[str, str]:
+    """Return configured personal LLM API keys keyed by provider."""
+    return _get_personal_llm_keys_from_secrets(get_decrypted_secrets_for_user(user_id))
+
+
+def _get_shared_llm_key(provider: str | None = None) -> tuple[str | None, str | None]:
+    if provider and provider in LLM_PROVIDER_ENV_KEYS:
+        value = os.getenv(LLM_PROVIDER_ENV_KEYS[provider])
+        if value:
+            return value, provider
+
+    for candidate in SUPPORTED_LLM_PROVIDERS:
+        env_var = LLM_PROVIDER_ENV_KEYS[candidate]
+        value = os.getenv(env_var)
+        if value:
+            return value, candidate
+
+    config = get_config()
+    if config.llm.api_key:
+        configured = _normalize_llm_provider(config.llm.provider) or provider or "claude"
+        return config.llm.api_key, configured
+
+    return None, None
+
+
+def resolve_llm_credentials_for_user(
+    user_id: str,
+    provider: str | None = None,
+) -> tuple[str | None, str | None, str | None]:
+    """Resolve (provider, api_key, source) for a user's normal single-provider LLM call."""
+    config = get_config()
+    secrets = get_decrypted_secrets_for_user(user_id)
+    personal_keys = _get_personal_llm_keys_from_secrets(secrets)
+    preferred = _normalize_llm_provider(provider) or _normalize_llm_provider(
+        secrets.get("llm_provider")
+    ) or _normalize_llm_provider(config.llm.provider)
+
+    if preferred in SUPPORTED_LLM_PROVIDERS and personal_keys.get(preferred):
+        return preferred, personal_keys[preferred], "user"
+
+    if preferred == "auto" or preferred is None:
+        for candidate in SUPPORTED_LLM_PROVIDERS:
+            if personal_keys.get(candidate):
+                return candidate, personal_keys[candidate], "user"
+
+    if preferred in SUPPORTED_LLM_PROVIDERS:
+        shared_key, shared_provider = _get_shared_llm_key(preferred)
+        if shared_key:
+            return shared_provider, shared_key, "shared"
+
+    for candidate in SUPPORTED_LLM_PROVIDERS:
+        if personal_keys.get(candidate):
+            return candidate, personal_keys[candidate], "user"
+
+    shared_key, shared_provider = _get_shared_llm_key(preferred)
+    if shared_key:
+        return shared_provider, shared_key, "shared"
+
+    return preferred if preferred in SUPPORTED_LLM_PROVIDERS else None, None, None
+
+
+def get_council_members_for_user(user_id: str) -> list[dict[str, str]]:
+    """Return configured personal provider credentials eligible for council mode."""
+    secrets = get_decrypted_secrets_for_user(user_id)
+    enabled = _parse_bool_secret(secrets.get("llm_council_enabled"), default=True)
+    if not enabled:
+        return []
+
+    return [
+        {"provider": provider, "api_key": api_key}
+        for provider, api_key in _get_personal_llm_keys_from_secrets(secrets).items()
+        if api_key
+    ]
+
+
 def get_api_key_with_source(user_id: str) -> tuple[str | None, str | None]:
     """Get LLM API key + source for a user.
 
     Returns (key, source) where source is "user" | "shared" | None.
     """
-    secrets = get_decrypted_secrets_for_user(user_id)
-
-    if secrets.get("llm_api_key"):
-        return secrets["llm_api_key"], "user"
-
-    for env_var in ["ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GOOGLE_API_KEY"]:
-        val = os.getenv(env_var)
-        if val:
-            return val, "shared"
-
-    config = get_config()
-    if config.llm.api_key:
-        return config.llm.api_key, "shared"
-
-    return None, None
+    _provider, api_key, source = resolve_llm_credentials_for_user(user_id)
+    return api_key, source
 
 
 def get_api_key_for_user(user_id: str, provider: str | None = None) -> str | None:
     """Get LLM API key for a user: user secrets first, then env vars, then config."""
-    key, _source = get_api_key_with_source(user_id)
-    return key
+    _provider, api_key, _source = resolve_llm_credentials_for_user(user_id, provider=provider)
+    return api_key
 
 
 def enforce_shared_key_usage_limit(user: dict = Depends(get_current_user)) -> None:
@@ -281,15 +409,36 @@ def get_settings_mask_for_user(user_id: str) -> dict:
     """Return settings with bool mask for secrets, per-user."""
     secrets = get_decrypted_secrets_for_user(user_id)
     config = get_config()
+    personal_keys = _get_personal_llm_keys_from_secrets(secrets)
+    provider_statuses = [
+        {
+            "provider": provider,
+            "configured": bool(personal_keys.get(provider)),
+            "hint": _hint(personal_keys.get(provider)),
+            "council_eligible": bool(personal_keys.get(provider)),
+        }
+        for provider in SUPPORTED_LLM_PROVIDERS
+    ]
 
-    _key, source = get_api_key_with_source(user_id)
-    has_own_key = bool(secrets.get("llm_api_key"))
+    selected_provider, _key, source = resolve_llm_credentials_for_user(user_id)
+    has_own_key = bool(personal_keys)
+    preferred_provider = _normalize_llm_provider(secrets.get("llm_provider")) or config.llm.provider
+    display_provider = preferred_provider if preferred_provider != "auto" else selected_provider
+    key_hint = None
+    if display_provider in personal_keys:
+        key_hint = _hint(personal_keys.get(display_provider))
+    elif personal_keys:
+        key_hint = _hint(next(iter(personal_keys.values())))
+    council_enabled = _parse_bool_secret(secrets.get("llm_council_enabled"), default=True)
 
     return {
-        "llm_provider": secrets.get("llm_provider") or config.llm.provider,
+        "llm_provider": display_provider,
         "llm_model": secrets.get("llm_model") or config.llm.model,
+        "llm_council_enabled": council_enabled,
+        "llm_council_ready": council_enabled and len(personal_keys) >= 2,
+        "llm_provider_keys": provider_statuses,
         "llm_api_key_set": has_own_key,
-        "llm_api_key_hint": _hint(secrets.get("llm_api_key")),
+        "llm_api_key_hint": key_hint,
         "using_shared_key": source == "shared",
         "has_own_key": has_own_key,
         "tavily_api_key_set": bool(secrets.get("tavily_api_key")),

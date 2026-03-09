@@ -5,6 +5,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from advisor.engine import AdvisorEngine, APIKeyMissingError, LLMError
+from advisor.council import CouncilMember
 
 
 @pytest.fixture
@@ -111,6 +112,56 @@ class TestAdvisorEngine:
 
     def test_provider_name_accessible(self, engine):
         assert engine.llm.provider_name == "claude"
+
+    def test_council_used_for_important_decision_prompt(self, mock_rag, mock_client):
+        calls = []
+
+        class FakeCouncilProvider:
+            def __init__(self, provider_name):
+                self.provider_name = provider_name
+
+            def generate(self, messages, system=None, max_tokens=2000, use_thinking=False):
+                calls.append((self.provider_name, messages[-1]["content"]))
+                if "COUNCIL RESPONSES:" in messages[-1]["content"]:
+                    return "Synthesized council answer"
+                return f"Independent answer from {self.provider_name}"
+
+        engine = AdvisorEngine(
+            rag=mock_rag,
+            provider="claude",
+            client=mock_client,
+            council_members=[
+                CouncilMember(provider="claude", api_key="k1"),
+                CouncilMember(provider="openai", api_key="k2"),
+            ],
+            council_lead_provider="claude",
+            council_provider_factory=lambda provider, **kwargs: FakeCouncilProvider(provider),
+        )
+
+        result = engine.ask_result("Help me decide between two offers with different tradeoffs")
+
+        assert result.council_used is True
+        assert result.answer == "Synthesized council answer"
+        assert set(result.council_providers) == {"claude", "openai"}
+        mock_client.messages.create.assert_not_called()
+        assert len(calls) == 3
+
+    def test_council_skips_low_risk_prompt(self, mock_rag, mock_client):
+        engine = AdvisorEngine(
+            rag=mock_rag,
+            provider="claude",
+            client=mock_client,
+            council_members=[
+                CouncilMember(provider="claude", api_key="k1"),
+                CouncilMember(provider="openai", api_key="k2"),
+            ],
+        )
+
+        result = engine.ask_result("What is Rust?")
+
+        assert result.council_used is False
+        assert result.answer == "Mocked LLM response"
+        mock_client.messages.create.assert_called_once()
 
 
 class TestContextAssemblyWiring:

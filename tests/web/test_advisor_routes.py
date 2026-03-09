@@ -1,5 +1,6 @@
 """Tests for advisor API routes (ask, streaming, conversations)."""
 
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 
@@ -16,8 +17,6 @@ def _sample_pdf_bytes(text: str) -> bytes:
 
 def _mock_get_engine(user_id, use_tools=False):
     """Return a mock AdvisorEngine that returns canned answers."""
-    engine = MagicMock()
-
     def _ask(
         question,
         advice_type="general",
@@ -31,7 +30,23 @@ def _mock_get_engine(user_id, use_tools=False):
         suffix = f" using {len(attachment_ids or [])} attachment(s)" if attachment_ids else ""
         return f"Mock advice for: {question}{suffix}"
 
-    engine.ask.side_effect = _ask
+    class _Engine:
+        def ask(self, *args, **kwargs):
+            return _ask(*args, **kwargs)
+
+        def ask_result(self, *args, **kwargs):
+            question = args[0] if args else kwargs.get("question", "")
+            used = "decide" in question.lower()
+            return SimpleNamespace(
+                answer=_ask(*args, **kwargs),
+                council_used=used,
+                council_member_count=2 if used else 0,
+                council_providers=["claude", "openai"] if used else [],
+                council_failed_providers=[],
+                council_partial=False,
+            )
+
+    engine = _Engine()
     return engine
 
 
@@ -60,6 +75,21 @@ def test_ask_returns_answer(client, auth_headers):
     assert "Mock advice" in data["answer"]
     assert data["advice_type"] == "general"
     assert "conversation_id" in data
+
+
+def test_ask_returns_council_metadata_for_decision_prompt(client, auth_headers):
+    with patch(_ENGINE_PATCH, side_effect=_mock_get_engine):
+        res = client.post(
+            "/api/advisor/ask",
+            headers=auth_headers,
+            json={"question": "Help me decide what I should do next"},
+        )
+
+    assert res.status_code == 200
+    data = res.json()
+    assert data["council_used"] is True
+    assert data["council_member_count"] == 2
+    assert data["council_providers"] == ["claude", "openai"]
 
 
 def test_ask_creates_conversation(client, auth_headers):
@@ -163,6 +193,29 @@ def test_ask_stream_sse_events(client, auth_headers):
     answer_event = next(event for event in events if event["type"] == "answer")
     assert "conversation_id" in answer_event
     assert "Mock advice" in answer_event["content"]
+    assert answer_event["council_used"] is False
+
+
+def test_ask_stream_includes_council_metadata(client, auth_headers):
+    with patch(_ENGINE_PATCH, side_effect=_mock_get_engine):
+        res = client.post(
+            "/api/advisor/ask/stream",
+            headers=auth_headers,
+            json={"question": "Help me decide between two options"},
+        )
+
+    assert res.status_code == 200
+    events = []
+    for line in res.text.strip().split("\n"):
+        line = line.strip()
+        if line.startswith("data: "):
+            import json
+
+            events.append(json.loads(line[6:]))
+
+    answer_event = next(event for event in events if event["type"] == "answer")
+    assert answer_event["council_used"] is True
+    assert answer_event["council_providers"] == ["claude", "openai"]
 
 
 def test_conversations_crud(client, auth_headers):

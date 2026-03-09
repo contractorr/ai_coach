@@ -17,12 +17,11 @@ from web.auth import get_current_user
 from web.deps import (
     SHARED_LLM_MODEL,
     enforce_shared_key_usage_limit,
-    get_api_key_with_source,
     get_config,
-    get_decrypted_secrets_for_user,
     get_memory_store,
     get_profile_storage,
     get_user_paths,
+    resolve_llm_credentials_for_user,
 )
 from web.models import (
     LibraryReportCreate,
@@ -81,19 +80,15 @@ def _derive_document_title(file_name: str, explicit_title: str | None = None) ->
 
 def _generate_report_content(user_id: str, prompt: str, report_type: str) -> str:
     config = get_config()
-    api_key, source = get_api_key_with_source(user_id)
+    provider_name, api_key, source = resolve_llm_credentials_for_user(user_id)
     if not api_key:
         raise HTTPException(status_code=400, detail="No LLM API key configured")
-
-    secrets_provider = None
-    try:
-        secrets_provider = get_decrypted_secrets_for_user(user_id).get("llm_provider")
-    except Exception:
-        pass
-
-    provider_name = secrets_provider or config.llm.provider
     model = SHARED_LLM_MODEL if source == "shared" else config.llm.model
-    provider = create_llm_provider(provider=provider_name, api_key=api_key, model=model)
+    provider = create_llm_provider(
+        provider=provider_name or config.llm.provider,
+        api_key=api_key,
+        model=model,
+    )
 
     profile_summary = _profile_summary(user_id)
     goals = _active_goal_titles(user_id)

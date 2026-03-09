@@ -207,6 +207,45 @@ USER QUESTION: {question}
 
 Use the research context when relevant to provide more informed, thorough answers. Cite specific insights from research when applicable:"""
 
+    COUNCIL_MEMBER_SYSTEM_SUFFIX = """You are one independent member of an LLM council.
+
+Work independently from the other members. Do not mention other models or speculate about what they might say.
+Give your own best judgment, call out uncertainty honestly, and be concrete about tradeoffs and next steps."""
+
+    COUNCIL_MEMBER_PROMPT = """Review the full advisor request below and answer independently.
+
+Return your answer using exactly these sections:
+1. Main recommendation
+2. Why this is the best move
+3. Tradeoffs and uncertainty
+4. Recommended next steps
+
+FULL ADVISOR REQUEST:
+{user_prompt}"""
+
+    COUNCIL_SYNTHESIS_SYSTEM_SUFFIX = """You are synthesizing multiple independent model responses into one final answer for the user.
+
+Do not dump the raw responses. Produce one coherent steward answer that is nuanced, practical, and honest about uncertainty."""
+
+    COUNCIL_SYNTHESIS_PROMPT = """Synthesize the council responses below into one final answer for the user.
+
+Your final answer must include:
+- Main recommendation
+- Where the council agrees
+- Meaningful disagreement, uncertainty, or tradeoffs
+- Recommended path forward with concrete next steps
+
+Keep the answer concise and actionable. If some providers failed, briefly mention that fewer voices were available.
+
+ORIGINAL ADVISOR REQUEST:
+{original_prompt}
+
+FAILED PROVIDERS:
+{failed_providers}
+
+COUNCIL RESPONSES:
+{member_responses}"""
+
     @classmethod
     def _build_user_prompt(
         cls,
@@ -236,6 +275,36 @@ Use the research context when relevant to provide more informed, thorough answer
         import re
 
         return re.sub(r"\n{3,}", "\n\n", raw)
+
+    @classmethod
+    def build_council_member_system(cls, base_system: str) -> str:
+        return base_system + "\n\n" + cls.COUNCIL_MEMBER_SYSTEM_SUFFIX
+
+    @classmethod
+    def build_council_member_prompt(cls, user_prompt: str) -> str:
+        return cls.COUNCIL_MEMBER_PROMPT.format(user_prompt=user_prompt)
+
+    @classmethod
+    def build_council_synthesis_system(cls, base_system: str) -> str:
+        return base_system + "\n\n" + cls.COUNCIL_SYNTHESIS_SYSTEM_SUFFIX
+
+    @classmethod
+    def build_council_synthesis_prompt(
+        cls,
+        *,
+        original_prompt: str,
+        member_responses: list[dict[str, str]],
+        failed_providers: list[str],
+    ) -> str:
+        rendered_responses = "\n\n".join(
+            f"[{response['provider'].upper()}]\n{response['content']}"
+            for response in member_responses
+        )
+        return cls.COUNCIL_SYNTHESIS_PROMPT.format(
+            original_prompt=original_prompt,
+            failed_providers=", ".join(failed_providers) or "none",
+            member_responses=rendered_responses,
+        )
 
     # === Recommendation Prompts ===
 

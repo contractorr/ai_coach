@@ -1,83 +1,41 @@
-# Settings & Account
+# Settings and Account
 
-**Status:** Implemented
-**Author:** -
-**Date:** 2026-03-07
+**Status:** Updated for the simplified product model
 
-## Problem
+## Purpose
 
-Users need a safe place to manage API keys, understand whether they are on shared/lite mode, update account-facing identity details, and delete their account data when needed.
+Settings owns account-level and advanced configuration tasks so everyday work can stay in Home, Focus, Radar, and Library. It is also where users manage model access, connect multiple AI providers, and control whether steward can use a multi-model council for higher-stakes questions.
 
-## Users
+## Product Placement
 
-All authenticated web users.
+- Workspace: `Settings`
+- Primary job: manage account, profile, model access, council preferences, tracked topics, and memory facts
+- Not intended as the primary day-to-day work surface
 
-## Desired Behavior
+## Current Behavior
 
-### Managing AI settings
+- Settings includes profile and model-access management.
+- Users can save separate API keys for multiple supported LLM providers without overwriting the others.
+- Each provider entry has its own masked key state, replace/remove actions, and connection test.
+- Settings explains when steward may use a multi-provider council for important or open-ended prompts, including the expected tradeoff of better deliberation versus higher latency and cost.
+- Users can keep a default provider for normal fast answers while still allowing council mode when multiple working providers are available.
+- Tracked-topic configuration remains here as an advanced control.
+- The `What I know about you` section shows memory facts, stats, and delete controls.
 
-1. User can view whether provider settings and secret keys are configured.
-2. Secrets are never returned in raw form; the product shows masked state only.
-3. User can save or update LLM and research-related credentials.
-4. User can test LLM connectivity after saving a key.
-5. Long settings pages keep save progress visible even when the primary save action would otherwise fall below the fold.
+## User Flows
 
-### Lite mode
+- Add, replace, test, or remove one provider key without affecting the others.
+- Review which providers are available for normal answers versus council-assisted answers.
+- Update account or model-access settings.
+- Add or edit a tracked topic.
+- Review and delete memory facts.
 
-1. If the user has no personal LLM key, the product can fall back to shared/lite mode.
-2. Lite mode is clearly explained in the UI.
-3. Lite mode still supports the core product, but certain higher-cost capabilities remain limited.
+## Key System Components
 
-### Radar inputs
-
-1. User can add and remove custom RSS feeds for the intel radar.
-2. User can maintain a watchlist of companies, technologies, roles, and themes.
-3. Watchlist items capture a label, optional rationale, priority, and lightweight tags.
-
-### Profile context
-
-1. User can review and edit structured profile fields from settings without rerunning onboarding.
-2. Stale profile state is surfaced inline.
-3. User can restart onboarding from settings when a full refresh is easier than field-by-field editing.
-
-Current interface scope:
-- Settings is organized as a long-form workspace with section jump chips at the top.
-- When provider or key settings change, a sticky bottom save bar appears so the user can save without scrolling to the page end.
-- Account deletion remains isolated in a dedicated danger zone.
-
-### Account identity
-
-1. User can view and edit their display name.
-2. The product prefers the app-level display name over the raw OAuth name when available.
-
-### Account deletion
-
-1. User can delete their account.
-2. Account deletion removes stored user metadata and attempts best-effort cleanup of per-user filesystem data.
-
-## Acceptance Criteria
-
-- [ ] Settings endpoints return masked state rather than raw secrets.
-- [ ] User can update settings and test LLM connectivity from the web product.
-- [ ] Lite/shared mode is surfaced in the UI when the user lacks a personal key.
-- [ ] User can manage custom RSS feeds and watchlist entries from settings.
-- [ ] User can edit structured profile fields from settings and see stale-state messaging.
-- [ ] Unsaved settings changes surface through a persistent save affordance.
-- [ ] User can edit their display name.
-- [ ] User can delete their account from the product.
-
-## Edge Cases
-
-| Scenario | Expected Behavior |
-|----------|-------------------|
-| User saves an invalid LLM key | Connectivity test fails with a clear error |
-| User has no personal key | Product can continue in lite/shared mode |
-| User edits settings near the top of the page | Sticky save bar keeps save/discard actions available without a full scroll |
-| Name update fails | Settings UI remains usable; user can retry |
-| File cleanup during delete partially fails | Account deletion succeeds and cleanup is logged as best effort |
-
-## Out of Scope
-
-- Billing and subscription management
-- Multi-account switching in one session
-- Secret export or key escrow features
+- `web/src/app/(dashboard)/settings/page.tsx`
+- `web/src/components/SettingsSheet.tsx`
+- `src/web/routes/settings.py`
+- `src/web/routes/advisor.py`
+- `src/llm/`
+- `src/web/routes/intel.py`
+- `src/web/routes/memory.py`

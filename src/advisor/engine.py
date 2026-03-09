@@ -1,6 +1,7 @@
 """LLM orchestration for advice generation."""
 
 from collections.abc import Callable
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
@@ -11,6 +12,7 @@ from llm import LLMRateLimitError, create_cheap_provider, create_llm_provider
 
 from .action_brief import ActionBriefGenerator
 from .agentic import AgenticOrchestrator
+from .council import CouncilMember, CouncilOrchestrator, is_council_eligible
 from .context_cache import ContextCache
 from .goals import GoalTracker
 from .prompts import PromptTemplates
@@ -55,6 +57,16 @@ class LLMError(AdvisorError):
     pass
 
 
+@dataclass
+class AdviceResult:
+    answer: str
+    council_used: bool = False
+    council_member_count: int = 0
+    council_providers: list[str] = field(default_factory=list)
+    council_failed_providers: list[str] = field(default_factory=list)
+    council_partial: bool = False
+
+
 class AdvisorEngine:
     """Main advisor engine using pluggable LLM providers."""
 
@@ -68,11 +80,19 @@ class AdvisorEngine:
         use_tools: bool = False,
         components: Optional[dict] = None,
         rag_config: dict | None = None,
+        council_members: list[CouncilMember] | None = None,
+        council_enabled: bool = True,
+        council_lead_provider: str | None = None,
+        council_provider_factory: Callable[..., object] | None = None,
     ):
         self.rag = rag
         self.model = model
         self.use_tools = use_tools
         self._rag_config = rag_config or {}
+        self._council_members = council_members or []
+        self._council_enabled = council_enabled
+        self._council_lead_provider = council_lead_provider or provider
+        self._council_provider_factory = council_provider_factory or create_llm_provider
 
         # Attach context cache to RAG if not already set
         if not getattr(rag, "cache", None):
@@ -198,27 +218,23 @@ class AdvisorEngine:
         attachment_ids: list[str] | None = None,
         event_callback: Callable[[dict], None] | None = None,
     ) -> str:
-        """Get advice for a question.
+        return self.ask_result(
+            question,
+            advice_type=advice_type,
+            include_research=include_research,
+            conversation_history=conversation_history,
+            attachment_ids=attachment_ids,
+            event_callback=event_callback,
+        ).answer
 
-        Args:
-            question: User's question
-            advice_type: general, career, goals, opportunities, skill_gap
-            include_research: Include deep research context
-            conversation_history: Prior conversation messages for context
-            event_callback: Optional callback for streaming events
-
-        Returns:
-            LLM-generated advice
-        """
-        # Agentic mode: LLM decides what to look up via tool calls
-        if self._orchestrator and not attachment_ids:
-            return self._orchestrator.run(
-                question,
-                conversation_history=conversation_history,
-                event_callback=event_callback,
-            )
-
-        # Skill gap analysis uses profile + journal only (no intel)
+    def _build_advice_prompt(
+        self,
+        question: str,
+        advice_type: str,
+        include_research: bool,
+        attachment_ids: list[str] | None,
+    ) -> tuple[str, str]:
+        """Build the shared advisor prompt used by both single-provider and council flows."""
         if advice_type == "skill_gap":
             profile_ctx = self.rag.get_profile_context()
             journal_ctx = self.rag.get_journal_context(
@@ -231,11 +247,8 @@ class AdvisorEngine:
                 journal_context=journal_ctx,
                 question=question or "What are my skill gaps?",
             )
-            return self._call_llm(
-                PromptTemplates.SYSTEM, prompt, conversation_history=conversation_history
-            )
+            return PromptTemplates.SYSTEM, prompt
 
-        # Classic RAG mode: single-shot retrieval + LLM call
         use_extended = any(
             self._rag_config.get(k, False)
             for k in (
@@ -247,7 +260,6 @@ class AdvisorEngine:
             )
         ) or bool(attachment_ids)
 
-        # Get research context if available
         research_ctx = ""
         if include_research and hasattr(self.rag, "get_research_context"):
             research_ctx = self.rag.get_research_context(question)
@@ -276,19 +288,109 @@ class AdvisorEngine:
                 research_context=research_ctx if has_research else "",
                 question=question,
             )
-        else:
-            journal_ctx, intel_ctx = self.rag.get_combined_context(question)
-            profile_ctx = self.rag.get_profile_context()
-            prompt_template = PromptTemplates.get_prompt(advice_type, with_research=has_research)
-            user_prompt = prompt_template.format(
-                journal_context=profile_ctx + journal_ctx,
-                intel_context=intel_ctx,
-                research_context=research_ctx if has_research else "",
-                question=question,
+            return PromptTemplates.SYSTEM, user_prompt
+
+        journal_ctx, intel_ctx = self.rag.get_combined_context(question)
+        profile_ctx = self.rag.get_profile_context()
+        prompt_template = PromptTemplates.get_prompt(advice_type, with_research=has_research)
+        user_prompt = prompt_template.format(
+            journal_context=profile_ctx + journal_ctx,
+            intel_context=intel_ctx,
+            research_context=research_ctx if has_research else "",
+            question=question,
+        )
+        return PromptTemplates.SYSTEM, user_prompt
+
+    def _should_use_council(self, question: str, advice_type: str) -> bool:
+        return (
+            self._council_enabled
+            and len(self._council_members) >= 2
+            and is_council_eligible(question, advice_type=advice_type)
+        )
+
+    def ask_result(
+        self,
+        question: str,
+        advice_type: str = "general",
+        include_research: bool = True,
+        conversation_history: list[dict] | None = None,
+        attachment_ids: list[str] | None = None,
+        event_callback: Callable[[dict], None] | None = None,
+    ) -> AdviceResult:
+        """Get advice for a question.
+
+        Args:
+            question: User's question
+            advice_type: general, career, goals, opportunities, skill_gap
+            include_research: Include deep research context
+            conversation_history: Prior conversation messages for context
+            event_callback: Optional callback for streaming events
+
+        Returns:
+            LLM-generated advice
+        """
+        if self._should_use_council(question, advice_type):
+            system_prompt, user_prompt = self._build_advice_prompt(
+                question,
+                advice_type,
+                include_research,
+                attachment_ids,
+            )
+            if event_callback:
+                event_callback(
+                    {
+                        "type": "council_start",
+                        "providers": [member.provider for member in self._council_members],
+                    }
+                )
+            council_result = CouncilOrchestrator(
+                members=self._council_members,
+                lead_provider=self._council_lead_provider,
+                provider_factory=self._council_provider_factory,
+            ).run(
+                system=system_prompt,
+                user_prompt=user_prompt,
+                conversation_history=conversation_history,
+            )
+            if event_callback:
+                event_callback(
+                    {
+                        "type": "council_done",
+                        "providers": council_result.providers,
+                        "failed_providers": council_result.failed_providers,
+                        "used": council_result.used,
+                    }
+                )
+            return AdviceResult(
+                answer=council_result.answer,
+                council_used=council_result.used,
+                council_member_count=len(council_result.providers),
+                council_providers=council_result.providers,
+                council_failed_providers=council_result.failed_providers,
+                council_partial=council_result.partial,
             )
 
-        return self._call_llm(
-            PromptTemplates.SYSTEM, user_prompt, conversation_history=conversation_history
+        # Agentic mode: LLM decides what to look up via tool calls
+        if self._orchestrator and not attachment_ids:
+            return AdviceResult(
+                answer=self._orchestrator.run(
+                    question,
+                    conversation_history=conversation_history,
+                    event_callback=event_callback,
+                )
+            )
+        system_prompt, user_prompt = self._build_advice_prompt(
+            question,
+            advice_type,
+            include_research,
+            attachment_ids,
+        )
+        return AdviceResult(
+            answer=self._call_llm(
+                system_prompt,
+                user_prompt,
+                conversation_history=conversation_history,
+            )
         )
 
     def weekly_review(self, journal_storage=None) -> str:

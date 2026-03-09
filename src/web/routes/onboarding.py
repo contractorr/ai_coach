@@ -15,10 +15,10 @@ from web.auth import get_current_user
 from web.deps import (
     SHARED_LLM_MODEL,
     enforce_onboarding_shared_key_usage_limit,
-    get_api_key_with_source,
     get_config,
     get_profile_storage,
     get_user_paths,
+    resolve_llm_credentials_for_user,
 )
 from web.feed_catalog import FEED_CATALOG, feeds_for_categories, match_categories_to_profile
 from web.models import (
@@ -132,22 +132,12 @@ def _extract_completion_json(text: str) -> dict | None:
 def _make_llm_caller(user_id: str):
     """Build LLM caller for a user (same pattern as advisor route)."""
     config = get_config()
-    api_key, source = get_api_key_with_source(user_id)
+    provider_name, api_key, source = resolve_llm_credentials_for_user(user_id)
     if not api_key:
         raise HTTPException(status_code=400, detail="No LLM API key configured")
 
-    secrets_provider = None
-    try:
-        from web.deps import get_decrypted_secrets_for_user
-
-        secrets = get_decrypted_secrets_for_user(user_id)
-        secrets_provider = secrets.get("llm_provider")
-    except Exception:
-        pass
-
-    provider = secrets_provider or config.llm.provider
     model = SHARED_LLM_MODEL if source == "shared" else config.llm.model
-    llm = create_llm_provider(provider=provider, api_key=api_key, model=model)
+    llm = create_llm_provider(provider=provider_name or config.llm.provider, api_key=api_key, model=model)
 
     def caller(system: str, prompt: str, max_tokens: int = 1500) -> str:
         return llm.generate(
@@ -439,7 +429,7 @@ async def get_profile_status(user: dict = Depends(get_current_user)):
     user_id = user["id"]
     profile = get_profile_storage(user_id).load()
 
-    _key, source = get_api_key_with_source(user_id)
+    _provider, _key, source = resolve_llm_credentials_for_user(user_id)
 
     return ProfileStatus(
         has_profile=profile is not None,

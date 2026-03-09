@@ -12,10 +12,22 @@ class SettingsUpdate(BaseModel):
 
     llm_provider: Optional[str] = None
     llm_model: Optional[str] = None
+    llm_council_enabled: Optional[bool] = None
     llm_api_key: Optional[str] = None
+    llm_api_key_claude: Optional[str] = None
+    llm_api_key_openai: Optional[str] = None
+    llm_api_key_gemini: Optional[str] = None
+    llm_remove_providers: list[str] = Field(default_factory=list)
     tavily_api_key: Optional[str] = None
     github_token: Optional[str] = None
     eventbrite_token: Optional[str] = None
+
+
+class LLMProviderKeyStatus(BaseModel):
+    provider: str
+    configured: bool = False
+    hint: Optional[str] = None
+    council_eligible: bool = False
 
 
 class SettingsResponse(BaseModel):
@@ -23,6 +35,9 @@ class SettingsResponse(BaseModel):
 
     llm_provider: Optional[str] = None
     llm_model: Optional[str] = None
+    llm_council_enabled: bool = True
+    llm_council_ready: bool = False
+    llm_provider_keys: list[LLMProviderKeyStatus] = Field(default_factory=list)
     llm_api_key_set: bool = False
     llm_api_key_hint: Optional[str] = None
     using_shared_key: bool = False
@@ -77,6 +92,11 @@ class AdvisorResponse(BaseModel):
     answer: str
     advice_type: str
     conversation_id: str
+    council_used: bool = False
+    council_member_count: int = 0
+    council_providers: list[str] = Field(default_factory=list)
+    council_failed_providers: list[str] = Field(default_factory=list)
+    council_partial: bool = False
 
 
 class ConversationAttachment(BaseModel):

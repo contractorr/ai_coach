@@ -7,6 +7,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from starlette.responses import StreamingResponse
 
+from advisor.council import CouncilMember
 from library.index import LibraryIndex
 from library.pdf_text import extract_text_from_pdf_bytes
 from library.reports import ReportStore
@@ -29,13 +30,14 @@ from web.conversation_store import (
 from web.deps import (
     SHARED_LLM_MODEL,
     enforce_shared_key_usage_limit,
-    get_api_key_with_source,
+    get_council_members_for_user,
     get_config,
     get_intel_storage,
     get_memory_store,
     get_profile_path,
     get_thread_store,
     get_user_paths,
+    resolve_llm_credentials_for_user,
     safe_user_id,
 )
 from web.models import (
@@ -219,8 +221,9 @@ def _get_engine(user_id: str, use_tools: bool = False):
         library_index=_get_library_index(user_id),
     )
 
-    api_key, source = get_api_key_with_source(user_id)
+    provider_name, api_key, source = resolve_llm_credentials_for_user(user_id)
     is_shared = source == "shared"
+    council_members = [] if is_shared else get_council_members_for_user(user_id)
 
     model = SHARED_LLM_MODEL if is_shared else config.llm.model
     effective_use_tools = False if is_shared else use_tools
@@ -251,10 +254,16 @@ def _get_engine(user_id: str, use_tools: bool = False):
         rag=rag,
         api_key=api_key,
         model=model,
-        provider=config.llm.provider,
+        provider=provider_name or config.llm.provider,
         use_tools=effective_use_tools,
         components=components,
         rag_config=rag_config,
+        council_members=[
+            CouncilMember(provider=member["provider"], api_key=member["api_key"])
+            for member in council_members
+        ],
+        council_enabled=not is_shared,
+        council_lead_provider=provider_name or config.llm.provider,
     )
 
 
@@ -302,6 +311,11 @@ async def ask_advisor(
             answer=result["answer"],
             advice_type=body.advice_type,
             conversation_id=conv_id,
+            council_used=result.get("council_used", False),
+            council_member_count=result.get("council_member_count", 0),
+            council_providers=result.get("council_providers", []),
+            council_failed_providers=result.get("council_failed_providers", []),
+            council_partial=result.get("council_partial", False),
         )
     except ConversationNotFoundError:
         raise HTTPException(status_code=404, detail="Conversation not found")
@@ -375,6 +389,11 @@ async def ask_advisor_stream(
                         "content": result["answer"],
                         "conversation_id": conv_id,
                         "advice_type": body.advice_type,
+                        "council_used": result.get("council_used", False),
+                        "council_member_count": result.get("council_member_count", 0),
+                        "council_providers": result.get("council_providers", []),
+                        "council_failed_providers": result.get("council_failed_providers", []),
+                        "council_partial": result.get("council_partial", False),
                     }
                 )
         except Exception as exc:

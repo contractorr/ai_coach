@@ -417,12 +417,9 @@ def _get_cheap_llm(user_id: str):
     """Try to create a cheap LLM provider from user's key or env. Returns None on failure."""
     try:
         from llm import create_cheap_provider
-        from web.deps import get_secret_key
-        from web.user_store import get_user_secret
+        from web.deps import resolve_llm_credentials_for_user
 
-        fernet_key = get_secret_key()
-        api_key = get_user_secret(user_id, "llm_api_key", fernet_key)
-        provider_name = get_user_secret(user_id, "llm_provider", fernet_key) or "auto"
+        provider_name, api_key, _source = resolve_llm_credentials_for_user(user_id)
         if api_key:
             return create_cheap_provider(provider=provider_name, api_key=api_key)
         # Fall back to env-based provider

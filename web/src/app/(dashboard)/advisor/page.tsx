@@ -203,11 +203,12 @@ export default function AdvisorPage() {
             const cid = event.conversation_id as string;
             setConversationId(cid);
             localStorage.setItem(CONV_KEY, cid);
+            const prefix = event.council_used ? "Council-assisted answer\n\n" : "";
             setMessages((prev) => [
               ...prev,
               {
                 role: "assistant",
-                content: event.content as string,
+                content: prefix + (event.content as string),
                 advice_type: event.advice_type as string,
               },
             ]);

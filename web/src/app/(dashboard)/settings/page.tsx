@@ -30,9 +30,19 @@ import { DeleteAccountModal } from "@/components/DeleteAccountModal";
 import { WorkspacePageHeader } from "@/components/WorkspacePageHeader";
 import { apiFetch } from "@/lib/api";
 
+interface LLMProviderKeyStatus {
+  provider: string;
+  configured: boolean;
+  hint: string | null;
+  council_eligible: boolean;
+}
+
 interface Settings {
   llm_provider: string | null;
   llm_model: string | null;
+  llm_council_enabled: boolean;
+  llm_council_ready: boolean;
+  llm_provider_keys: LLMProviderKeyStatus[];
   llm_api_key_set: boolean;
   llm_api_key_hint: string | null;
   using_shared_key: boolean;
@@ -98,6 +108,23 @@ interface ProfileData {
   updated_at: string | null;
   summary: string;
   is_stale: boolean;
+}
+
+interface MemoryFact {
+  id: string;
+  text: string;
+  category: string;
+  source_type: string;
+  source_id: string;
+  confidence: number;
+  created_at: string;
+  updated_at: string;
+}
+
+interface MemoryStats {
+  total_active: number;
+  total_superseded: number;
+  by_category: Record<string, number>;
 }
 
 // Editable field config
@@ -409,6 +436,9 @@ export default function SettingsPage() {
   const [rssAdding, setRssAdding] = useState(false);
   const [rssRemoving, setRssRemoving] = useState<string | null>(null);
   const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
+  const [memoryFacts, setMemoryFacts] = useState<MemoryFact[]>([]);
+  const [memoryStats, setMemoryStats] = useState<MemoryStats | null>(null);
+  const [deletingFactId, setDeletingFactId] = useState<string | null>(null);
   const [watchLabel, setWatchLabel] = useState("");
   const [watchKind, setWatchKind] = useState("theme");
   const [watchWhy, setWatchWhy] = useState("");
@@ -425,6 +455,7 @@ export default function SettingsPage() {
   const [watchSaving, setWatchSaving] = useState(false);
   const [watchRemoving, setWatchRemoving] = useState<string | null>(null);
   const [editingWatchId, setEditingWatchId] = useState<string | null>(null);
+  const [testingProvider, setTestingProvider] = useState<string | null>(null);
 
   const sectionLinks = [
     { id: "account", label: "Account" },
@@ -433,6 +464,7 @@ export default function SettingsPage() {
     { id: "rss-feeds", label: "RSS" },
     { id: "watchlist", label: "Watchlist" },
     { id: "profile", label: "Profile" },
+    { id: "memory", label: "Memory" },
     { id: "danger-zone", label: "Danger" },
   ];
 
@@ -454,6 +486,12 @@ export default function SettingsPage() {
       .catch(() => {});
     apiFetch<WatchlistItem[]>("/api/intel/watchlist", {}, token)
       .then(setWatchlist)
+      .catch(() => {});
+    apiFetch<MemoryFact[]>("/api/memory/facts?limit=50", {}, token)
+      .then(setMemoryFacts)
+      .catch(() => {});
+    apiFetch<MemoryStats>("/api/memory/stats", {}, token)
+      .then(setMemoryStats)
       .catch(() => {});
   }, [token]);
 
@@ -513,6 +551,76 @@ export default function SettingsPage() {
       toast.error((e as Error).message);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const providerStatus = (provider: string) =>
+    settings?.llm_provider_keys.find((item) => item.provider === provider);
+
+  const handleRemoveProviderKey = async (provider: string) => {
+    if (!token) return;
+    setTestingProvider(provider);
+    try {
+      const updated = await apiFetch<Settings>(
+        "/api/settings",
+        { method: "PUT", body: JSON.stringify({ llm_remove_providers: [provider] }) },
+        token
+      );
+      setSettings(updated);
+      setForm((prev) => {
+        const next = { ...prev };
+        delete next[`llm_api_key_${provider}`];
+        return next;
+      });
+      toast.success(`${provider} key removed`);
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setTestingProvider(null);
+    }
+  };
+
+  const handleTestProvider = async (provider: string) => {
+    if (!token) return;
+    setTestingProvider(provider);
+    try {
+      const result = await apiFetch<{ ok: boolean; provider: string }>(
+        `/api/settings/test-llm?provider=${encodeURIComponent(provider)}`,
+        { method: "POST" },
+        token
+      );
+      toast.success(`${result.provider} connection ok`);
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setTestingProvider(null);
+    }
+  };
+
+  const handleDeleteFact = async (factId: string) => {
+    if (!token) return;
+    setDeletingFactId(factId);
+    try {
+      await apiFetch(`/api/memory/facts/${encodeURIComponent(factId)}`, { method: "DELETE" }, token);
+      setMemoryFacts((prev) => prev.filter((fact) => fact.id !== factId));
+      setMemoryStats((prev) => {
+        if (!prev) return prev;
+        const removed = memoryFacts.find((fact) => fact.id === factId);
+        const nextByCategory = { ...prev.by_category };
+        if (removed?.category && nextByCategory[removed.category]) {
+          nextByCategory[removed.category] = Math.max(0, nextByCategory[removed.category] - 1);
+        }
+        return {
+          ...prev,
+          total_active: Math.max(0, prev.total_active - 1),
+          by_category: nextByCategory,
+        };
+      });
+      toast.success("Memory fact deleted");
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setDeletingFactId(null);
     }
   };
 
@@ -696,25 +804,45 @@ export default function SettingsPage() {
       <section id="ai-settings">
       <Card>
         <CardHeader>
-          <CardTitle>LLM Provider</CardTitle>
-          <CardDescription>Configure your AI model provider</CardDescription>
+          <CardTitle>LLM Providers</CardTitle>
+          <CardDescription>Configure your default provider and connect multiple council members</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-1.5">
-            <Label>Provider</Label>
-            <p className="text-xs text-muted-foreground">Auto-detect picks provider based on your API key.</p>
+            <Label>Default lead provider</Label>
+            <p className="text-xs text-muted-foreground">Normal fast answers use this provider when its key is configured.</p>
             <Select
-              value={form.llm_provider || settings.llm_provider || "auto"}
+              value={
+                (form.llm_provider as string | undefined)
+                || (["claude", "openai", "gemini"].includes(settings.llm_provider || "")
+                  ? (settings.llm_provider || "claude")
+                  : "claude")
+              }
               onValueChange={(v) => setForm({ ...form, llm_provider: v })}
             >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="auto">Auto-detect</SelectItem>
                 <SelectItem value="claude">Claude</SelectItem>
                 <SelectItem value="openai">OpenAI</SelectItem>
                 <SelectItem value="gemini">Gemini</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Council mode</Label>
+            <p className="text-xs text-muted-foreground">When enabled, steward can use multiple configured providers for important or open-ended advice prompts.</p>
+            <Select
+              value={(form.llm_council_enabled as string | undefined) || String(settings.llm_council_enabled)}
+              onValueChange={(v) => setForm({ ...form, llm_council_enabled: v })}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="true">Enabled</SelectItem>
+                <SelectItem value="false">Disabled</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -732,15 +860,73 @@ export default function SettingsPage() {
               You&apos;re using lite mode (Haiku, 30 queries/day). Add your own key below for full-quality responses, deep research, and unlimited usage.
             </div>
           )}
-          <ApiKeyInput
-            label="LLM API Key"
-            name="llm_api_key"
-            value={form.llm_api_key || ""}
-            onChange={(v) => setForm({ ...form, llm_api_key: v })}
-            isSet={settings.llm_api_key_set}
-            hint={settings.llm_api_key_hint}
-            description="Optional. Your key is encrypted and stored per-user. Without it, lite mode (Haiku, 30 queries/day) is used."
-          />
+          <div className="rounded-lg border p-3 text-sm">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <p className="font-medium">Council readiness</p>
+                <p className="text-xs text-muted-foreground">
+                  {settings.llm_council_ready
+                    ? "Two or more provider keys are configured, so council mode can be used on eligible advice prompts."
+                    : "Add at least two provider keys to enable council-assisted answers."}
+                </p>
+              </div>
+              <Badge variant={settings.llm_council_ready ? "default" : "secondary"}>
+                {settings.llm_council_ready ? "Council ready" : "Need 2 providers"}
+              </Badge>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            {[
+              { provider: "claude", label: "Claude API Key" },
+              { provider: "openai", label: "OpenAI API Key" },
+              { provider: "gemini", label: "Gemini API Key" },
+            ].map(({ provider, label }) => {
+              const status = providerStatus(provider);
+              return (
+                <div key={provider} className="space-y-2 rounded-lg border p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <p className="text-sm font-medium capitalize">{provider}</p>
+                      <p className="text-xs text-muted-foreground">
+                        Stored separately so steward can compare perspectives when council mode is eligible.
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled={!status?.configured || testingProvider === provider}
+                        onClick={() => handleTestProvider(provider)}
+                      >
+                        {testingProvider === provider ? "Testing..." : "Test"}
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        disabled={!status?.configured || testingProvider === provider}
+                        onClick={() => handleRemoveProviderKey(provider)}
+                      >
+                        <Trash2 className="mr-1 h-3.5 w-3.5" />
+                        Remove
+                      </Button>
+                    </div>
+                  </div>
+                  <ApiKeyInput
+                    label={label}
+                    name={`llm_api_key_${provider}`}
+                    value={(form[`llm_api_key_${provider}`] as string | undefined) || ""}
+                    onChange={(v) => setForm({ ...form, [`llm_api_key_${provider}`]: v })}
+                    isSet={status?.configured || false}
+                    hint={status?.hint}
+                    description="Optional. Your key is encrypted and stored per-user."
+                  />
+                </div>
+              );
+            })}
+          </div>
         </CardContent>
       </Card>
       </section>
@@ -1096,6 +1282,65 @@ export default function SettingsPage() {
             <RefreshCw className="mr-2 h-4 w-4" />
             Restart Onboarding
           </Button>
+        </CardContent>
+      </Card>
+      </section>
+
+      <section id="memory">
+      <Card>
+        <CardHeader>
+          <CardTitle>What I know about you</CardTitle>
+          <CardDescription>
+            Transparent memory facts that help StewardMe personalize advice, focus, and monitoring.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {memoryStats ? (
+            <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+              <Badge variant="secondary">{memoryStats.total_active} active facts</Badge>
+              {Object.entries(memoryStats.by_category).map(([category, count]) => (
+                <Badge key={category} variant="outline">
+                  {category}: {count}
+                </Badge>
+              ))}
+            </div>
+          ) : null}
+
+          {memoryFacts.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No active memory facts yet. As you capture notes and ask questions, durable facts will show up here.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {memoryFacts.map((fact) => (
+                <div key={fact.id} className="flex items-start justify-between gap-3 rounded-lg border p-3">
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                      <Badge variant="secondary">{fact.category}</Badge>
+                      <Badge variant="outline">Confidence {Math.round(fact.confidence * 100)}%</Badge>
+                      <span>
+                        Updated {fact.updated_at ? new Date(fact.updated_at).toLocaleDateString() : "recently"}
+                      </span>
+                    </div>
+                    <p className="text-sm">{fact.text}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Source: {fact.source_type}{fact.source_id ? ` • ${fact.source_id}` : ""}
+                    </p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 shrink-0"
+                    onClick={() => handleDeleteFact(fact.id)}
+                    disabled={deletingFactId === fact.id}
+                    aria-label={`Delete memory fact ${fact.id}`}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
       </section>
