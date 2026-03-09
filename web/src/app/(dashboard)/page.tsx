@@ -6,13 +6,16 @@ import { Check, ExternalLink, PenLine, Send, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 import { ChatAttachmentBadges, ChatPdfAttachmentPicker } from "@/components/ChatPdfAttachments";
+import { ActivityHeatmap } from "@/components/home/ActivityHeatmap";
 import { ReturnBriefCard } from "@/components/home/ReturnBriefCard";
+import { StatsRow } from "@/components/home/StatsRow";
 import { WhyNowChip } from "@/components/shared/WhyNowChip";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { useChatPdfAttachments } from "@/hooks/useChatPdfAttachments";
+import { useHomeStats } from "@/hooks/useHomeStats";
 import { useToken } from "@/hooks/useToken";
 import { apiFetch, apiFetchSSE } from "@/lib/api";
 import { TOOL_LABELS } from "@/lib/constants";
@@ -73,6 +76,23 @@ function looksLikeQuestion(value: string) {
   return QUESTION_PREFIXES.includes(firstWord);
 }
 
+function timeGreeting(): string {
+  const h = new Date().getHours();
+  if (h < 12) return "Good morning";
+  if (h < 18) return "Good afternoon";
+  return "Good evening";
+}
+
+const SUGGESTION_ACCENT: Record<string, string> = {
+  company_movement: "border-l-sky-400",
+  hiring_signal: "border-l-sky-400",
+  regulatory_alert: "border-l-rose-400",
+  dossier_escalation: "border-l-rose-400",
+  assumption_alert: "border-l-rose-400",
+  goal_stale: "border-l-amber-400",
+  goal_at_risk: "border-l-amber-400",
+};
+
 function sourceWorkspace(item: SuggestionItem) {
   if (["company_movement", "hiring_signal", "regulatory_alert", "dossier_escalation"].includes(item.kind)) {
     return "/radar";
@@ -85,6 +105,7 @@ function sourceWorkspace(item: SuggestionItem) {
 
 export default function HomePage() {
   const token = useToken();
+  const stats = useHomeStats();
   const [greeting, setGreeting] = useState<string | null>(null);
   const [returnBrief, setReturnBrief] = useState<ReturnBrief | null>(null);
   const [dismissedReturnBriefAt, setDismissedReturnBriefAt] = useState<string | null>(null);
@@ -329,7 +350,8 @@ export default function HomePage() {
     return (
       <div className="flex h-full flex-col">
         <div className="mx-auto w-full max-w-7xl flex-1 animate-pulse space-y-4 px-4 py-8">
-          <div className="h-16 rounded-2xl bg-muted" />
+          <div className="h-28 rounded-2xl bg-muted" />
+          <div className="h-32 rounded-2xl bg-muted" />
           <div className="grid gap-3 md:grid-cols-3">
             <div className="h-28 rounded-2xl bg-muted" />
             <div className="h-28 rounded-2xl bg-muted" />
@@ -361,47 +383,79 @@ export default function HomePage() {
             />
           ) : null}
 
-          {!replaceGreeting && greeting ? (
-            <div className="mr-4 rounded-2xl rounded-bl-sm px-4 py-2.5">
-              <p className="text-sm">
-                {userName ? <span className="font-medium">{userName}, </span> : null}
-                {greeting}
-              </p>
+          {/* Hero greeting card */}
+          {!replaceGreeting ? (
+            <div className="relative animate-in fade-in-0 slide-in-from-bottom-2 duration-400 fill-mode-both">
+              <div className="pointer-events-none absolute -inset-4 rounded-3xl bg-primary/8 blur-3xl" />
+              <div className="relative rounded-2xl border bg-card/60 p-5 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/70 sm:p-6">
+                <div className="space-y-3">
+                  <div className="space-y-1">
+                    <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+                      {timeGreeting()}{userName ? `, ${userName.split(" ")[0]}` : ""}
+                    </h1>
+                    {greeting ? (
+                      <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">{greeting}</p>
+                    ) : null}
+                  </div>
+                  <StatsRow
+                    journalEntries={stats.journalEntries}
+                    activeGoals={stats.activeGoals}
+                    threadCount={stats.threadCount}
+                    loading={stats.loading}
+                  />
+                </div>
+              </div>
             </div>
           ) : null}
 
+          {/* Heatmap card */}
+          <div className="animate-in fade-in-0 slide-in-from-bottom-2 duration-400 fill-mode-both delay-100">
+            <div className="rounded-2xl border bg-card/60 p-5 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/70 sm:p-6">
+              <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                Journal activity
+              </p>
+              <ActivityHeatmap entries={stats.journalEntries} />
+            </div>
+          </div>
+
+          {/* Suggestion cards */}
           {nextSteps.length > 0 ? (
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 px-1 text-sm font-medium text-muted-foreground">
-                <Sparkles className="h-4 w-4" />
-                What to do next
-              </div>
-              <div className="grid gap-3 md:grid-cols-3">
-                {nextSteps.map((item, index) => (
-                  <Card key={`${item.kind}-${item.title}-${index}`} className="gap-3 py-4">
-                    <CardHeader className="px-4 pb-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Badge variant="secondary" className="text-[11px]">
-                          {item.kind.replaceAll("_", " ")}
-                        </Badge>
-                      </div>
-                      <CardTitle className="text-base leading-snug">{item.title}</CardTitle>
-                      <CardDescription>{item.description || item.action}</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-3 px-4">
-                      {item.why_now?.length ? (
-                        <div className="flex flex-wrap gap-2">
-                          {item.why_now.map((chip, chipIndex) => (
-                            <WhyNowChip key={`${chip.code}-${chipIndex}`} chip={chip} />
-                          ))}
+            <div className="animate-in fade-in-0 slide-in-from-bottom-2 duration-400 fill-mode-both delay-200">
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 px-1 text-sm font-medium text-muted-foreground">
+                  <Sparkles className="h-4 w-4" />
+                  What to do next
+                </div>
+                <div className="grid gap-3 md:grid-cols-3">
+                  {nextSteps.map((item, index) => (
+                    <Card
+                      key={`${item.kind}-${item.title}-${index}`}
+                      className={`gap-3 border-l-4 py-4 transition-shadow hover:shadow-md ${SUGGESTION_ACCENT[item.kind] ?? "border-l-primary"}`}
+                    >
+                      <CardHeader className="px-4 pb-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Badge variant="secondary" className="text-[11px]">
+                            {item.kind.replaceAll("_", " ")}
+                          </Badge>
                         </div>
-                      ) : null}
-                      <Button size="sm" variant="outline" asChild>
-                        <Link href={sourceWorkspace(item)}>Open</Link>
-                      </Button>
-                    </CardContent>
-                  </Card>
-                ))}
+                        <CardTitle className="text-base leading-snug">{item.title}</CardTitle>
+                        <CardDescription>{item.description || item.action}</CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-3 px-4">
+                        {item.why_now?.length ? (
+                          <div className="flex flex-wrap gap-2">
+                            {item.why_now.map((chip, chipIndex) => (
+                              <WhyNowChip key={`${chip.code}-${chipIndex}`} chip={chip} />
+                            ))}
+                          </div>
+                        ) : null}
+                        <Button size="sm" variant="outline" asChild>
+                          <Link href={sourceWorkspace(item)}>Open</Link>
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
               </div>
             </div>
           ) : null}
