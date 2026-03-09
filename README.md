@@ -16,8 +16,6 @@ Your journal, goals, and 10 live intel sources feed a RAG pipeline that delivers
 - **Learns from your behaviour** — feedback loop adjusts recommendations, reasoning traces explain every suggestion
 - **Runs anywhere you want** — CLI, web app, MCP server for Claude Code, or Docker one-liner
 
-![Dashboard](dashboard-redesign.png)
-
 ## Why StewardMe?
 
 | | ChatGPT / Copilot | Notion AI | StewardMe |
@@ -127,12 +125,6 @@ web/                # Next.js frontend — OAuth, chat-first UI, dashboard
 3. Query → RAG retrieval (journal + intel) → LLM → personalized advice
 4. Goals + journal → topic selection → deep research → reports
 5. Embeddings → KMeans clustering → trend detection
-
-## Screenshots
-
-| Dashboard | Onboarding |
-|-----------|------------|
-| ![Dashboard](dashboard-redesign.png) | ![Login](login-with-features.png) |
 
 ## Configuration
 
