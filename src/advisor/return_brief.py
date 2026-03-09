@@ -5,7 +5,7 @@ from __future__ import annotations
 import sqlite3
 from datetime import datetime
 
-from web.user_store import get_default_db_path
+from user_state_store import get_default_db_path
 
 
 class ReturnBriefBuilder:
@@ -113,3 +113,4 @@ class ReturnBriefBuilder:
             "next_steps": next_steps[: self.max_section_items],
             "generated_at": now.isoformat(),
         }
+
