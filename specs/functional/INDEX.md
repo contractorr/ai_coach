@@ -12,9 +12,11 @@ This index summarizes each file in `specs/functional/` after the v2 simplificati
 | `company-movement-pipeline.md` | Company/competitor monitoring signals | Intel feed, suggestions, Radar | Scan, review signal, save or escalate |
 | `deep-research.md` | Advanced research started from live work | Research routes, Radar dossiers, Library | Start research, refresh work, archive outputs |
 | `dossier-escalation-engine.md` | Promote repeated signals into dossiers | Escalation routes, Radar, research | Accept, snooze, dismiss, start dossier |
+| `entity-extraction.md` | Extract entities and relationships from intel items | Intel pipeline, entity store, Radar tags, advisor retrieval | Background extraction, entity-filtered Radar, relational advisor queries |
 | `extraction-receipt.md` | Lightweight follow-up after capture | Journal capture, threads, memory | Save note, review receipt, jump to next action |
 | `goal-tracking.md` | Simplified Focus workspace | Goals routes, recommendations, Focus page | Review next moves, create goal, log progress |
 | `hiring-activity-pipeline.md` | Hiring-signal ingestion for Radar | Intel feed, ranking, Radar | Scan, review, save or escalate |
+| `hybrid-retrieval.md` | Multi-mode retrieval with sub-question decomposition and entity traversal | RAGRetriever, IntelSearch, EntityStore, advisor tools | Auto-mode selection, decomposed queries, entity-aware context |
 | `intelligence-feed.md` | Unified Radar monitoring experience | Radar page, intel routes, suggestions | Review `For you`, manage saved items, run scan |
 | `journaling.md` | Fast capture plus deeper Journal workspace | Home quick capture, Journal page, sidebar shortcut | Capture quickly, open Journal, search and filter history |
 | `library-reports.md` | Durable reference workspace | Library page, reports API, archived dossiers | Filter by type, open report, review archived dossier |

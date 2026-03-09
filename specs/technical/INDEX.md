@@ -12,10 +12,12 @@ This index summarizes each file in `specs/technical/` after the v2 simplificatio
 | `cli.md` | Operator/developer command surface | CLI entry points, config, ingestion jobs | Run maintenance, trigger ingestion, debug locally |
 | `company-movement-pipeline.md` | Company-signal ingestion feeding Radar | Intel route, suggestions route, ranking pipeline | Scan and surface company changes |
 | `dossier-escalation-engine.md` | Escalation logic from signal to dossier | Dossier routes, research routes, Radar page | Accept/snooze/dismiss escalation |
+| `entity-extraction.md` | Entity/relationship extraction from intel items | EntityExtractor, EntityStore, intel.db schema v4, web entity endpoints | Extract batch, backfill, search entities, link items |
 | `extraction-receipt.md` | Capture follow-up and extraction summary | Journal capture, threads, memory | Capture note, inspect extracted follow-up |
 | `goal-learning-merge.md` | Merge goal context into prioritization | Goals, recommendations, ranking services | Read goal context, generate focused next move |
 | `greeting-cache.md` | Home greeting and return-brief caching | Greeting route, Home page | Load greeting, show return brief, refresh stale cache |
 | `hiring-activity-pipeline.md` | Hiring-signal ingestion for Radar | Intel route, suggestions route, ranking | Scan and rank hiring signals |
+| `hybrid-retrieval.md` | Multi-mode retrieval: decomposition, entity traversal, unified agentic search | QueryAnalyzer, QueryDecomposer, EntityRetriever, RAGRetriever extensions, agentic tool upgrades | Classify query, decompose, retrieve entities, merge context |
 | `intelligence.md` | Unified intelligence layer for Radar/Home | Intel route, suggestions route, Radar page | Run scan, review feed, save follow-up |
 | `journal.md` | Journal APIs for Home and deep Journal page | Journal route, Home page, Journal page | Quick capture, browse history, edit entry |
 | `library.md` | Durable reports, docs, archived dossiers | Library route, research route, Library page | Browse reference items, refresh report |
