@@ -17,6 +17,13 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import type { LibraryReport, LibraryReportListItem } from "@/types/library";
 import type { ResearchDossier } from "@/types/radar";
@@ -344,34 +351,36 @@ export default function LibraryPage() {
                   onChange={(e) => setCreateForm((prev) => ({ ...prev, prompt: e.target.value }))}
                 />
               </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-1.5">
-                  <Label>Type</Label>
-                  <select
-                    className="block h-10 w-full appearance-none rounded-md border border-input bg-background bg-[length:16px_16px] bg-[position:right_12px_center] bg-no-repeat px-3 py-2 pr-10 text-sm [background-image:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%236b7280%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E')]"
-                    value={createForm.report_type}
-                    onChange={(e) => setCreateForm((prev) => ({ ...prev, report_type: e.target.value }))}
-                  >
+              <div className="space-y-1.5">
+                <Label>Type</Label>
+                <Select
+                  value={createForm.report_type}
+                  onValueChange={(value) => setCreateForm((prev) => ({ ...prev, report_type: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
                     {reportTypes.map(([value, label]) => (
-                      <option key={value} value={value}>
+                      <SelectItem key={value} value={value}>
                         {label}
-                      </option>
+                      </SelectItem>
                     ))}
-                  </select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Collection</Label>
-                  <Input
-                    placeholder="Industries"
-                    value={createForm.collection}
-                    onChange={(e) => setCreateForm((prev) => ({ ...prev, collection: e.target.value }))}
-                  />
-                </div>
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-1.5">
-                <Label>Custom title (optional)</Label>
+                <Label>Collection</Label>
                 <Input
-                  placeholder="Insurance Industry Crash Course"
+                  placeholder="e.g. Industries"
+                  value={createForm.collection}
+                  onChange={(e) => setCreateForm((prev) => ({ ...prev, collection: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Title (optional)</Label>
+                <Input
+                  placeholder="e.g. Fintech landscape overview"
                   value={createForm.title}
                   onChange={(e) => setCreateForm((prev) => ({ ...prev, title: e.target.value }))}
                 />
