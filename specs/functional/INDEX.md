@@ -19,6 +19,7 @@ This index summarizes each file in `specs/functional/` after the v2 simplificati
 | `hybrid-retrieval.md` | Multi-mode retrieval with sub-question decomposition and entity traversal | RAGRetriever, IntelSearch, EntityStore, advisor tools | Auto-mode selection, decomposed queries, entity-aware context |
 | `intelligence-feed.md` | Unified Radar monitoring experience | Radar page, intel routes, suggestions | Review `For you`, manage saved items, run scan |
 | `journaling.md` | Fast capture plus deeper Journal workspace | Home quick capture, Journal page, sidebar shortcut | Capture quickly, open Journal, search and filter history |
+| `landing-page.md` | Public marketing page for unauthenticated visitors | Root route, login, hero, feature grid, source logos | View landing, click CTA, share link |
 | `library-reports.md` | Durable reference workspace | Library page, reports API, archived dossiers | Filter by type, open report, review archived dossier |
 | `memory-threads.md` | Settings memory + Radar threads | Memory routes, thread routes, Settings, Radar | Inspect memory, review thread, convert thread into action |
 | `outcome-harvester.md` | Background learning from outcomes | Journal/goal signals, ranking systems | Capture progress, harvest outcomes, improve later suggestions |
