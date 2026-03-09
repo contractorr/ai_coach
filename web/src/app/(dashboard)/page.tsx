@@ -330,7 +330,7 @@ export default function HomePage() {
   if (!token || !greetingLoaded) {
     return (
       <div className="flex h-full flex-col">
-        <div className="mx-auto w-full max-w-3xl flex-1 animate-pulse space-y-4 px-4 py-8">
+        <div className="mx-auto w-full max-w-7xl flex-1 animate-pulse space-y-4 px-4 py-8">
           <div className="h-16 rounded-2xl bg-muted" />
           <div className="grid gap-3 md:grid-cols-3">
             <div className="h-28 rounded-2xl bg-muted" />
@@ -355,7 +355,7 @@ export default function HomePage() {
   return (
     <div className="flex h-full flex-col">
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4">
-        <div className="mx-auto max-w-3xl space-y-4">
+        <div className="mx-auto max-w-7xl space-y-4">
           {showReturnBrief && returnBrief ? (
             <ReturnBriefCard
               brief={returnBrief}
@@ -480,7 +480,7 @@ export default function HomePage() {
       ) : null}
 
       <div className="border-t px-4 py-3">
-        <div className="mx-auto max-w-3xl space-y-3">
+        <div className="mx-auto max-w-7xl space-y-3">
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <span>Write a note or ask a question</span>
             <div className="flex items-center gap-1 rounded-full border bg-muted/30 p-1">

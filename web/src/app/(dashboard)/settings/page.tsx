@@ -401,7 +401,7 @@ function ProfileField({
 
 function SettingsSkeleton() {
   return (
-    <div className="mx-auto max-w-2xl space-y-6 p-4 md:p-6">
+    <div className="mx-auto max-w-7xl space-y-6 p-4 md:p-6">
       <div className="h-7 w-24 animate-pulse rounded bg-muted" />
       {Array.from({ length: 3 }).map((_, i) => (
         <Card key={i}>
@@ -737,7 +737,7 @@ export default function SettingsPage() {
   if (!settings) return <SettingsSkeleton />;
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6 p-4 pb-28 md:p-6 md:pb-32">
+    <div className="mx-auto max-w-7xl space-y-6 p-4 pb-28 md:p-6 md:pb-32">
       <WorkspacePageHeader
         eyebrow="Control center"
         title="Settings"
@@ -1368,7 +1368,7 @@ export default function SettingsPage() {
 
       {isDirty && (
         <div className="fixed bottom-0 left-0 right-0 z-20 border-t bg-background/95 backdrop-blur lg:left-60">
-          <div className="mx-auto flex max-w-2xl flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between md:px-6">
+          <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between md:px-6">
             <div>
               <p className="text-sm font-medium">You have unsaved settings changes</p>
               <p className="text-xs text-muted-foreground">
