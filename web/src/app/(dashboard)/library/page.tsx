@@ -329,7 +329,7 @@ export default function LibraryPage() {
         <div className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Create report</CardTitle>
+              <CardTitle>New report</CardTitle>
               <CardDescription>
                 Turn a prompt into a saved report, such as an industry crash course, overview, memo, or plan.
               </CardDescription>
@@ -339,7 +339,7 @@ export default function LibraryPage() {
                 <Label>Prompt</Label>
                 <Textarea
                   rows={5}
-                  placeholder="Give me a crash course on the insurance industry"
+                  placeholder="What should I know before meeting with a fintech founder?"
                   value={createForm.prompt}
                   onChange={(e) => setCreateForm((prev) => ({ ...prev, prompt: e.target.value }))}
                 />
