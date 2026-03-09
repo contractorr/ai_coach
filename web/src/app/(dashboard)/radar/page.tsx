@@ -349,7 +349,7 @@ export default function RadarPage() {
                           onClick={() => void handleSuggestionAction(item)}
                           disabled={busyKey === `suggestion-${String(item.payload?.escalation_id || "")}` || busyKey === `suggestion-save-${signalUrl || ""}`}
                         >
-                          {item.kind === "dossier_escalation" ? "Start dossier" : signalUrl ? "Save for later" : item.action || "Open"}
+                          {item.kind === "dossier_escalation" ? "Start dossier" : signalUrl ? "Save for later" : "Open"}
                         </Button>
                         {signalUrl ? (
                           <Button variant="outline" asChild>
