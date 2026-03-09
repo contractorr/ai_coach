@@ -49,6 +49,14 @@ function readSignalLink(item: SuggestionItem) {
   return typeof url === "string" && url.trim().length > 0 ? url : null;
 }
 
+const RADAR_KINDS = new Set([
+  "company_movement",
+  "hiring_signal",
+  "regulatory_alert",
+  "dossier_escalation",
+  "assumption_alert",
+]);
+
 function readSignalTitle(item: SuggestionItem) {
   const payload = item.payload ?? {};
   const title = payload.title ?? item.title;
@@ -103,6 +111,11 @@ export default function RadarPage() {
     void loadRadar();
   }, [loadRadar]);
 
+  const radarSuggestions = useMemo(
+    () => suggestions.filter((item) => RADAR_KINDS.has(item.kind)),
+    [suggestions]
+  );
+
   const activeDossiers = useMemo(
     () => dossiers.filter((item) => (item.status || "active") !== "archived"),
     [dossiers]
@@ -265,7 +278,7 @@ export default function RadarPage() {
         <Card>
           <CardHeader className="pb-2">
             <CardDescription>For you</CardDescription>
-            <CardTitle className="text-2xl">{suggestions.length}</CardTitle>
+            <CardTitle className="text-2xl">{radarSuggestions.length}</CardTitle>
           </CardHeader>
           <CardContent className="text-sm text-muted-foreground">
             Personalized monitoring items across intel, alerts, assumptions, and dossier triggers.
@@ -307,7 +320,7 @@ export default function RadarPage() {
                 <Loader2 className="h-4 w-4 animate-spin" /> Loading your monitoring feed...
               </CardContent>
             </Card>
-          ) : suggestions.length === 0 ? (
+          ) : radarSuggestions.length === 0 ? (
             <Card>
               <CardContent className="flex flex-col items-center py-12 text-center">
                 <Sparkles className="mb-3 h-8 w-8 text-muted-foreground" />
@@ -319,7 +332,7 @@ export default function RadarPage() {
             </Card>
           ) : (
             <div className="grid gap-4 lg:grid-cols-2">
-              {suggestions.slice(0, 12).map((item, index) => {
+              {radarSuggestions.slice(0, 12).map((item, index) => {
                 const signalUrl = readSignalLink(item);
                 const itemKey = `${item.kind}-${item.title}-${index}`;
                 return (
