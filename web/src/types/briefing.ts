@@ -165,6 +165,21 @@ export interface AssumptionAlert {
   updated_at?: string | null;
 }
 
+export interface DossierEscalation {
+  escalation_id: string;
+  topic_key: string;
+  topic_label: string;
+  score: number;
+  state: string;
+  evidence: Record<string, unknown>;
+  payload: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+  snoozed_until?: string | null;
+  dismissed_at?: string | null;
+  accepted_dossier_id?: string | null;
+}
+
 export interface BriefingResponse {
   recommendations: BriefingRecommendation[];
   stale_goals: BriefingGoal[];
@@ -173,6 +188,7 @@ export interface BriefingResponse {
   adaptation_count: number;
   daily_brief?: DailyBrief | null;
   goal_intel_matches: GoalIntelMatch[];
+  dossier_escalations: DossierEscalation[];
   company_movements: CompanyMovement[];
   hiring_signals: HiringSignal[];
   regulatory_alerts: RegulatoryAlert[];

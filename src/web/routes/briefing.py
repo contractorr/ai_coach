@@ -13,6 +13,7 @@ from web.models import (
     BriefingRecommendation,
     BriefingResponse,
     CompanyMovementResponse,
+    DossierEscalationResponse,
     GoalIntelMatch,
     HiringSignalResponse,
     RegulatoryAlertResponse,
@@ -42,6 +43,7 @@ async def get_briefing(
     stale_goals = data["stale_goals"]
     all_goals = data["all_goals"]
     goal_intel_matches = data["goal_intel_matches"]
+    dossier_escalations = data.get("dossier_escalations") or []
     company_movements = data.get("company_movements") or []
     hiring_signals = data.get("hiring_signals") or []
     regulatory_alerts = data.get("regulatory_alerts") or []
@@ -52,6 +54,7 @@ async def get_briefing(
         or stale_goals
         or all_goals
         or goal_intel_matches
+        or dossier_escalations
         or company_movements
         or hiring_signals
         or regulatory_alerts
@@ -93,6 +96,7 @@ async def get_briefing(
         adaptation_count=adaptation_count,
         daily_brief=daily_brief,
         goal_intel_matches=[GoalIntelMatch(**m) for m in goal_intel_matches],
+        dossier_escalations=[DossierEscalationResponse(**item) for item in dossier_escalations],
         company_movements=[CompanyMovementResponse(**item) for item in company_movements],
         hiring_signals=[HiringSignalResponse(**item) for item in hiring_signals],
         regulatory_alerts=[RegulatoryAlertResponse(**item) for item in regulatory_alerts],

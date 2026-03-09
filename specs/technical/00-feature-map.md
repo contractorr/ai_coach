@@ -8,11 +8,13 @@ Current implementation status after repo audit:
 
 - Attach-to-Ask Bridge - route, storage, retrieval, transcript persistence, and first-party web chat UX are implemented. Chat-origin uploads stay hidden until explicitly saved into Library.
 - Extraction Receipt - receipt store, journal hooks, and receipt endpoint are implemented. First-party dashboard rendering is still missing.
-- Recurring Thread Inbox - thread APIs and action endpoints are implemented. A dedicated web inbox surface is still missing.
-- Dossier Escalation Engine - escalation engine, storage, and API routes are implemented, and shared escalation-context assembly now feeds suggestions, dedicated escalation routes, and return-briefing reuse with active-dossier suppression. First-party dossier and escalation management UI remains incomplete.
+- Recurring Thread Inbox - the thread inbox service, state store, summary/detail routes, inbox-state update endpoint, and goal/research/dossier action endpoints are implemented. Dedicated web inbox navigation is still missing, and `tests/web/test_threads_routes.py` still only covers the basic list/detail paths.
+- Dossier Escalation Engine - escalation engine, storage, and API routes are implemented, and shared escalation-context plus briefing-data reuse now feed suggestions, dedicated escalation routes, `/api/briefing`, and return-briefing surfaces with active-dossier suppression. First-party dossier and escalation management UI remains incomplete.
 - Since-You-Were-Away + Why-Now - `GET /api/greeting` is now wired into a dedicated home `return_brief` card, and recommendation surfaces render expandable `why_now` chips. Harvested-outcome reasoning is inspectable through chip detail when present, while suggestion-chip coverage still depends on a first-party suggestions surface.
-- Outcome Harvester - store, evaluation, ranking boost, and override APIs are implemented. No first-party web review surface exists yet.
-- Company Movement, Hiring Activity, and Regulatory Change - specialized APIs and stores are implemented. The current Radar UI still consumes only the generalized intel feed and follow-up flows.
+- Outcome Harvester - store, evaluation, ranking boost, override APIs, and shared briefing recommendation enrichment are implemented. No first-party web review surface exists yet.
+- Company Movement Pipeline - watchlist metadata, scheduler hooks, storage, API routes, Radar Pipelines UI, and briefing/suggestion/return-brief integrations are implemented. Source adapters and deeper company drill-down remain incomplete.
+- Hiring Activity Pipeline - watchlist metadata, scheduler hooks, signal analysis, API routes, Radar Pipelines UI, and briefing/suggestion/return-brief integrations are implemented. Dedicated careers-page or ATS collectors and richer baseline analysis remain incomplete.
+- Regulatory Change Pipeline - watchlist metadata, scheduler hooks, classification, API routes, Radar Pipelines UI, and briefing/suggestion/return-brief integrations are implemented. Dedicated regulatory-source jobs and deeper dossier/watchlist workflows remain incomplete.
 - Assumption Watchlist - store, signal matching, memory adapter, routes, journal suggestion capture, and shared briefing/return-brief integration are implemented. A dedicated assumptions workspace is still missing, but assumption updates are now consumed outside the standalone route.
 
 This map summarizes how the 10 new technical feature specs fit into StewardMe's existing architecture. It highlights:
@@ -374,7 +376,6 @@ Shared technical dependencies:
 
 - Should there also be a `specs/technical/00-storage-map.md` later if these tables grow further?
 - Should `Outcome Harvester` and `Assumption Watchlist` eventually merge into a more general private learned-state subsystem, or stay separate for clarity?
-
 
 
 

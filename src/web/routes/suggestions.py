@@ -164,6 +164,24 @@ async def get_suggestions(
             )
         )
 
+    for escalation in data.get("dossier_escalations") or []:
+        title = escalation.get("topic_label") or "Start a dossier"
+        if title in seen_titles:
+            continue
+        seen_titles.add(title)
+        suggestions.append(
+            SuggestionItem(
+                source="dossier_escalation",
+                kind="dossier_escalation",
+                title=title,
+                description="This recurring topic has enough momentum to deserve active tracking.",
+                action="Start dossier",
+                priority=1,
+                score=float(escalation.get("score") or 0.0),
+                payload=escalation,
+            )
+        )
+
     try:
         engine = DossierEscalationEngine(get_dossier_escalation_store(user["id"]))
         escalation_rows = engine.refresh(
@@ -176,11 +194,15 @@ async def get_suggestions(
             )
         )
         for escalation in escalation_rows:
+            title = escalation.get("topic_label") or "Start a dossier"
+            if title in seen_titles:
+                continue
+            seen_titles.add(title)
             suggestions.append(
                 SuggestionItem(
                     source="dossier_escalation",
                     kind="dossier_escalation",
-                    title=escalation.get("topic_label") or "Start a dossier",
+                    title=title,
                     description="This recurring topic has enough momentum to deserve active tracking.",
                     action="Start dossier",
                     priority=1,

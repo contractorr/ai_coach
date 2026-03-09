@@ -411,6 +411,7 @@ class BriefingResponse(BaseModel):
     adaptation_count: int = 0
     daily_brief: Optional[DailyBrief] = None
     goal_intel_matches: list[GoalIntelMatch] = []
+    dossier_escalations: list["DossierEscalationResponse"] = []
     company_movements: list["CompanyMovementResponse"] = []
     hiring_signals: list["HiringSignalResponse"] = []
     regulatory_alerts: list["RegulatoryAlertResponse"] = []

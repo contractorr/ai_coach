@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 import structlog
 
 from advisor.assumptions import refresh_active_assumptions
+from advisor.outcomes import OutcomeHarvester
 from storage_access import (
     create_goal_intel_match_store,
     create_profile_storage,
@@ -13,7 +14,9 @@ from storage_access import (
 from web.deps import (
     get_assumption_store,
     get_company_movement_store,
+    get_dossier_escalation_store,
     get_hiring_signal_store,
+    get_outcome_store,
     get_regulatory_alert_store,
     get_user_paths,
     get_watchlist_store,
@@ -26,7 +29,7 @@ def assemble_briefing_data(user_id: str) -> dict:
     """Assemble core briefing data: profile, stale goals, all goals, recs, intel matches.
 
     Returns dict with keys: name, stale_goals, all_goals, recommendations, goal_intel_matches,
-    company_movements, hiring_signals, regulatory_alerts, assumptions.
+    company_movements, hiring_signals, regulatory_alerts, dossier_escalations, assumptions.
     Each key is always present (empty list / empty string as default).
     """
     paths = get_user_paths(user_id)
@@ -39,6 +42,7 @@ def assemble_briefing_data(user_id: str) -> dict:
         "company_movements": [],
         "hiring_signals": [],
         "regulatory_alerts": [],
+        "dossier_escalations": [],
         "assumptions": [],
     }
 
@@ -154,6 +158,7 @@ def assemble_briefing_data(user_id: str) -> dict:
         rec_dir = paths.get("recommendations_dir")
         if rec_dir:
             rec_storage = create_recommendation_storage(paths)
+            harvester = OutcomeHarvester(get_outcome_store(user_id), rec_storage)
             recs = rec_storage.get_top_by_score(limit=5)
             for r in recs:
                 meta = r.metadata or {}
@@ -167,6 +172,17 @@ def assemble_briefing_data(user_id: str) -> dict:
                         "alternative": meta.get("alternative"),
                         "intel_contradictions": meta.get("intel_contradictions"),
                     }
+                harvested_outcome = None
+                try:
+                    harvested_outcome = harvester.evaluate_recommendation(
+                        {"id": r.id or "", "metadata": meta}
+                    )
+                except Exception as e:
+                    logger.warning(
+                        "briefing_data.recommendation_outcome_error",
+                        error=str(e),
+                        recommendation_id=r.id,
+                    )
                 data["recommendations"].append(
                     {
                         "id": r.id or "",
@@ -177,6 +193,7 @@ def assemble_briefing_data(user_id: str) -> dict:
                         "status": r.status,
                         "reasoning_trace": meta.get("reasoning_trace"),
                         "critic": critic,
+                        "harvested_outcome": harvested_outcome,
                     }
                 )
     except Exception as e:
@@ -234,6 +251,12 @@ def assemble_briefing_data(user_id: str) -> dict:
             ]
     except Exception as e:
         logger.warning("briefing_data.pipeline_intel_error", error=str(e))
+
+    # Dossier escalations (persisted active rows only; fresh scoring remains route-driven)
+    try:
+        data["dossier_escalations"] = get_dossier_escalation_store(user_id).list_active(limit=5)
+    except Exception as e:
+        logger.warning("briefing_data.dossier_escalations_error", error=str(e))
 
     # Assumptions
     try:

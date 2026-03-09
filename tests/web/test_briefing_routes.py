@@ -16,6 +16,13 @@ def test_briefing_includes_daily_brief_and_feedback_count(client, auth_headers):
                 "status": "suggested",
                 "reasoning_trace": None,
                 "critic": None,
+                "harvested_outcome": {
+                    "state": "positive",
+                    "confidence": 0.84,
+                    "source_summary": "Completed action item and positive follow-through signals.",
+                    "user_overridden": False,
+                    "evidence": [],
+                },
             }
         ],
         "stale_goals": [
@@ -37,6 +44,22 @@ def test_briefing_includes_daily_brief_and_feedback_count(client, auth_headers):
                 "match_reasons": ["matches goal"],
                 "created_at": "2026-03-07T00:00:00",
                 "llm_evaluated": False,
+            }
+        ],
+        "dossier_escalations": [
+            {
+                "escalation_id": "esc-1",
+                "topic_key": "acme-hiring",
+                "topic_label": "Acme hiring",
+                "score": 0.86,
+                "state": "active",
+                "evidence": {"thread_id": "thread-1"},
+                "payload": {"topic": "Acme hiring"},
+                "created_at": "2026-03-07T00:00:00",
+                "updated_at": "2026-03-07T00:00:00",
+                "snoozed_until": None,
+                "dismissed_at": None,
+                "accepted_dossier_id": None,
             }
         ],
         "company_movements": [
@@ -122,9 +145,11 @@ def test_briefing_includes_daily_brief_and_feedback_count(client, auth_headers):
     assert body["has_data"] is True
     assert body["adaptation_count"] == 4
     assert body["recommendations"][0]["title"] == "Ship MVP"
+    assert body["recommendations"][0]["harvested_outcome"]["state"] == "positive"
     assert body["daily_brief"]["budget_minutes"] == 60
     assert body["daily_brief"]["items"][0]["title"] == "Check in on Learn Rust"
     assert body["goal_intel_matches"][0]["goal_title"] == "Learn Rust"
+    assert body["dossier_escalations"][0]["topic_label"] == "Acme hiring"
     assert body["company_movements"][0]["company_label"] == "OpenAI"
     assert body["hiring_signals"][0]["entity_label"] == "OpenAI"
     assert body["regulatory_alerts"][0]["urgency"] == "high"
@@ -137,6 +162,7 @@ def test_briefing_gracefully_skips_daily_brief_failures(client, auth_headers):
         "stale_goals": [],
         "all_goals": [],
         "goal_intel_matches": [],
+        "dossier_escalations": [],
         "company_movements": [],
         "hiring_signals": [],
         "regulatory_alerts": [],
@@ -161,6 +187,7 @@ def test_briefing_gracefully_skips_daily_brief_failures(client, auth_headers):
         "adaptation_count": 0,
         "daily_brief": None,
         "goal_intel_matches": [],
+        "dossier_escalations": [],
         "company_movements": [],
         "hiring_signals": [],
         "regulatory_alerts": [],
