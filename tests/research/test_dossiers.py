@@ -48,7 +48,10 @@ def test_agent_updates_existing_dossier(temp_dirs):
     intel = IntelStorage(temp_dirs["intel_db"])
     embeddings = MagicMock()
 
-    with patch("research.agent.ResearchSynthesizer") as synth_cls, patch("research.agent.WebSearchClient") as search_cls:
+    with (
+        patch("research.agent.ResearchSynthesizer") as synth_cls,
+        patch("research.agent.WebSearchClient") as search_cls,
+    ):
         synth = MagicMock()
         synth.synthesize_dossier_update.return_value = """## What Changed
 - Model pricing shifted toward higher-volume discounts.

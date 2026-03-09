@@ -38,7 +38,9 @@ def mock_components(tmp_path):
     coach_mcp.bootstrap._components = None
 
 
-def test_bootstrap_storage_paths_use_single_user_root_and_profile_override(mock_components, tmp_path):
+def test_bootstrap_storage_paths_use_single_user_root_and_profile_override(
+    mock_components, tmp_path
+):
     paths = coach_mcp.bootstrap.get_storage_paths()
 
     assert paths["data_dir"] == tmp_path

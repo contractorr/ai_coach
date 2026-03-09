@@ -243,7 +243,13 @@ def test_chat_attachment_upload_returns_hidden_ready_attachment(client, auth_hea
     res = client.post(
         "/api/advisor/attachments",
         headers=auth_headers,
-        files={"file": ("resume.pdf", _sample_pdf_bytes("Raj Contractor Python leadership"), "application/pdf")},
+        files={
+            "file": (
+                "resume.pdf",
+                _sample_pdf_bytes("Raj Contractor Python leadership"),
+                "application/pdf",
+            )
+        },
     )
 
     assert res.status_code == 200
@@ -275,7 +281,13 @@ def test_chat_attachment_can_be_saved_to_library(client, auth_headers):
     upload_res = client.post(
         "/api/advisor/attachments",
         headers=auth_headers,
-        files={"file": ("resume.pdf", _sample_pdf_bytes("Raj Contractor Python leadership"), "application/pdf")},
+        files={
+            "file": (
+                "resume.pdf",
+                _sample_pdf_bytes("Raj Contractor Python leadership"),
+                "application/pdf",
+            )
+        },
     )
     attachment = upload_res.json()
 

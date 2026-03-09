@@ -1,6 +1,5 @@
 """Lifecycle and schema version tests for persisted stores."""
 
-
 from db import get_schema_version, wal_connect
 from intelligence.scraper import SCHEMA_VERSION as INTEL_SCHEMA_VERSION
 from intelligence.scraper import IntelStorage
@@ -11,7 +10,7 @@ from memory.store import FactStore
 
 
 def test_fact_store_sets_schema_version(tmp_path):
-    db_path = tmp_path / 'memory.db'
+    db_path = tmp_path / "memory.db"
     FactStore(db_path, chroma_dir=None)
 
     with wal_connect(db_path) as conn:
@@ -19,7 +18,7 @@ def test_fact_store_sets_schema_version(tmp_path):
 
 
 def test_intel_store_sets_schema_version(tmp_path):
-    db_path = tmp_path / 'intel.db'
+    db_path = tmp_path / "intel.db"
     IntelStorage(db_path)
 
     with wal_connect(db_path) as conn:
@@ -27,8 +26,8 @@ def test_intel_store_sets_schema_version(tmp_path):
 
 
 def test_journal_storage_writes_metadata_marker(tmp_path):
-    storage = JournalStorage(tmp_path / 'journal')
+    storage = JournalStorage(tmp_path / "journal")
 
     metadata = storage.get_store_metadata()
 
-    assert metadata == {'store': 'journal', 'version': JOURNAL_STORE_VERSION}
+    assert metadata == {"store": "journal", "version": JOURNAL_STORE_VERSION}

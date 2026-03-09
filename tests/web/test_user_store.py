@@ -165,7 +165,6 @@ def test_last_login_set_on_create_and_updated_on_upsert(tmp_path):
     assert user2["last_login"] >= first_login
 
 
-
 def test_feedback_count_includes_numeric_and_binary_feedback(tmp_path):
     db = tmp_path / "users.db"
     init_db(db)

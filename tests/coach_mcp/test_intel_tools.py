@@ -305,7 +305,9 @@ def test_research_run_with_dossier(mock_components):
     with patch("coach_mcp.tools.research._get_scheduler") as mock_get:
         scheduler = MagicMock()
         mock_get.return_value = scheduler
-        scheduler.run_research_now.return_value = [{"topic": "AI agents", "dossier_id": "dos-1", "sources": []}]
+        scheduler.run_research_now.return_value = [
+            {"topic": "AI agents", "dossier_id": "dos-1", "sources": []}
+        ]
 
         result = _run({"dossier_id": "dos-1"})
         assert result["count"] == 1
@@ -319,7 +321,9 @@ def test_research_dossiers_list(mock_components):
     with patch("coach_mcp.tools.research._get_scheduler") as mock_get:
         scheduler = MagicMock()
         mock_get.return_value = scheduler
-        scheduler.list_research_dossiers.return_value = [{"dossier_id": "dos-1", "topic": "AI agents"}]
+        scheduler.list_research_dossiers.return_value = [
+            {"dossier_id": "dos-1", "topic": "AI agents"}
+        ]
 
         result = _dossiers({})
         assert result["count"] == 1
@@ -333,7 +337,10 @@ def test_research_dossier_create(mock_components):
     with patch("coach_mcp.tools.research._get_scheduler") as mock_get:
         scheduler = MagicMock()
         mock_get.return_value = scheduler
-        scheduler.create_research_dossier.return_value = {"dossier_id": "dos-1", "topic": "AI agents"}
+        scheduler.create_research_dossier.return_value = {
+            "dossier_id": "dos-1",
+            "topic": "AI agents",
+        }
 
         result = _create_dossier({"topic": "AI agents"})
         assert result["dossier_id"] == "dos-1"

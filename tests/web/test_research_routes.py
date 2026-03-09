@@ -59,7 +59,11 @@ def test_create_dossier(client, auth_headers):
 
 def test_get_dossier(client, auth_headers):
     mock_agent = MagicMock()
-    mock_agent.get_dossier.return_value = {"dossier_id": "abc123", "topic": "AI agents", "updates": []}
+    mock_agent.get_dossier.return_value = {
+        "dossier_id": "abc123",
+        "topic": "AI agents",
+        "updates": [],
+    }
     with patch(_AGENT_PATCH, return_value=mock_agent):
         res = client.get("/api/research/dossiers/abc123", headers=auth_headers)
     assert res.status_code == 200

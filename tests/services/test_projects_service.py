@@ -50,7 +50,7 @@ def test_discover_matching_project_issues_serializes_results():
         }
     ]
 
-    with patch('advisor.projects.get_matching_issues', return_value=matched) as mock_get:
+    with patch("advisor.projects.get_matching_issues", return_value=matched) as mock_get:
         payload = discover_matching_project_issues(intel_storage, profile=profile, limit=5, days=7)
 
     assert payload["count"] == 1
@@ -85,34 +85,36 @@ def test_list_project_issues_filters_non_github_items():
 
 
 def test_build_project_ideas_context_uses_profile_and_journal_search(tmp_path):
-    profile_storage = ProfileStorage(tmp_path / 'profile.yaml')
+    profile_storage = ProfileStorage(tmp_path / "profile.yaml")
     profile_storage.save(
         UserProfile(
-            name='Raj',
-            role='Engineer',
-            interests=['automation'],
-            values=['clarity'],
+            name="Raj",
+            role="Engineer",
+            interests=["automation"],
+            values=["clarity"],
             weekly_hours_available=5,
         )
     )
     journal_search = MagicMock()
-    journal_search.get_context_for_query.return_value = 'Pain points from journal'
+    journal_search.get_context_for_query.return_value = "Pain points from journal"
 
-    payload = build_project_ideas_context(profile_storage=profile_storage, journal_search=journal_search)
+    payload = build_project_ideas_context(
+        profile_storage=profile_storage, journal_search=journal_search
+    )
 
-    assert 'automation' in payload['profile'] or payload['profile']
-    assert payload['journal_context'] == 'Pain points from journal'
-    assert 'Generate side-project ideas' in payload['instruction']
+    assert "automation" in payload["profile"] or payload["profile"]
+    assert payload["journal_context"] == "Pain points from journal"
+    assert "Generate side-project ideas" in payload["instruction"]
 
 
 def test_generate_project_ideas_delegates_to_generator():
     rag = MagicMock()
     llm_caller = MagicMock()
     generator = MagicMock()
-    generator.generate_ideas.return_value = '# Ideas'
+    generator.generate_ideas.return_value = "# Ideas"
 
-    with patch('advisor.projects.ProjectIdeaGenerator', return_value=generator) as mock_cls:
+    with patch("advisor.projects.ProjectIdeaGenerator", return_value=generator) as mock_cls:
         ideas = generate_project_ideas(rag, llm_caller)
 
-    assert ideas == '# Ideas'
+    assert ideas == "# Ideas"
     mock_cls.assert_called_once_with(rag, llm_caller)

@@ -75,5 +75,8 @@ def test_cli_storage_helpers_build_shared_stores(tmp_path):
 
     assert get_memory_store(config, storage_paths=storage_paths).db_path == tmp_path / "memory.db"
     assert get_intel_storage(config, storage_paths=storage_paths).db_path == tmp_path / "intel.db"
-    assert get_recommendation_storage(config, storage_paths=storage_paths).dir == tmp_path / "recommendations"
+    assert (
+        get_recommendation_storage(config, storage_paths=storage_paths).dir
+        == tmp_path / "recommendations"
+    )
     assert get_insight_store(config, storage_paths=storage_paths).db_path == tmp_path / "intel.db"

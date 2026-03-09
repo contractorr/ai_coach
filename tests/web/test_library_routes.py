@@ -15,7 +15,11 @@ def _sample_pdf_bytes(text: str) -> bytes:
 
 
 def test_create_list_update_and_archive_report(client, auth_headers):
-    library_routes._generate_report_content = lambda user_id, prompt, report_type: f"# Generated\n\nPrompt: {prompt}\n\nType: {report_type}"
+    library_routes._generate_report_content = (
+        lambda user_id,
+        prompt,
+        report_type: f"# Generated\n\nPrompt: {prompt}\n\nType: {report_type}"
+    )
     try:
         create_res = client.post(
             "/api/library/reports",
@@ -42,7 +46,11 @@ def test_create_list_update_and_archive_report(client, auth_headers):
         update_res = client.put(
             f"/api/library/reports/{created['id']}",
             headers=auth_headers,
-            json={"title": "Insurance Crash Course", "content": "# Edited", "collection": "Research"},
+            json={
+                "title": "Insurance Crash Course",
+                "content": "# Edited",
+                "collection": "Research",
+            },
         )
         assert update_res.status_code == 200
         updated = update_res.json()
@@ -152,7 +160,9 @@ def test_refresh_preserves_report_identity(client, auth_headers):
 
 
 def test_library_reports_are_user_scoped(client, auth_headers, auth_headers_b):
-    library_routes._generate_report_content = lambda user_id, prompt, report_type: "# Private report"
+    library_routes._generate_report_content = (
+        lambda user_id, prompt, report_type: "# Private report"
+    )
     try:
         create_res = client.post(
             "/api/library/reports",

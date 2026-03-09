@@ -43,7 +43,7 @@ def mock_search_results():
             content="Comprehensive ML content.",
             score=0.9,
         ),
-        ]
+    ]
 
 
 @pytest.fixture

@@ -162,8 +162,11 @@ def test_suggestions_include_assumption_alert_items(client, auth_headers):
         ],
     }
 
-    with patch("web.routes.suggestions.assemble_briefing_data", return_value=briefing_data), patch(
-        "advisor.daily_brief.DailyBriefBuilder.build", return_value=SimpleNamespace(items=[])
+    with (
+        patch("web.routes.suggestions.assemble_briefing_data", return_value=briefing_data),
+        patch(
+            "advisor.daily_brief.DailyBriefBuilder.build", return_value=SimpleNamespace(items=[])
+        ),
     ):
         response = client.get("/api/suggestions?limit=10", headers=auth_headers)
 

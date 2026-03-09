@@ -16,7 +16,11 @@ def mock_components():
     components = {
         "config": {"paths": {"intel_db": "/tmp/test_intel.db"}},
         "config_model": MagicMock(),
-        "paths": {"journal_dir": "/tmp/test_journal", "chroma_dir": "/tmp/test_chroma", "intel_db": Path("/tmp/test_intel.db")},
+        "paths": {
+            "journal_dir": "/tmp/test_journal",
+            "chroma_dir": "/tmp/test_chroma",
+            "intel_db": Path("/tmp/test_intel.db"),
+        },
         "storage": MagicMock(),
         "embeddings": MagicMock(),
         "search": MagicMock(),

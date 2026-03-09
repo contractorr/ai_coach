@@ -75,7 +75,6 @@ def test_list_action_items_can_filter_by_status(client, auth_headers, tmp_path):
     assert data[0]["recommendation_id"] == second
 
 
-
 def test_add_recommendation_feedback(client, auth_headers, tmp_path):
     storage = _storage_for(tmp_path)
     rec_id = storage.save(Recommendation(category="career", title="Reach out", score=8.4))

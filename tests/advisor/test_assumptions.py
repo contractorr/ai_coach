@@ -32,4 +32,3 @@ def test_refresh_active_assumptions_updates_status_and_deduplicates_evidence(tmp
 
     assert refreshed_again[0]["status"] == "confirmed"
     assert len(refreshed_again[0]["evidence"]) == 1
-

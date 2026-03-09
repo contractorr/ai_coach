@@ -21,11 +21,11 @@ def _imports_for(path: Path) -> list[str]:
 
 
 def _python_files_under(root: Path) -> list[Path]:
-    return [p for p in root.rglob('*.py') if p.name != '__init__.py']
+    return [p for p in root.rglob("*.py") if p.name != "__init__.py"]
 
 
 def test_domains_do_not_import_surface_packages_directly():
-    src_root = Path('src')
+    src_root = Path("src")
     offenders = []
     for domain in DOMAIN_ROOTS:
         for path in _python_files_under(src_root / domain):
@@ -36,12 +36,14 @@ def test_domains_do_not_import_surface_packages_directly():
 
 
 def test_surface_modules_do_not_import_other_surface_modules_directly():
-    src_root = Path('src')
+    src_root = Path("src")
     offenders = []
     for surface in SURFACE_ROOTS:
         for path in _python_files_under(src_root / surface):
-            current_surface = '.'.join(path.relative_to(src_root).with_suffix('').parts[:2])
+            current_surface = ".".join(path.relative_to(src_root).with_suffix("").parts[:2])
             for imported in _imports_for(path):
-                if imported.startswith(FORBIDDEN_SURFACE_IMPORT_PREFIXES) and not imported.startswith(current_surface):
+                if imported.startswith(
+                    FORBIDDEN_SURFACE_IMPORT_PREFIXES
+                ) and not imported.startswith(current_surface):
                     offenders.append(f"{path}: {imported}")
     assert offenders == []

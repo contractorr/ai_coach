@@ -7,8 +7,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-_SLOW_NODEIDS = {
-}
+_SLOW_NODEIDS = {}
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))

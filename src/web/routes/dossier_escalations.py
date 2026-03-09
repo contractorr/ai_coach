@@ -7,10 +7,10 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from research.escalation import DossierEscalationEngine
 from web.auth import get_current_user
-from web.dossier_escalation_context import load_dossier_escalation_context
 from web.deps import (
     get_dossier_escalation_store,
 )
+from web.dossier_escalation_context import load_dossier_escalation_context
 from web.models import DossierEscalationResponse, DossierEscalationSnoozeRequest
 from web.routes.research import _get_agent
 

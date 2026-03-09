@@ -53,7 +53,14 @@ def test_build_daily_brief_payload_serializes_surface_friendly_shape():
         recommendations=[{"title": "Explore Go", "description": "Ship something small"}],
         all_goals=[{"title": "Check in"}],
         weekly_hours=5,
-        goal_intel_matches=[{"title": "AI infra release", "summary": "Worth reviewing", "urgency": "high", "score": 0.4}],
+        goal_intel_matches=[
+            {
+                "title": "AI infra release",
+                "summary": "Worth reviewing",
+                "urgency": "high",
+                "score": 0.4,
+            }
+        ],
     )
 
     assert payload["budget_minutes"] > 0
