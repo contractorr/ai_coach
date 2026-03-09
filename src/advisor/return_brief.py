@@ -113,4 +113,3 @@ class ReturnBriefBuilder:
             "next_steps": next_steps[: self.max_section_items],
             "generated_at": now.isoformat(),
         }
-
