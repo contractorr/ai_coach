@@ -1,31 +1,18 @@
 """Structured logging configuration using structlog."""
 
 import logging
-import re
 import sys
 
 import structlog
 
-# Patterns to redact from log output
-_REDACT_PATTERNS = [
-    # API keys: sk-ant-..., sk-..., Bearer tokens
-    (re.compile(r"(sk-ant-[a-zA-Z0-9_-]{10})[a-zA-Z0-9_-]*"), r"\1...REDACTED"),
-    (re.compile(r"(sk-[a-zA-Z0-9_-]{6})[a-zA-Z0-9_-]{20,}"), r"\1...REDACTED"),
-    (re.compile(r"(Bearer\s+)[a-zA-Z0-9_.-]{20,}"), r"\1REDACTED"),
-    # Generic API key patterns in key=value
-    (re.compile(r"(api[_-]?key['\"]?\s*[:=]\s*['\"]?)[a-zA-Z0-9_-]{10,}"), r"\1REDACTED"),
-    # Email addresses
-    (re.compile(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}"), "REDACTED@email"),
-]
+from services.redact import RedactingFormatter, redact_sensitive_text
 
 
 def _redact_sensitive(_, __, event_dict: dict) -> dict:
     """Structlog processor to redact API keys/tokens from log output."""
     for key, value in event_dict.items():
         if isinstance(value, str):
-            for pattern, replacement in _REDACT_PATTERNS:
-                value = pattern.sub(replacement, value)
-            event_dict[key] = value
+            event_dict[key] = redact_sensitive_text(value)
     return event_dict
 
 
@@ -81,7 +68,7 @@ def setup_logging(json_mode: bool = False, level: str = "INFO") -> None:
     )
 
     handler = logging.StreamHandler(sys.stderr)
-    handler.setFormatter(formatter)
+    handler.setFormatter(RedactingFormatter(formatter))
 
     root = logging.getLogger()
     root.handlers.clear()

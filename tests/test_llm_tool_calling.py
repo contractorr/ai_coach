@@ -1,5 +1,6 @@
 """Tests for LLM provider generate_with_tools implementations."""
 
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
@@ -160,8 +161,64 @@ class TestClaudeToolCalling:
         call_kwargs = client.messages.create.call_args.kwargs
         assert call_kwargs["tool_choice"] == {"type": "any"}
 
-    def test_convert_messages_with_tool_results(self):
+    def test_prompt_caching_marks_system_and_first_three_messages(self):
         provider, client = self._make_provider()
+        mock_resp = MagicMock()
+        mock_resp.content = [MagicMock(type="text", text="ok")]
+        mock_resp.stop_reason = "end_turn"
+        mock_resp.usage = SimpleNamespace(
+            input_tokens=100,
+            output_tokens=50,
+            cache_creation_input_tokens=80,
+            cache_read_input_tokens=20,
+        )
+        client.messages.create.return_value = mock_resp
+
+        messages = [
+            {"role": "user", "content": "first"},
+            {"role": "assistant", "content": "second"},
+            {"role": "user", "content": "third"},
+            {"role": "user", "content": "fourth"},
+        ]
+
+        result = provider.generate_with_tools(
+            messages=messages,
+            tools=SAMPLE_TOOLS,
+            system="Be helpful",
+        )
+
+        call_kwargs = client.messages.create.call_args.kwargs
+        assert call_kwargs["system"][0]["cache_control"] == {"type": "ephemeral"}
+        assert call_kwargs["messages"][0]["content"][0]["cache_control"] == {"type": "ephemeral"}
+        assert call_kwargs["messages"][1]["content"][0]["cache_control"] == {"type": "ephemeral"}
+        assert call_kwargs["messages"][2]["content"][0]["cache_control"] == {"type": "ephemeral"}
+        assert "cache_control" not in call_kwargs["messages"][3]["content"][0]
+        assert result.usage["cache_creation_input_tokens"] == 80
+        assert result.usage["cache_read_input_tokens"] == 20
+        assert result.usage["billed_input_tokens"] == 200.0
+
+    def test_prompt_caching_can_be_disabled(self):
+        mock_client = MagicMock()
+        provider = ClaudeProvider(client=mock_client, prompt_caching_enabled=False)
+        mock_resp = MagicMock()
+        mock_resp.content = [MagicMock(type="text", text="ok")]
+        mock_resp.stop_reason = "end_turn"
+        mock_resp.usage = SimpleNamespace(input_tokens=10, output_tokens=5)
+        mock_client.messages.create.return_value = mock_resp
+
+        provider.generate_with_tools(
+            messages=[{"role": "user", "content": "hi"}],
+            tools=SAMPLE_TOOLS,
+            system="Be helpful",
+        )
+
+        call_kwargs = mock_client.messages.create.call_args.kwargs
+        assert "cache_control" not in call_kwargs["system"][0]
+        assert "cache_control" not in call_kwargs["messages"][0]["content"][0]
+
+    def test_convert_messages_with_tool_results(self):
+        client = MagicMock()
+        provider = ClaudeProvider(client=client, prompt_caching_enabled=False)
         mock_resp = MagicMock()
         mock_resp.content = [MagicMock(type="text", text="Got it")]
         mock_resp.stop_reason = "end_turn"

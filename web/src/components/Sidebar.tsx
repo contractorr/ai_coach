@@ -27,7 +27,7 @@ import {
 import { guideCards } from "@/app/(dashboard)/onboarding/page";
 
 const primaryNav = [
-  { href: "/", label: "Home", icon: Home },
+  { href: "/home", label: "Home", icon: Home },
   { href: "/focus", label: "Focus", icon: Target },
   { href: "/radar", label: "Radar", icon: Newspaper },
   { href: "/library", label: "Library", icon: FileText },

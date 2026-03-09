@@ -32,6 +32,17 @@ if ! curl -sf http://localhost:8000/api/health >/dev/null 2>&1; then
 fi
 echo "[ok] Backend running on :8000"
 
+# API key (needed by backend for shared LLM calls)
+if [ -z "${ANTHROPIC_API_KEY:-}" ]; then
+  echo "WARNING: ANTHROPIC_API_KEY not set — backend LLM calls will fail"
+  echo "  Export it before running: export ANTHROPIC_API_KEY=sk-..."
+  exit 1
+fi
+echo "[ok] ANTHROPIC_API_KEY set"
+
+echo ""
+echo "NOTE: Council requires per-persona API keys entered in Settings > LLM Providers."
+echo "      Env vars alone do NOT enable council. Each persona must add keys during their run."
 echo ""
 
 # --- Determine personas to run ---

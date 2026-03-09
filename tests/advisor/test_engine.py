@@ -18,6 +18,12 @@ def mock_rag():
     rag.get_journal_context.return_value = "journal context"
     rag.get_research_context.return_value = ""
     rag.get_profile_keywords.return_value = []
+    rag.get_enhanced_context.return_value = MagicMock(
+        journal="journal ctx",
+        intel="intel ctx",
+        profile="",
+        entity_context="",
+    )
     return rag
 
 
@@ -172,11 +178,11 @@ class TestContextAssemblyWiring:
             rag=mock_rag, provider="claude", client=mock_client, rag_config=rag_config
         )
 
-    def test_default_config_uses_legacy_path(self, mock_rag, mock_client):
-        """No rag_config flags → legacy get_combined_context + get_profile_context."""
+    def test_default_config_uses_enhanced_path(self, mock_rag, mock_client):
+        """No rag_config flags → get_enhanced_context + get_profile_context."""
         engine = self._make_engine(mock_rag, mock_client)
         engine.ask("test")
-        mock_rag.get_combined_context.assert_called_once()
+        mock_rag.get_enhanced_context.assert_called_once()
         mock_rag.get_profile_context.assert_called_once()
 
     def test_inject_memory_calls_build_context(self, mock_rag, mock_client):

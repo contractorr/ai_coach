@@ -40,6 +40,45 @@ ${EVAL_CONTENT}
 ## Previous Sessions
 ${SESSION_CONTENT}
 
+## Feature Navigation Reference
+
+Use these routes to navigate the app:
+
+| Page | URL |
+|------|-----|
+| Home (chat) | http://localhost:3000/ |
+| Focus (goals, memory, threads, insights) | http://localhost:3000/focus |
+| Radar (intel, trends) | http://localhost:3000/radar |
+| Library (saved content) | http://localhost:3000/library |
+| Settings (LLM keys, preferences) | http://localhost:3000/settings |
+| Journal | http://localhost:3000/journal |
+| Projects | http://localhost:3000/projects |
+
+## Council Testing Instructions (Beat 8)
+
+1. Navigate to Settings > LLM Providers
+2. Verify 3 API keys are entered (Anthropic, OpenAI, Google). If not, enter them.
+3. Enable the council toggle if present
+4. Return to Home, ask a high-stakes question
+5. Check response: look for **"Council-assisted answer"** text prefix at the start of the advisor's response
+6. If prefix is missing, note whether keys were saved correctly — reload Settings to verify persistence
+
+## Memory & Threads Instructions (Beats 10-11)
+
+1. Navigate to Focus page (http://localhost:3000/focus)
+2. Screenshot the Memory section — note listed facts
+3. Screenshot the Threads section — note detected recurring themes
+4. Ask the advisor a question that should trigger memory recall (reference something from a past journal entry)
+5. Note whether the advisor's response references remembered facts or active threads
+
+## Milestone Instructions (Beat 9)
+
+1. Navigate to Focus page, find the Goals section
+2. Pick an existing goal or create one via advisor (e.g., "I want to learn X — break this down for me")
+3. Check that milestones appear under the goal
+4. Mark a milestone complete and verify the progress bar updates
+5. Screenshot the goal with milestones
+
 ## Today's Task
 
 1. **Navigate** to http://localhost:3000/login using the Playwright browser
@@ -75,6 +114,12 @@ ${SESSION_CONTENT}
 [Any UX observations or improvement suggestions]
 ### Advisor Quality
 [How relevant/helpful was the advisor's response? Did it reference past context?]
+### Feature-Specific (Beats 8-14 only, fill relevant section)
+- **Council**: Did "Council-assisted answer" prefix appear? Synthesis quality? Degradation if key missing?
+- **Memory**: What facts shown on Focus? Did advisor reference them?
+- **Threads**: What recurring themes detected? Accurate?
+- **Milestones**: Created? Shown on Focus? Progress bar updated?
+- **Insights**: What insights shown? Accurate and non-trivial?
 ---
 
 Important:

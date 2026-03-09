@@ -327,8 +327,8 @@ class TestRemovals:
         """Verify learning tools removed from MCP server."""
         from coach_mcp.server import _load_tools
 
-        tools, handlers = _load_tools()
-        tool_names = [t.name for t in tools]
+        registry = _load_tools()
+        tool_names = [t.name for t in registry.get_mcp_definitions()]
         assert "learning_gaps" not in tool_names
         assert "learning_paths_list" not in tool_names
         assert "learning_path_get" not in tool_names

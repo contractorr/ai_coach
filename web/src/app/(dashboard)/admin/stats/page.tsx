@@ -63,7 +63,7 @@ export default function AdminStatsPage() {
       })
       .catch((e) => {
         if (e.message?.includes("403")) {
-          router.push("/");
+          router.push("/home");
           return;
         }
       })

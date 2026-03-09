@@ -4,14 +4,11 @@ import { useState } from "react";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
 import {
-  BookOpen,
   Brain,
   Github,
-  Newspaper,
-  Sparkles,
-  Target,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { FEATURES } from "@/lib/features";
 import {
   Card,
   CardContent,
@@ -26,32 +23,6 @@ const ENABLE_TEST_AUTH =
   process.env.NEXT_PUBLIC_ENABLE_TEST_AUTH === "true";
 const TEST_USERS = ["junior_dev", "founder", "switcher"] as const;
 
-const features = [
-  {
-    icon: Newspaper,
-    title: "Intelligence Radar",
-    description:
-      "Scans HN, GitHub, arXiv, Reddit & RSS — surfaces what matters, skips the noise.",
-  },
-  {
-    icon: Sparkles,
-    title: "AI Steward",
-    description:
-      "Personalized guidance grounded in your journal, goals, and real-time intel.",
-  },
-  {
-    icon: Target,
-    title: "Goal Tracking",
-    description:
-      "Track objectives with milestones. Get nudged when priorities should shift.",
-  },
-  {
-    icon: BookOpen,
-    title: "Journal",
-    description:
-      "Capture reflections and decisions. Every entry sharpens your steward's guidance.",
-  },
-];
 
 export default function LoginPage() {
   const [testUser, setTestUser] = useState<string>("junior_dev");
@@ -74,14 +45,14 @@ export default function LoginPage() {
           <Button
             variant="outline"
             className="w-full"
-            onClick={() => signIn("github", { callbackUrl: "/" })}
+            onClick={() => signIn("github", { callbackUrl: "/home" })}
           >
             <Github className="mr-2 h-4 w-4" />
             Continue with GitHub
           </Button>
           <Button
             className="w-full"
-            onClick={() => signIn("google", { callbackUrl: "/" })}
+            onClick={() => signIn("google", { callbackUrl: "/home" })}
           >
             <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
               <path
@@ -141,7 +112,7 @@ export default function LoginPage() {
                     signIn("credentials", {
                       username: testUser,
                       password: testPass,
-                      callbackUrl: "/",
+                      callbackUrl: "/home",
                     })
                   }
                 >
@@ -155,7 +126,7 @@ export default function LoginPage() {
 
       <p className="mt-10 mb-4 text-xs font-medium uppercase tracking-wider text-muted-foreground">What you get</p>
       <div className="grid w-full max-w-[700px] grid-cols-1 gap-4 sm:grid-cols-2">
-        {features.map(({ icon: Icon, title, description }) => (
+        {FEATURES.map(({ icon: Icon, title, description }) => (
           <div key={title} className="flex gap-3 rounded-xl border bg-card p-4">
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary/10">
               <Icon className="h-4 w-4 text-primary" />

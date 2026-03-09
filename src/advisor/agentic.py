@@ -5,8 +5,9 @@ from collections.abc import Callable
 import structlog
 
 from llm.base import LLMProvider
+from services.tool_registry import ToolRegistry
 
-from .tools import ToolRegistry
+from .context_compressor import ContextCompressor
 
 logger = structlog.get_logger()
 
@@ -20,11 +21,18 @@ class AgenticOrchestrator:
         registry: ToolRegistry,
         system_prompt: str,
         max_iterations: int = 10,
+        cheap_llm: LLMProvider | None = None,
+        token_threshold: int = 100_000,
     ):
         self.llm = llm
         self.registry = registry
         self.system_prompt = system_prompt
         self.max_iterations = max_iterations
+        self.compressor = ContextCompressor(
+            cheap_llm=cheap_llm,
+            token_threshold=token_threshold,
+        )
+        self._total_input_tokens = 0
 
     def run(
         self,
@@ -49,8 +57,12 @@ class AgenticOrchestrator:
                 finish_reason=response.finish_reason,
                 tool_call_count=len(response.tool_calls) if response.tool_calls else 0,
             )
+            if response.usage:
+                self._total_input_tokens = int(response.usage.get("input_tokens", 0))
+            else:
+                logger.warning("agentic_usage_missing", iteration=iteration)
 
-            # LLM finished with text — return it
+            # LLM finished with text - return it
             if response.finish_reason == "stop" or not response.tool_calls:
                 logger.info("agentic_complete", iterations=iteration + 1)
                 content = response.content or ""
@@ -98,7 +110,9 @@ class AgenticOrchestrator:
                     }
                 )
 
-        # Max iterations reached — return whatever we have
+            messages = self.compressor.compress_if_needed(messages, self._total_input_tokens)
+
+        # Max iterations reached - return whatever we have
         logger.warning("agentic_max_iterations", max=self.max_iterations)
         if response.content:
             return response.content

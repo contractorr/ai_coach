@@ -29,6 +29,15 @@ class TestLoggingConfig:
         # No crash = success
         assert True
 
+    def test_stdlib_logs_are_redacted(self, capsys):
+        """Stdlib logging should redact secrets via the formatter."""
+        setup_logging(json_mode=False, level="INFO")
+        stdlib_logger = logging.getLogger("test_redaction")
+        stdlib_logger.info("OPENAI_API_KEY=sk-proj-abcdefghijklmnopqrstuvwxyz1234")
+        captured = capsys.readouterr()
+        assert "sk-pro" in captured.err
+        assert "abcdefghijklmnopqrstuvwxyz" not in captured.err
+
     def test_level_filtering(self):
         """Log level filters lower messages."""
         setup_logging(json_mode=False, level="WARNING")

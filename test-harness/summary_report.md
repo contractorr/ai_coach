@@ -1,92 +1,69 @@
 # Test Harness Summary Report
 
-> **Baseline reset: 2026-03-06** — Issue #57 (Phases 1-4) shipped. Chat-first home, goal milestones, insights, suggestions, and concept consolidation all landed. Past observations may no longer apply. Only observations from today onward are tracked below.
+> **Baseline reset: 2026-03-09** — Issue #67. Full wipe + 14-beat fresh run with LLM council. Prior Mar 1-6 observations cleared.
 
-3 personas, sessions analyzed post-reset.
-
----
-
-## Known Architecture Changes (Issue #57)
-
-These changes affect what the test harness should exercise and observe:
-
-- **Chat-first home** replaces dashboard Brief — greeting cached per-user, served instantly, regenerated every 4hrs or on data events
-- **Goals now have milestones** — learning paths merged into goals with `type` field, auto-generated milestones via advisor
-- **Insights** = merged signals + patterns + heartbeat output — TTL-based 14-day expiry, no dismiss UI
-- **Suggestions** = merged recommendations + daily brief items — unified `/api/suggestions` endpoint
-- **Predictions removed** — zero persona interaction in prior testing
-- **Heartbeat = invisible infra** — no user-facing routes, output feeds Insights
-- **SkillGapAnalyzer** → `advice_type="skill_gap"` in advisor
-
-## New Endpoints to Exercise
-
-| Endpoint | Purpose |
-|----------|---------|
-| `GET /api/greeting` | Cached personalized greeting (chat-first home) |
-| `GET /api/suggestions` | Unified suggestions (brief items + recommendations) |
-| `GET /api/insights` | Active insights (merged signals/patterns/heartbeat) |
-| `POST /api/goals/{path}/milestones` | Add milestone to goal |
-| `POST /api/goals/{path}/milestones/complete` | Complete a milestone |
-| `POST /api/advisor/ask` with `advice_type=skill_gap` | Skill gap analysis via advisor |
+3 personas × 14 beats across 2 weeks.
 
 ---
 
-## Common Bugs Across Personas
+## Architecture Changes Since Last Run
 
-*(To be populated from today's test runs)*
+| Change | Impact on Testing |
+|--------|-------------------|
+| **LLM Council** | Per-user keys in Settings > LLM Providers (Fernet-encrypted). Response prefixed with "Council-assisted answer" when active. |
+| **Settings key management** | Keys stored as user secrets, not env vars. Must be entered per-persona during run. |
+| **Focus page** | Unified view: goals + milestones + memory facts + threads + insights |
+| **Library** (`/library`) | Content collection / bookmarks. New sidebar route. |
+| **Sidebar redesign** | Routes: Home `/`, Focus `/focus`, Radar `/radar`, Library `/library`, Settings `/settings`, Journal `/journal` |
+| **Memory & Threads** | Stable features. Facts shown on Focus, threads detect recurring themes. |
+| **Projects** | Route exists at `/projects` but not in sidebar. Discoverable via direct nav. |
 
 ---
 
-## UX Patterns
+## Carry-Forward Bugs (re-test to confirm)
 
-### Onboarding
-*(Carry forward: profile interview is a standout feature. Rate limit issue was fixed. Monitor for regressions.)*
+| # | Bug | Prior Priority | Status |
+|---|-----|---------------|--------|
+| 1 | Display name mismatch — onboarding name doesn't show in UI | P1 | Re-test |
+| 2 | Advisor auto-scrolls past opening paragraph | P1 | Re-test |
+| 3 | Stale goal timestamps after check-in | P2 | Re-test |
 
-### Chat-first Home
-- **Greeting cache**: Does greeting load instantly (<100ms) when cached?
-- **Staleness refresh**: Does greeting update after journal entry / goal check-in / scrape?
-- **Static fallback**: On first visit, does fallback show while greeting generates?
-- **Quick-capture**: Does chat input work as journal entry mode?
+---
 
-### Journal
-*(Carry forward: entry creation is reliable. Monitor markdown preview rendering.)*
+## Week 1 Observations (Beats 1-7)
 
-### Advisor
-- **skill_gap advice type**: Does `--type skill_gap` produce meaningful analysis?
-- **Cross-session context**: Still the biggest quality gap from prior testing — monitor.
-- **Journal RAG retrieval**: Was inconsistent across personas — re-evaluate.
+*(To be populated during run)*
 
-### Radar
-*(Carry forward: trending clusters and "For you" tags work. Feed tab source filtering was a prior bug.)*
+### Common Bugs
 
-### Goals & Milestones
-- **Milestone creation**: Does "break this down for me" generate sensible milestones?
-- **Progress tracking**: Do milestone completions update the progress bar?
-- **Goal types**: Are `type` fields (career, learning, project) set correctly?
-- **Migration**: If old learning paths existed, were they migrated to goal milestones?
+### UX Patterns
+
+### Advisor Quality
+
+---
+
+## Week 2 Observations (Beats 8-14)
+
+*(To be populated during run)*
+
+### Council
+
+### Memory & Threads
+
+### Milestones
 
 ### Insights & Suggestions
-- **Insights list**: Does `GET /api/insights` return active insights?
-- **TTL expiry**: Do insights disappear after 14 days?
-- **Suggestions ranking**: Are brief items ranked first, followed by remaining recommendations?
-- **Dedup**: Are recommendations in the brief excluded from the remaining suggestions list?
 
----
-
-## Advisor Quality Trends
-
-*(To be populated from today's test runs)*
+### Projects & Library
 
 ---
 
 ## Prioritized Issues
 
-*(To be populated from today's test runs. Prior P0-P3 issues may no longer apply — re-evaluate each.)*
+*(To be populated from run findings)*
 
-### Carry-forward candidates (re-test before confirming)
+---
 
-- **P0: Journal entries not retrieved in advisor context (RAG failure)** — Was the biggest issue. Re-test with current code.
-- **P0: Cross-conversation continuity missing** — Memory and threads are now stable features. Re-test.
-- **P1: Display name mismatch** — Check if onboarding name now shows correctly.
-- **P1: Sidebar nav links off-viewport** — CSS flake. Re-test at 1280x900.
-- **P2: Advisor auto-scrolls past opening paragraph** — Still relevant if chat UI unchanged.
+## Advisor Quality Trends
+
+*(To be populated — compare single-model vs council responses)*

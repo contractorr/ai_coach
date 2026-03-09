@@ -190,7 +190,7 @@ export default function OnboardingPage() {
   }, [messages, sending]);
 
   const handleDone = useCallback(() => {
-    router.replace("/");
+    router.replace("/home");
   }, [router]);
 
   // Auto-redirect after done

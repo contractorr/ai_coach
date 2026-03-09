@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from advisor.agentic import AgenticOrchestrator
-from advisor.tools import ToolRegistry
+from advisor.tools import build_tool_registry
 from llm.base import GenerateResponse, ToolCall
 
 
@@ -59,7 +59,7 @@ def mock_components(tmp_path):
 
 @pytest.fixture
 def registry(mock_components):
-    return ToolRegistry(mock_components)
+    return build_tool_registry(mock_components)
 
 
 class TestAgenticOrchestrator:
@@ -301,6 +301,19 @@ class TestAgenticOrchestrator:
         assistant_msg = second_call_messages[1]
         assert assistant_msg["content"] == "Let me check your goals."
         assert "tool_calls" in assistant_msg
+
+    def test_usage_is_tracked_on_response(self, registry):
+        mock_llm = MagicMock()
+        mock_llm.generate_with_tools.return_value = GenerateResponse(
+            content="ok",
+            finish_reason="stop",
+            usage={"input_tokens": 321, "output_tokens": 12},
+        )
+
+        orch = AgenticOrchestrator(mock_llm, registry, "system")
+        orch.run("hi")
+
+        assert orch._total_input_tokens == 321
 
 
 class TestAgenticEngineIntegration:

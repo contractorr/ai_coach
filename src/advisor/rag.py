@@ -1,5 +1,6 @@
 """RAG retrieval combining journal and intelligence sources."""
 
+import asyncio
 import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
@@ -7,7 +8,11 @@ from typing import Optional
 
 import structlog
 
+from advisor.entity_retriever import EntityRetriever
+from advisor.query_analyzer import QueryAnalysis, QueryAnalyzer, RetrievalMode
+from advisor.query_decomposer import QueryDecomposer
 from db import wal_connect
+from intelligence.entity_store import EntityStore
 from intelligence.search import IntelSearch
 from journal.search import JournalSearch
 
@@ -24,6 +29,7 @@ class AskContext:
     memory: str = ""
     thoughts: str = ""
     documents: str = ""
+    entity_context: str = ""
 
 
 class RAGRetriever:
@@ -44,6 +50,10 @@ class RAGRetriever:
         memory_config: Optional[dict] = None,
         thread_store=None,
         library_index=None,
+        entity_store: EntityStore | None = None,
+        query_analyzer: QueryAnalyzer | None = None,
+        query_decomposer: QueryDecomposer | None = None,
+        entity_retriever: EntityRetriever | None = None,
     ):
         self.journal = journal_search
         self.intel_db_path = Path(intel_db_path).expanduser() if intel_db_path else None
@@ -58,6 +68,10 @@ class RAGRetriever:
         self._memory_config = memory_config or {}
         self._thread_store = thread_store
         self._library_index = library_index
+        self.entity_store = entity_store
+        self.query_analyzer = query_analyzer
+        self.query_decomposer = query_decomposer
+        self.entity_retriever = entity_retriever
 
     def get_profile_context(self, structured: bool = False) -> str:
         """Load user profile summary for LLM context injection.
@@ -98,7 +112,7 @@ class RAGRetriever:
         """
         cfg = rag_config or {}
 
-        journal_ctx, intel_ctx = self.get_combined_context(query)
+        enhanced = self.get_enhanced_context(query)
         profile_ctx = self.get_profile_context(structured=cfg.get("structured_profile", False))
 
         memory_ctx = ""
@@ -114,12 +128,13 @@ class RAGRetriever:
             documents_ctx = self.get_document_context(query, attachment_ids=attachment_ids)
 
         return AskContext(
-            journal=journal_ctx,
-            intel=intel_ctx,
+            journal=enhanced.journal,
+            intel=enhanced.intel,
             profile=profile_ctx,
             memory=memory_ctx,
             thoughts=thoughts_ctx,
             documents=documents_ctx,
+            entity_context=enhanced.entity_context,
         )
 
     def get_document_context(
@@ -548,6 +563,26 @@ class RAGRetriever:
             logger.debug("dynamic_weight_fallback", error=str(e))
             return self.journal_weight
 
+    def _resolve_journal_weight(self, journal_weight: Optional[float] = None) -> float:
+        if journal_weight is not None:
+            return journal_weight
+        if self._users_db_path and self._user_id:
+            return self.compute_dynamic_weight()
+        return self.journal_weight
+
+    def _get_text_context_for_budget(
+        self,
+        query: str,
+        total_chars: int,
+        journal_weight: Optional[float] = None,
+    ) -> tuple[str, str]:
+        weight = self._resolve_journal_weight(journal_weight)
+        journal_chars = int(total_chars * weight)
+        intel_chars = total_chars - journal_chars
+        journal_ctx = self.get_journal_context(query, max_chars=journal_chars)
+        intel_ctx = self.get_intel_context(query, max_chars=intel_chars)
+        return journal_ctx, intel_ctx
+
     def get_combined_context(
         self,
         query: str,
@@ -562,15 +597,8 @@ class RAGRetriever:
         Returns:
             Tuple of (journal_context, intel_context)
         """
-        if journal_weight is not None:
-            weight = journal_weight
-        elif self._users_db_path and self._user_id:
-            weight = self.compute_dynamic_weight()
-        else:
-            weight = self.journal_weight
+        weight = self._resolve_journal_weight(journal_weight)
         total_chars = self.max_context_chars
-        journal_chars = int(total_chars * weight)
-        intel_chars = total_chars - journal_chars
 
         if self.cache:
             key = self.cache.make_key("combined", query, weight=weight, total_chars=total_chars)
@@ -581,8 +609,7 @@ class RAGRetriever:
                 parts = json.loads(cached)
                 return parts["journal"], parts["intel"]
 
-        journal_ctx = self.get_journal_context(query, max_chars=journal_chars)
-        intel_ctx = self.get_intel_context(query, max_chars=intel_chars)
+        journal_ctx, intel_ctx = self._get_text_context_for_budget(query, total_chars, weight)
 
         if self.cache:
             import json
@@ -590,6 +617,148 @@ class RAGRetriever:
             self.cache.set(key, json.dumps({"journal": journal_ctx, "intel": intel_ctx}))
 
         return journal_ctx, intel_ctx
+
+    def get_enhanced_context(self, query: str) -> AskContext:
+        """Get text and optional entity context for advisor prompts."""
+        if not self.query_analyzer:
+            journal_ctx, intel_ctx = self.get_combined_context(query)
+            return AskContext(journal=journal_ctx, intel=intel_ctx, profile="")
+
+        try:
+            analysis: QueryAnalysis = self.query_analyzer.analyze(query)
+        except Exception as exc:
+            logger.warning("enhanced_context_analysis_failed", error=str(exc))
+            journal_ctx, intel_ctx = self.get_combined_context(query)
+            return AskContext(journal=journal_ctx, intel=intel_ctx, profile="")
+
+        entity_budget = 0
+        entity_context = ""
+        if (
+            analysis.mode in {RetrievalMode.ENTITY, RetrievalMode.COMBINED}
+            and self.entity_retriever
+        ):
+            entity_budget = int(self.max_context_chars * 0.2)
+            try:
+                entity_context = self.entity_retriever.retrieve(analysis.matched_entities, query)
+            except Exception as exc:
+                logger.warning("entity_context_failed", error=str(exc))
+                entity_context = ""
+        if entity_context:
+            entity_context = entity_context[:entity_budget]
+            text_budget = self.max_context_chars - len(entity_context)
+        else:
+            text_budget = self.max_context_chars
+
+        if (
+            analysis.mode in {RetrievalMode.DECOMPOSED, RetrievalMode.COMBINED}
+            and self.query_decomposer
+        ):
+            journal_ctx, intel_ctx = self._run_async(
+                self._decomposed_retrieval(query, total_chars=text_budget)
+            )
+        else:
+            journal_ctx, intel_ctx = self._get_text_context_for_budget(query, text_budget)
+
+        return AskContext(
+            journal=journal_ctx,
+            intel=intel_ctx,
+            profile="",
+            entity_context=entity_context,
+        )
+
+    async def _decomposed_retrieval(
+        self,
+        query: str,
+        total_chars: int,
+    ) -> tuple[str, str]:
+        sub_questions = await self.query_decomposer.decompose(query)
+        if len(sub_questions) == 1:
+            return self._get_text_context_for_budget(sub_questions[0], total_chars)
+
+        results = await asyncio.gather(
+            *[
+                asyncio.to_thread(self._get_text_context_for_budget, sub_query, total_chars)
+                for sub_query in sub_questions
+            ],
+            return_exceptions=True,
+        )
+        journal_parts = []
+        intel_parts = []
+        for result in results:
+            if isinstance(result, Exception):
+                continue
+            journal_parts.append(result[0])
+            intel_parts.append(result[1])
+        if not journal_parts and not intel_parts:
+            return self._get_text_context_for_budget(query, total_chars)
+
+        weight = self._resolve_journal_weight()
+        journal_budget = int(total_chars * weight)
+        intel_budget = total_chars - journal_budget
+        return (
+            self._merge_context_lines(journal_parts, journal_budget),
+            self._merge_context_lines(intel_parts, intel_budget),
+        )
+
+    def _merge_context_lines(self, contexts: list[str], max_chars: int) -> str:
+        scores: dict[str, int] = {}
+        lines_by_key: dict[str, str] = {}
+        order: list[str] = []
+        for context in contexts:
+            for raw_line in context.splitlines():
+                line = raw_line.strip()
+                if not line:
+                    continue
+                key = self._line_key(line)
+                if key not in lines_by_key:
+                    lines_by_key[key] = line
+                    order.append(key)
+                scores[key] = scores.get(key, 0) + 1
+        merged = []
+        total = 0
+        for key in sorted(order, key=lambda value: (-scores[value], order.index(value))):
+            line = lines_by_key[key]
+            if total + len(line) + 1 > max_chars:
+                break
+            merged.append(line)
+            total += len(line) + 1
+        return "\n".join(merged)
+
+    @staticmethod
+    def _line_key(line: str) -> str:
+        import re
+
+        match = re.search(r"\((https?://[^)]+)\)", line)
+        return match.group(1) if match else line.lower()
+
+    @staticmethod
+    def _run_async(coro):
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            return asyncio.run(coro)
+
+        import threading
+
+        result = {}
+        error = {}
+
+        def runner():
+            loop = asyncio.new_event_loop()
+            try:
+                asyncio.set_event_loop(loop)
+                result["value"] = loop.run_until_complete(coro)
+            except Exception as exc:
+                error["value"] = exc
+            finally:
+                loop.close()
+
+        thread = threading.Thread(target=runner)
+        thread.start()
+        thread.join()
+        if "value" in error:
+            raise error["value"]
+        return result["value"]
 
     def get_capability_context(self) -> str:
         """Load latest CapabilityHorizonModel and return horizon context.

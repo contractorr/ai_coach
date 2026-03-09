@@ -68,14 +68,14 @@ class TestPIIRedaction:
     def test_redacts_anthropic_key(self):
         event = {"event": "key=sk-ant-api03-abcdefghijklmnop-qrstuvwx"}
         result = _redact_sensitive(None, None, event)
-        assert "qrstuvwx" not in result["event"]
-        assert "REDACTED" in result["event"]
+        # New redaction uses _mask_token: preserves first 6 + last 4 for long tokens
+        assert "abcdefghijklmnop" not in result["event"]
 
     def test_redacts_bearer_token(self):
         event = {"event": "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9abcdef"}
         result = _redact_sensitive(None, None, event)
-        assert "eyJhbG" not in result["event"]
-        assert "REDACTED" in result["event"]
+        # Bearer token masked — full middle portion removed
+        assert "OiJIUzI1NiIsInR5cCI6IkpXVCJ9" not in result["event"]
 
     def test_redacts_email(self):
         event = {"event": "User email is test@example.com"}

@@ -19,7 +19,7 @@ from .prompts import PromptTemplates
 from .rag import RAGRetriever
 from .recommendation_storage import RecommendationStorage
 from .recommendations import RecommendationEngine
-from .tools import ToolRegistry
+from .tools import build_tool_registry
 
 logger = structlog.get_logger()
 
@@ -120,7 +120,7 @@ class AdvisorEngine:
 
         self._orchestrator = None
         if use_tools and components:
-            registry = ToolRegistry(components)
+            registry = build_tool_registry(components)
 
             # Build coaching prompt with active goals summary
             goals_summary = ""
@@ -163,6 +163,7 @@ class AdvisorEngine:
                 llm=self.llm,
                 registry=registry,
                 system_prompt=system_prompt,
+                cheap_llm=self.cheap_llm,
             )
 
     @_llm_retry
@@ -264,6 +265,10 @@ class AdvisorEngine:
         if include_research and hasattr(self.rag, "get_research_context"):
             research_ctx = self.rag.get_research_context(question)
         has_research = bool(research_ctx.strip())
+        enhanced_ctx = self.rag.get_enhanced_context(question)
+        system_prompt = PromptTemplates.SYSTEM
+        if enhanced_ctx.entity_context:
+            system_prompt += "\n\n" + PromptTemplates.ENTITY_SYSTEM_SUFFIX
 
         if use_extended:
             ctx = self.rag.build_context_for_ask(
@@ -286,20 +291,21 @@ class AdvisorEngine:
                 memory_context=ctx.memory,
                 thoughts_context=ctx.thoughts,
                 research_context=research_ctx if has_research else "",
+                entity_context=ctx.entity_context,
                 question=question,
             )
-            return PromptTemplates.SYSTEM, user_prompt
+            return system_prompt, user_prompt
 
-        journal_ctx, intel_ctx = self.rag.get_combined_context(question)
         profile_ctx = self.rag.get_profile_context()
         prompt_template = PromptTemplates.get_prompt(advice_type, with_research=has_research)
         user_prompt = prompt_template.format(
-            journal_context=profile_ctx + journal_ctx,
-            intel_context=intel_ctx,
+            journal_context=profile_ctx + enhanced_ctx.journal,
+            intel_context=enhanced_ctx.intel,
             research_context=research_ctx if has_research else "",
+            entity_context=enhanced_ctx.entity_context,
             question=question,
         )
-        return PromptTemplates.SYSTEM, user_prompt
+        return system_prompt, user_prompt
 
     def _should_use_council(self, question: str, advice_type: str) -> bool:
         return (

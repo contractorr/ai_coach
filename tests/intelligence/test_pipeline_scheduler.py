@@ -102,3 +102,16 @@ def test_scheduler_registers_pipeline_jobs_when_enabled(tmp_path, monkeypatch):
     assert scheduler.scheduler.get_job("company_movement_pipeline") is not None
     assert scheduler.scheduler.get_job("hiring_activity_pipeline") is not None
     assert scheduler.scheduler.get_job("regulatory_pipeline") is not None
+
+
+def test_scheduler_registers_entity_extraction_job(tmp_path, monkeypatch):
+    monkeypatch.setenv("COACH_HOME", str(tmp_path))
+    scheduler = IntelScheduler(
+        storage=IntelStorage(tmp_path / "intel.db"),
+        config={},
+        full_config={"entity_extraction": {"enabled": True, "schedule_minutes": 15}},
+    )
+
+    scheduler._schedule_entity_extraction_job()
+
+    assert scheduler.scheduler.get_job("entity_extraction") is not None
