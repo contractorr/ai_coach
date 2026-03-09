@@ -142,6 +142,38 @@ async def upload_chat_attachment(
     )
 
 
+@router.post("/attachments/{attachment_id}/save", response_model=ChatAttachmentResponse)
+async def save_chat_attachment(
+    attachment_id: str,
+    user: dict = Depends(get_current_user),
+):
+    from web.routes.library import _get_index, _get_store, _index_record
+
+    store = _get_store(user["id"])
+    report = store.get_report(attachment_id)
+    if not report or report.get("source_kind") != "uploaded_pdf":
+        raise HTTPException(status_code=404, detail="Attachment not found")
+
+    if report.get("visibility_state") != "saved":
+        report = store.update_report(attachment_id, visibility_state="saved")
+        if not report:
+            raise HTTPException(status_code=404, detail="Attachment not found")
+        _index_record(report, store, _get_index(user["id"]))
+        log_event("library_report_saved_from_chat", user["id"], {"report_id": attachment_id})
+
+    return ChatAttachmentResponse(
+        attachment_id=report["id"],
+        file_name=report.get("file_name"),
+        mime_type=report.get("mime_type"),
+        index_status=report.get("index_status") or "ready",
+        visibility_state=report.get("visibility_state") or "saved",
+        extracted_chars=report.get("extracted_chars") or 0,
+        warning=None
+        if (report.get("index_status") or "ready") == "ready"
+        else "Limited text extracted from PDF.",
+    )
+
+
 def _get_engine(user_id: str, use_tools: bool = False):
     from advisor.engine import AdvisorEngine
     from advisor.rag import RAGRetriever

@@ -226,3 +226,72 @@ def test_attachment_is_user_scoped(client, auth_headers, auth_headers_b):
             json={"question": "Use someone else's CV", "attachment_ids": [report["id"]]},
         )
     assert res.status_code == 404
+
+
+def test_chat_attachment_upload_rejects_non_pdf(client, auth_headers):
+    res = client.post(
+        "/api/advisor/attachments",
+        headers=auth_headers,
+        files={"file": ("notes.txt", b"plain text", "text/plain")},
+    )
+
+    assert res.status_code == 400
+    assert "pdf" in res.json()["detail"].lower()
+
+
+def test_chat_attachment_upload_returns_hidden_ready_attachment(client, auth_headers):
+    res = client.post(
+        "/api/advisor/attachments",
+        headers=auth_headers,
+        files={"file": ("resume.pdf", _sample_pdf_bytes("Raj Contractor Python leadership"), "application/pdf")},
+    )
+
+    assert res.status_code == 200
+    data = res.json()
+    assert data["attachment_id"]
+    assert data["index_status"] == "ready"
+    assert data["visibility_state"] == "hidden"
+    assert data["warning"] is None
+
+    library_res = client.get("/api/library/reports", headers=auth_headers)
+    assert library_res.status_code == 200
+    assert library_res.json() == []
+
+
+def test_chat_attachment_upload_warns_when_text_extraction_is_limited(client, auth_headers):
+    res = client.post(
+        "/api/advisor/attachments",
+        headers=auth_headers,
+        files={"file": ("scan.pdf", _sample_pdf_bytes(""), "application/pdf")},
+    )
+
+    assert res.status_code == 200
+    data = res.json()
+    assert data["index_status"] == "limited_text"
+    assert data["warning"] == "Limited text extracted from PDF."
+
+
+def test_chat_attachment_can_be_saved_to_library(client, auth_headers):
+    upload_res = client.post(
+        "/api/advisor/attachments",
+        headers=auth_headers,
+        files={"file": ("resume.pdf", _sample_pdf_bytes("Raj Contractor Python leadership"), "application/pdf")},
+    )
+    attachment = upload_res.json()
+
+    save_res = client.post(
+        f"/api/advisor/attachments/{attachment['attachment_id']}/save",
+        headers=auth_headers,
+    )
+
+    assert save_res.status_code == 200
+    saved = save_res.json()
+    assert saved["attachment_id"] == attachment["attachment_id"]
+    assert saved["visibility_state"] == "saved"
+
+    library_res = client.get("/api/library/reports", headers=auth_headers)
+    assert library_res.status_code == 200
+    listing = library_res.json()
+    assert len(listing) == 1
+    assert listing[0]["id"] == attachment["attachment_id"]
+    assert listing[0]["visibility_state"] == "saved"

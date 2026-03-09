@@ -170,11 +170,15 @@ export default function AdvisorPage() {
         library_item_id: item.attachment_id,
         file_name: item.file_name,
         mime_type: item.mime_type,
+        index_status: item.index_status,
+        visibility_state: item.visibility_state,
+        warning: item.warning,
       }));
       setMessages((prev) => [
         ...prev,
         { role: "user", content: question, attachments: messageAttachments },
       ]);
+      clearAttachments();
 
       await apiFetchSSE(
         "/api/advisor/ask/stream",
@@ -320,7 +324,7 @@ export default function AdvisorPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {msg.role === "user" && <ChatAttachmentBadges attachments={msg.attachments} />}
+                {msg.role === "user" && <ChatAttachmentBadges attachments={msg.attachments} token={token} />}
                 {msg.role === "assistant" ? (
                   <MessageRenderer content={msg.content} onAction={(text) => { setInput(text); setTimeout(() => textareaRef.current?.focus(), 100); }} />
                 ) : (

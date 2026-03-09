@@ -10,6 +10,9 @@ const MAX_ATTACHMENTS = 5;
 export interface PendingChatPdfAttachment {
   key: string;
   file: File;
+  status: "pending" | "uploading" | "ready" | "limited_text" | "failed";
+  uploaded?: ChatAttachmentUpload;
+  error?: string | null;
 }
 
 function fileKey(file: File): string {
@@ -45,7 +48,7 @@ export function useChatPdfAttachments(token?: string) {
           toast.error(`You can attach up to ${MAX_ATTACHMENTS} PDFs per message.`);
           break;
         }
-        next.push({ key, file });
+        next.push({ key, file, status: "pending" });
         existing.add(key);
       }
 
@@ -71,17 +74,48 @@ export function useChatPdfAttachments(token?: string) {
     try {
       const uploaded: ChatAttachmentUpload[] = [];
       for (const attachment of attachments) {
+        if (attachment.uploaded) {
+          uploaded.push(attachment.uploaded);
+          continue;
+        }
+
+        setAttachments((current) =>
+          current.map((item) =>
+            item.key === attachment.key ? { ...item, status: "uploading", error: null } : item,
+          ),
+        );
+
         const formData = new FormData();
         formData.append("file", attachment.file);
-        uploaded.push(
-          await apiFetch<ChatAttachmentUpload>(
+        try {
+          const result = await apiFetch<ChatAttachmentUpload>(
             "/api/advisor/attachments",
             { method: "POST", body: formData },
             token,
-          ),
-        );
+          );
+          uploaded.push(result);
+          setAttachments((current) =>
+            current.map((item) =>
+              item.key === attachment.key
+                ? {
+                    ...item,
+                    status: result.index_status === "limited_text" ? "limited_text" : "ready",
+                    uploaded: result,
+                    error: null,
+                  }
+                : item,
+            ),
+          );
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Upload failed.";
+          setAttachments((current) =>
+            current.map((item) =>
+              item.key === attachment.key ? { ...item, status: "failed", error: message } : item,
+            ),
+          );
+          throw error;
+        }
       }
-      setAttachments([]);
       return uploaded;
     } finally {
       setUploading(false);

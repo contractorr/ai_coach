@@ -159,9 +159,13 @@ export default function HomePage() {
             library_item_id: item.attachment_id,
             file_name: item.file_name,
             mime_type: item.mime_type,
+            index_status: item.index_status,
+            visibility_state: item.visibility_state,
+            warning: item.warning,
           })),
         },
       ]);
+      clearAttachments();
       sendMessage(
         question,
         conversationId,
@@ -172,7 +176,7 @@ export default function HomePage() {
       setLoading(false);
       setToolStatus(null);
     }
-  }, [input, loading, conversationId, sendMessage, uploadPending, attachments.length]);
+  }, [input, loading, conversationId, sendMessage, uploadPending, attachments.length, clearAttachments]);
 
   const handleCapture = useCallback(async () => {
     if (!input.trim() || !token) return;
@@ -250,7 +254,7 @@ export default function HomePage() {
                 />
               ) : (
                 <div>
-                  <ChatAttachmentBadges attachments={msg.attachments} />
+                  <ChatAttachmentBadges attachments={msg.attachments} token={token} />
                   <p className="text-sm">{msg.content}</p>
                 </div>
               )}

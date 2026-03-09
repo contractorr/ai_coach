@@ -2,6 +2,19 @@
 
 ## Overview
 
+## Implementation Audit - 2026-03-09
+
+Current implementation status after repo audit:
+
+- Attach-to-Ask Bridge - route, storage, retrieval, transcript persistence, and first-party web chat UX are implemented. Chat-origin uploads stay hidden until explicitly saved into Library.
+- Extraction Receipt - receipt store, journal hooks, and receipt endpoint are implemented. First-party dashboard rendering is still missing.
+- Recurring Thread Inbox - thread APIs and action endpoints are implemented. A dedicated web inbox surface is still missing.
+- Dossier Escalation Engine - escalation engine, storage, and API routes are implemented. First-party dossier and escalation management UI remains incomplete.
+- Since-You-Were-Away + Why-Now - greeting and recommendation enrichment are implemented in APIs, but frontend rendering of `return_brief`, `why_now`, and harvested-outcome reasoning is still partial.
+- Outcome Harvester - store, evaluation, ranking boost, and override APIs are implemented. No first-party web review surface exists yet.
+- Company Movement, Hiring Activity, and Regulatory Change - specialized APIs and stores are implemented. The current Radar UI still consumes only the generalized intel feed and follow-up flows.
+- Assumption Watchlist - store, signal matching, memory adapter, routes, and journal suggestion capture are implemented. A first-party assumptions workspace is still missing.
+
 This map summarizes how the 10 new technical feature specs fit into StewardMe's existing architecture. It highlights:
 
 1. which features share modules and infrastructure
@@ -361,3 +374,7 @@ Shared technical dependencies:
 
 - Should there also be a `specs/technical/00-storage-map.md` later if these tables grow further?
 - Should `Outcome Harvester` and `Assumption Watchlist` eventually merge into a more general private learned-state subsystem, or stay separate for clarity?
+
+
+
+
