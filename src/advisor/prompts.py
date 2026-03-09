@@ -14,6 +14,9 @@ Your role is to provide:
 
 Be concise. Prioritize practical next steps over general encouragement."""
 
+    ENTITY_SYSTEM_SUFFIX = """You also have access to structured entity and relationship data from a knowledge graph.
+Use it to answer questions about connections, competition, companies, and trends when relevant."""
+
     CAREER_ADVICE = """Based on the user's journal context below, provide career guidance.
 
 Focus on:
@@ -81,6 +84,8 @@ JOURNAL CONTEXT:
 EXTERNAL INTELLIGENCE:
 {intel_context}
 
+{entity_context}
+
 {research_context}
 
 USER QUESTION: {question}
@@ -94,6 +99,8 @@ JOURNAL CONTEXT:
 
 EXTERNAL INTELLIGENCE:
 {intel_context}
+
+{entity_context}
 
 DEEP RESEARCH (auto-generated reports on topics you've shown interest in):
 {research_context}
@@ -113,6 +120,8 @@ JOURNAL CONTEXT:
 
 EXTERNAL INTELLIGENCE:
 {intel_context}
+
+{entity_context}
 
 {documents_context}
 
@@ -135,6 +144,8 @@ JOURNAL CONTEXT:
 
 EXTERNAL INTELLIGENCE:
 {intel_context}
+
+{entity_context}
 
 {documents_context}
 
@@ -163,6 +174,8 @@ Use the research context when relevant to provide more informed, thorough answer
 {intel_context}
 </external_intelligence>
 
+{entity_context}
+
 <documents>
 {documents_context}
 </documents>
@@ -190,6 +203,8 @@ Provide a helpful, specific response:"""
 <external_intelligence>
 {intel_context}
 </external_intelligence>
+
+{entity_context}
 
 <documents>
 {documents_context}
@@ -258,6 +273,7 @@ COUNCIL RESPONSES:
         memory_context: str = "",
         thoughts_context: str = "",
         research_context: str = "",
+        entity_context: str = "",
         question: str,
     ) -> str:
         """Assemble user prompt, omitting empty optional sections."""
@@ -269,6 +285,7 @@ COUNCIL RESPONSES:
             memory_context=memory_context,
             thoughts_context=thoughts_context,
             research_context=research_context,
+            entity_context=entity_context,
             question=question,
         )
         # Collapse runs of 3+ blank lines into 2

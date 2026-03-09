@@ -30,9 +30,7 @@ def mock_components():
         "advisor": None,
     }
     coach_mcp.bootstrap._components = components
-    # Reset tool cache
-    coach_mcp.server._tool_defs = None
-    coach_mcp.server._handlers = None
+    coach_mcp.server._registry = None
     yield components
 
 
@@ -40,16 +38,17 @@ def test_load_tools_returns_20(mock_components):
     """Server should register exactly 46 tools."""
     from coach_mcp.server import _load_tools
 
-    tools, handlers = _load_tools()
+    registry = _load_tools()
+    tools = registry.get_mcp_definitions()
     assert len(tools) == 46
-    assert len(handlers) == 46
+    assert len(registry.get_definitions()) == 46
 
 
 def test_load_tools_names(mock_components):
     """All expected tool names should be present."""
     from coach_mcp.server import _load_tools
 
-    tools, handlers = _load_tools()
+    tools = _load_tools().get_mcp_definitions()
     names = {t.name for t in tools}
 
     expected = {
@@ -107,7 +106,7 @@ def test_tools_have_descriptions(mock_components):
     """Every tool must have a non-empty description."""
     from coach_mcp.server import _load_tools
 
-    tools, _ = _load_tools()
+    tools = _load_tools().get_mcp_definitions()
     for tool in tools:
         assert tool.description, f"Tool {tool.name} missing description"
 
@@ -116,7 +115,7 @@ def test_tools_have_input_schemas(mock_components):
     """Every tool must have an inputSchema with type=object."""
     from coach_mcp.server import _load_tools
 
-    tools, _ = _load_tools()
+    tools = _load_tools().get_mcp_definitions()
     for tool in tools:
         assert tool.inputSchema["type"] == "object", f"Tool {tool.name} bad schema type"
 
@@ -124,9 +123,7 @@ def test_tools_have_input_schemas(mock_components):
 @pytest.mark.asyncio
 async def test_call_unknown_tool(mock_components):
     """Calling unknown tool should return error JSON."""
-    # Reset tool cache
-    coach_mcp.server._tool_defs = None
-    coach_mcp.server._handlers = None
+    coach_mcp.server._registry = None
 
     from coach_mcp.server import call_tool
 
@@ -138,10 +135,31 @@ async def test_call_unknown_tool(mock_components):
 
 
 @pytest.mark.asyncio
+async def test_call_tool_omits_traceback(mock_components):
+    """Tool failures should not leak tracebacks back to MCP clients."""
+    from services.tool_registry import ToolRegistry
+
+    registry = ToolRegistry()
+    registry.register(
+        name="broken_tool",
+        toolset="test",
+        description="broken",
+        schema={"type": "object", "properties": {}, "required": []},
+        handler=lambda _args: (_ for _ in ()).throw(ValueError("boom")),
+    )
+    coach_mcp.server._registry = registry
+
+    from coach_mcp.server import call_tool
+
+    result = await call_tool("broken_tool", {})
+    data = json.loads(result[0].text)
+    assert data == {"error": "broken_tool: boom"}
+
+
+@pytest.mark.asyncio
 async def test_list_tools_async(mock_components):
     """list_tools should return Tool objects."""
-    coach_mcp.server._tool_defs = None
-    coach_mcp.server._handlers = None
+    coach_mcp.server._registry = None
 
     from coach_mcp.server import list_tools
 

@@ -1,7 +1,6 @@
 """MCP server entry point — stdio transport, tool routing by prefix."""
 
 import json
-import traceback
 
 import structlog
 from mcp.server import Server
@@ -14,41 +13,29 @@ logger = structlog.get_logger()
 
 app = Server("stewardme")
 
-# Cache tool definitions at module level (populated on first list_tools call)
-_tool_defs: list[Tool] | None = None
-_handlers: dict | None = None
+# Cache shared registry at module level (populated on first use)
+_registry = None
 
 
-def _load_tools() -> tuple[list[Tool], dict]:
-    """Load tool definitions and handlers from the shared tool registry."""
+def _load_tools():
+    """Load the shared tool registry."""
     return build_tool_registry()
 
 
 @app.list_tools()
 async def list_tools() -> list[Tool]:
-    global _tool_defs, _handlers
-    if _tool_defs is None:
-        _tool_defs, _handlers = _load_tools()
-    return _tool_defs
+    global _registry
+    if _registry is None:
+        _registry = _load_tools()
+    return _registry.get_mcp_definitions()
 
 
 @app.call_tool()
 async def call_tool(name: str, arguments: dict) -> list[TextContent]:
-    global _tool_defs, _handlers
-    if _handlers is None:
-        _tool_defs, _handlers = _load_tools()
-
-    handler = _handlers.get(name)
-    if not handler:
-        return [TextContent(type="text", text=json.dumps({"error": f"Unknown tool: {name}"}))]
-
-    try:
-        result = handler(arguments)
-        text = json.dumps(result, default=str)
-    except Exception as e:
-        logger.error("tool_error", tool=name, error=str(e))
-        text = json.dumps({"error": str(e), "traceback": traceback.format_exc()})
-
+    global _registry
+    if _registry is None:
+        _registry = _load_tools()
+    text = _registry.execute(name, arguments)
     return [TextContent(type="text", text=text)]
 
 

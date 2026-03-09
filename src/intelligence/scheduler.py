@@ -219,6 +219,7 @@ class IntelScheduler:
         self.on_error = on_error
         self.scheduler = BackgroundScheduler()
         self._scrapers: list = []
+        self._entity_extraction_runner = None
 
         self._health = ScraperHealthTracker(storage.db_path)
         self._research = ResearchRunner(storage, journal_storage, embeddings, self.full_config)
@@ -581,6 +582,74 @@ class IntelScheduler:
         """Run async scrapers from sync context."""
         return asyncio.run(self._run_async())
 
+    def _get_entity_scheduler(self):
+        if self._entity_extraction_runner is False:
+            return None
+        if self._entity_extraction_runner is not None:
+            return self._entity_extraction_runner
+
+        entity_config = self.full_config.get("entity_extraction", {})
+        if entity_config.get("enabled", True) is False:
+            self._entity_extraction_runner = False
+            return None
+
+        try:
+            from intelligence.entity_extractor import EntityExtractor, ExtractionScheduler
+            from intelligence.entity_store import EntityStore
+            from llm import create_cheap_provider
+
+            entity_store = EntityStore(self.storage.db_path)
+            extractor = EntityExtractor(
+                llm=create_cheap_provider(),
+                storage=self.storage,
+                entity_store=entity_store,
+                batch_size=entity_config.get("batch_size", 10),
+                max_content_chars=entity_config.get("max_content_chars", 2000),
+                entity_types=entity_config.get("entity_types"),
+                relationship_types=entity_config.get("relationship_types"),
+            )
+            self._entity_extraction_runner = ExtractionScheduler(
+                extractor,
+                entity_store,
+                batch_size=entity_config.get("batch_size", 10),
+            )
+        except Exception as e:
+            logger.warning("entity_extraction_init_failed", error=str(e))
+            self._entity_extraction_runner = False
+            return None
+
+        return self._entity_extraction_runner
+
+    def run_entity_extraction(self):
+        """Run entity extraction for the oldest unprocessed intel items."""
+        runner = self._get_entity_scheduler()
+        if not runner:
+            return {"status": "disabled"}
+        result = asyncio.run(runner.run_extraction())
+        logger.info("entity_extraction.complete", **result.__dict__)
+        return result.__dict__
+
+    def _schedule_entity_extraction_job(self) -> None:
+        entity_config = self.full_config.get("entity_extraction", {})
+        if entity_config.get("enabled", True) is False:
+            return
+
+        from apscheduler.triggers.interval import IntervalTrigger
+
+        self.scheduler.add_job(
+            self.run_entity_extraction,
+            trigger=IntervalTrigger(minutes=entity_config.get("schedule_minutes", 30)),
+            id="entity_extraction",
+            replace_existing=True,
+            coalesce=True,
+            max_instances=1,
+            misfire_grace_time=300,
+        )
+        logger.info(
+            "entity_extraction.scheduled",
+            interval_minutes=entity_config.get("schedule_minutes", 30),
+        )
+
     def _default_error_handler(self, event):
         """Default error handler for APScheduler job failures."""
         logger.error(
@@ -780,6 +849,7 @@ class IntelScheduler:
             replace_existing=True,
         )
         self._schedule_extended_jobs()
+        self._schedule_entity_extraction_job()
         self.scheduler.add_listener(self._default_error_handler, EVENT_JOB_ERROR)
         self.scheduler.start()
 
@@ -987,6 +1057,7 @@ class IntelScheduler:
             self._add_recommendations_job(rec_cron)
 
         self._schedule_extended_jobs()
+        self._schedule_entity_extraction_job()
 
         # Add signal detection + autonomous actions if agent enabled
         agent_config = self.full_config.get("agent", {})

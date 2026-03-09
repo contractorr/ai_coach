@@ -50,6 +50,7 @@ class GenerateResponse:
     content: str | None
     tool_calls: list[ToolCall] = field(default_factory=list)
     finish_reason: str = "stop"  # "stop" | "tool_calls" | "max_tokens"
+    usage: dict | None = None
 
 
 class LLMProvider(ABC):

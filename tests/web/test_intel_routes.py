@@ -6,7 +6,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 def test_get_recent_empty(client, auth_headers):
     mock_storage = MagicMock()
     mock_storage.get_recent.return_value = []
-    with patch("web.routes.intel._get_storage", return_value=mock_storage):
+    mock_entity_store = MagicMock()
+    with (
+        patch("web.routes.intel._get_storage", return_value=mock_storage),
+        patch("web.routes.intel._get_entity_store", return_value=mock_entity_store),
+    ):
         res = client.get("/api/intel/recent", headers=auth_headers)
     assert res.status_code == 200
     assert res.json() == []
@@ -16,13 +20,19 @@ def test_get_recent_with_items(client, auth_headers):
     mock_storage = MagicMock()
     mock_storage.get_recent.return_value = [
         {
+            "id": 1,
             "source": "hackernews",
             "title": "AI Breakthrough",
             "url": "https://example.com",
             "summary": "Big news",
         },
     ]
-    with patch("web.routes.intel._get_storage", return_value=mock_storage):
+    mock_entity_store = MagicMock()
+    mock_entity_store.get_item_entities.return_value = []
+    with (
+        patch("web.routes.intel._get_storage", return_value=mock_storage),
+        patch("web.routes.intel._get_entity_store", return_value=mock_entity_store),
+    ):
         res = client.get("/api/intel/recent?days=3&limit=10", headers=auth_headers)
     assert res.status_code == 200
     data = res.json()
@@ -36,7 +46,12 @@ def test_search(client, auth_headers):
     mock_storage.search.return_value = [
         {"source": "reddit", "title": "Rust tips", "url": "https://r.com", "summary": "Tips"},
     ]
-    with patch("web.routes.intel._get_storage", return_value=mock_storage):
+    mock_entity_store = MagicMock()
+    mock_entity_store.get_item_entities.return_value = []
+    with (
+        patch("web.routes.intel._get_storage", return_value=mock_storage),
+        patch("web.routes.intel._get_entity_store", return_value=mock_entity_store),
+    ):
         res = client.get("/api/intel/search?q=rust&limit=5", headers=auth_headers)
     assert res.status_code == 200
     assert len(res.json()) == 1
@@ -131,12 +146,70 @@ def test_recent_items_are_boosted_by_watchlist(client, auth_headers):
             "scraped_at": "2026-03-05T08:00:00",
         },
     ]
-    with patch("web.routes.intel._get_storage", return_value=mock_storage):
+    mock_entity_store = MagicMock()
+    mock_entity_store.get_item_entities.return_value = []
+    with (
+        patch("web.routes.intel._get_storage", return_value=mock_storage),
+        patch("web.routes.intel._get_entity_store", return_value=mock_entity_store),
+    ):
         res = client.get("/api/intel/recent", headers=auth_headers)
     assert res.status_code == 200
     data = res.json()
     assert data[0]["title"] == "Anthropic launches a new model"
     assert data[0]["why_this_matters"]
+
+
+def test_recent_items_include_entity_tags(client, auth_headers):
+    mock_storage = MagicMock()
+    mock_storage.get_recent.return_value = [
+        {
+            "id": 1,
+            "source": "rss",
+            "title": "OpenAI update",
+            "url": "https://example.com/openai",
+            "summary": "Summary",
+        }
+    ]
+    mock_entity_store = MagicMock()
+    mock_entity_store.get_item_entities.return_value = [
+        {"id": 10, "name": "OpenAI", "type": "Company"}
+    ]
+    with (
+        patch("web.routes.intel._get_storage", return_value=mock_storage),
+        patch("web.routes.intel._get_entity_store", return_value=mock_entity_store),
+    ):
+        res = client.get("/api/intel/recent", headers=auth_headers)
+    assert res.status_code == 200
+    assert res.json()[0]["entities"][0]["name"] == "OpenAI"
+
+
+def test_entity_search_endpoint(client, auth_headers):
+    mock_entity_store = MagicMock()
+    mock_entity_store.search_entities.return_value = [{"id": 1, "name": "OpenAI", "type": "Company"}]
+    with patch("web.routes.intel._get_entity_store", return_value=mock_entity_store):
+        res = client.get("/api/intel/entities?q=openai", headers=auth_headers)
+    assert res.status_code == 200
+    assert res.json()[0]["name"] == "OpenAI"
+
+
+def test_entity_detail_endpoint(client, auth_headers):
+    mock_entity_store = MagicMock()
+    mock_entity_store.get_entity.return_value = {"id": 1, "name": "OpenAI", "type": "Company"}
+    mock_entity_store.get_relationships.return_value = [{"type": "COMPETES_WITH"}]
+    mock_entity_store.get_entity_items.return_value = [{"id": 9, "title": "Update"}]
+    with patch("web.routes.intel._get_entity_store", return_value=mock_entity_store):
+        res = client.get("/api/intel/entities/1", headers=auth_headers)
+    assert res.status_code == 200
+    assert res.json()["relationships"][0]["type"] == "COMPETES_WITH"
+
+
+def test_item_entities_endpoint(client, auth_headers):
+    mock_entity_store = MagicMock()
+    mock_entity_store.get_item_entities.return_value = [{"id": 1, "name": "OpenAI", "type": "Company"}]
+    with patch("web.routes.intel._get_entity_store", return_value=mock_entity_store):
+        res = client.get("/api/intel/items/5/entities", headers=auth_headers)
+    assert res.status_code == 200
+    assert res.json()[0]["name"] == "OpenAI"
 
 
 def test_follow_up_saved_on_item(client, auth_headers):

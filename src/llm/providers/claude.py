@@ -1,5 +1,9 @@
 """Claude (Anthropic) LLM provider."""
 
+import structlog
+
+from observability import metrics
+
 from ..base import (
     GenerateResponse,
     LLMAuthError,
@@ -9,6 +13,8 @@ from ..base import (
     ToolCall,
     ToolDefinition,
 )
+
+logger = structlog.get_logger()
 
 
 class ClaudeProvider(LLMProvider):
@@ -22,9 +28,12 @@ class ClaudeProvider(LLMProvider):
         model: str | None = None,
         client=None,
         extended_thinking: bool = False,
+        prompt_caching_enabled: bool = True,
     ):
         self.model = model or "claude-sonnet-4-6"
+        self.model_name = self.model
         self.extended_thinking = extended_thinking
+        self.prompt_caching_enabled = prompt_caching_enabled
 
         if client:
             self.client = client
@@ -81,6 +90,7 @@ class ClaudeProvider(LLMProvider):
                 kwargs["thinking"] = {"type": "enabled", "budget_tokens": budget}
 
             response = self.client.messages.create(**kwargs)
+            self._record_usage(response)
 
             # With thinking enabled, extract the text block (skip thinking blocks)
             for block in response.content:
@@ -118,6 +128,8 @@ class ClaudeProvider(LLMProvider):
 
             # Convert messages — handle tool results for Anthropic format
             api_messages = self._convert_messages(messages)
+            if self.prompt_caching_enabled:
+                api_messages = self._apply_prompt_caching(api_messages)
 
             kwargs = {
                 "model": self.model,
@@ -127,9 +139,10 @@ class ClaudeProvider(LLMProvider):
                 "tool_choice": tc,
             }
             if system:
-                kwargs["system"] = system
+                kwargs["system"] = self._build_system_blocks(system)
 
             response = self.client.messages.create(**kwargs)
+            usage = self._record_usage(response)
 
             # Parse response blocks
             text_parts = []
@@ -155,10 +168,102 @@ class ClaudeProvider(LLMProvider):
             else:
                 finish = "stop"
 
-            return GenerateResponse(content=content, tool_calls=tool_calls, finish_reason=finish)
+            return GenerateResponse(
+                content=content,
+                tool_calls=tool_calls,
+                finish_reason=finish,
+                usage=usage,
+            )
 
         except Exception as e:
             self._handle_error(e)
+
+    def _build_system_blocks(self, system: str) -> list[dict]:
+        block = {"type": "text", "text": system}
+        if self.prompt_caching_enabled:
+            block["cache_control"] = {"type": "ephemeral"}
+        return [block]
+
+    def _apply_prompt_caching(self, messages: list[dict]) -> list[dict]:
+        cached_messages = []
+        cache_breakpoints = 0
+
+        for message in messages:
+            if cache_breakpoints >= 3 or message.get("role") not in {"user", "assistant"}:
+                cached_messages.append(message)
+                continue
+
+            content = message.get("content")
+            updated = dict(message)
+
+            if isinstance(content, str):
+                updated["content"] = [
+                    {
+                        "type": "text",
+                        "text": content,
+                        "cache_control": {"type": "ephemeral"},
+                    }
+                ]
+                cache_breakpoints += 1
+                cached_messages.append(updated)
+                continue
+
+            if isinstance(content, list) and content:
+                updated_content = [dict(block) for block in content]
+                for index in range(len(updated_content) - 1, -1, -1):
+                    if updated_content[index].get("type") == "text":
+                        updated_content[index]["cache_control"] = {"type": "ephemeral"}
+                        updated["content"] = updated_content
+                        cache_breakpoints += 1
+                        break
+                cached_messages.append(updated)
+                continue
+
+            cached_messages.append(message)
+
+        return cached_messages
+
+    @staticmethod
+    def _extract_usage(response) -> dict | None:
+        usage = getattr(response, "usage", None)
+        if not usage:
+            return None
+
+        return {
+            "input_tokens": int(getattr(usage, "input_tokens", 0) or 0),
+            "output_tokens": int(getattr(usage, "output_tokens", 0) or 0),
+            "cache_creation_input_tokens": int(
+                getattr(usage, "cache_creation_input_tokens", 0) or 0
+            ),
+            "cache_read_input_tokens": int(getattr(usage, "cache_read_input_tokens", 0) or 0),
+        }
+
+    def _record_usage(self, response) -> dict | None:
+        usage = self._extract_usage(response)
+        if not usage:
+            return None
+
+        billed_input_tokens = usage["input_tokens"] + (
+            usage["cache_creation_input_tokens"] * 1.25
+        )
+        logger.debug(
+            "anthropic_usage",
+            model=self.model,
+            input_tokens=usage["input_tokens"],
+            cache_write=usage["cache_creation_input_tokens"],
+            cache_read=usage["cache_read_input_tokens"],
+            output_tokens=usage["output_tokens"],
+        )
+        metrics.token_usage(
+            self.model,
+            usage["input_tokens"],
+            usage["output_tokens"],
+            cache_creation_input_tokens=usage["cache_creation_input_tokens"],
+            cache_read_input_tokens=usage["cache_read_input_tokens"],
+            billed_input_tokens=billed_input_tokens,
+        )
+        usage["billed_input_tokens"] = billed_input_tokens
+        return usage
 
     def _convert_messages(self, messages: list[dict]) -> list[dict]:
         """Convert generic messages to Anthropic format.

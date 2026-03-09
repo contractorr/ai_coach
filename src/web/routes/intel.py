@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
 from intelligence.company_watch import CompanyMovementStore, WatchedCompanyResolver
+from intelligence.entity_store import EntityStore
 from intelligence.hiring_signals import HiringSignalStore
 from intelligence.regulatory import RegulatoryAlertStore, RegulatoryWatchResolver
 from intelligence.watchlist import annotate_items, attach_follow_up_state, sort_ranked_items
@@ -82,6 +83,10 @@ def _get_watchlist_store(user_id: str):
     return get_watchlist_store(user_id)
 
 
+def _get_entity_store() -> EntityStore:
+    return EntityStore(get_coach_paths()["intel_db"])
+
+
 def _get_follow_up_store(user_id: str):
     return get_follow_up_store(user_id)
 
@@ -105,6 +110,24 @@ def _apply_watchlist_state(items: list[dict], user_id: str) -> list[dict]:
         sort_ranked = sort_ranked_items(items)
         items[:] = sort_ranked
     attach_follow_up_state(items, _get_follow_up_store(user_id))
+    return items
+
+
+def _attach_entity_tags(items: list[dict]) -> list[dict]:
+    try:
+        entity_store = _get_entity_store()
+        for item in items:
+            item_id = item.get("id")
+            if item_id is None:
+                item["entities"] = []
+                continue
+            item["entities"] = [
+                {"id": entity["id"], "name": entity["name"], "type": entity["type"]}
+                for entity in entity_store.get_item_entities(int(item_id))
+            ]
+    except Exception:
+        for item in items:
+            item.setdefault("entities", [])
     return items
 
 
@@ -137,6 +160,7 @@ async def get_recent(
         pass
 
     _apply_watchlist_state(items, user["id"])
+    _attach_entity_tags(items)
 
     return items
 
@@ -150,7 +174,36 @@ async def search_intel(
     storage = _get_storage()
     items = storage.search(q, limit=limit)
     _apply_watchlist_state(items, user["id"])
+    _attach_entity_tags(items)
     return items
+
+
+@router.get("/entities")
+async def search_entities(
+    q: str = Query(..., max_length=200),
+    entity_type: str | None = Query(default=None, alias="type"),
+    limit: int = Query(default=20, ge=1, le=100),
+    _user: dict = Depends(get_current_user),
+):
+    return _get_entity_store().search_entities(q, limit=limit, entity_type=entity_type)
+
+
+@router.get("/entities/{entity_id}")
+async def get_entity(entity_id: int, _user: dict = Depends(get_current_user)):
+    entity_store = _get_entity_store()
+    entity = entity_store.get_entity(entity_id)
+    if not entity:
+        raise HTTPException(status_code=404, detail="Entity not found")
+    return {
+        **entity,
+        "relationships": entity_store.get_relationships(entity_id),
+        "items": entity_store.get_entity_items(entity_id),
+    }
+
+
+@router.get("/items/{item_id}/entities")
+async def get_item_entities(item_id: int, _user: dict = Depends(get_current_user)):
+    return _get_entity_store().get_item_entities(item_id)
 
 
 @router.get("/watchlist", response_model=list[WatchlistItem])

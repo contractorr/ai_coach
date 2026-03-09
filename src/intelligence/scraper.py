@@ -272,6 +272,13 @@ class IntelStorage:
             )
             return [self._row_to_dict(row) for row in cursor.fetchall()]
 
+    def get_item_by_id(self, item_id: int) -> dict | None:
+        """Fetch a single intel item by ID."""
+        with wal_connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            row = conn.execute("SELECT * FROM intel_items WHERE id = ?", (item_id,)).fetchone()
+        return self._row_to_dict(row) if row else None
+
     def search(self, query: str, limit: int = 20) -> list[dict]:
         """Simple text search in titles and summaries."""
         with wal_connect(self.db_path) as conn:
