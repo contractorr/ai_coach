@@ -272,7 +272,10 @@ TOOLS = [
             "properties": {
                 "item_id": {"type": "string", "description": "Existing item id to update"},
                 "label": {"type": "string", "description": "Primary watched entity or theme"},
-                "kind": {"type": "string", "description": "Item kind such as company or technology"},
+                "kind": {
+                    "type": "string",
+                    "description": "Item kind such as company or technology",
+                },
                 "aliases": {"type": "array", "items": {"type": "string"}},
                 "why": {"type": "string", "description": "Why it matters to the user"},
                 "priority": {"type": "string", "enum": ["high", "medium", "low"]},

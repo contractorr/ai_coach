@@ -50,9 +50,12 @@ class HiringSignalStore:
         saved = 0
         with wal_connect(self.db_path) as conn:
             for signal in signals:
-                dedup_hash = signal.get("dedup_hash") or hashlib.sha256(
-                    f"{signal.get('entity_key')}|{signal.get('signal_type')}|{signal.get('title')}|{signal.get('source_url')}".encode()
-                ).hexdigest()[:32]
+                dedup_hash = (
+                    signal.get("dedup_hash")
+                    or hashlib.sha256(
+                        f"{signal.get('entity_key')}|{signal.get('signal_type')}|{signal.get('title')}|{signal.get('source_url')}".encode()
+                    ).hexdigest()[:32]
+                )
                 conn.execute(
                     """
                     INSERT OR IGNORE INTO hiring_signals (
@@ -89,7 +92,7 @@ class HiringSignalStore:
                     "SELECT * FROM hiring_signals ORDER BY observed_at DESC LIMIT ?",
                     (limit,),
                 ).fetchall()
-        return [{**dict(row), "metadata": json.loads(row["metadata_json"] or "{}") } for row in rows]
+        return [{**dict(row), "metadata": json.loads(row["metadata_json"] or "{}")} for row in rows]
 
 
 class HiringBaselineTracker:
@@ -115,7 +118,11 @@ class HiringBaselineTracker:
             ).fetchone()
         if not row:
             return None
-        return {"entity_key": row["entity_key"], "snapshot": json.loads(row["snapshot_json"] or "{}"), "updated_at": row["updated_at"]}
+        return {
+            "entity_key": row["entity_key"],
+            "snapshot": json.loads(row["snapshot_json"] or "{}"),
+            "updated_at": row["updated_at"],
+        }
 
 
 class HiringSignalDetector:
@@ -136,7 +143,10 @@ class HiringSignalDetector:
         return [
             {
                 "entity_key": entity.get("company_key") or entity.get("entity_key") or "",
-                "entity_label": entity.get("label") or entity.get("entity_label") or entity.get("company_key") or "",
+                "entity_label": entity.get("label")
+                or entity.get("entity_label")
+                or entity.get("company_key")
+                or "",
                 "signal_type": "hiring_delta" if delta else "hiring_snapshot",
                 "title": f"Hiring activity at {entity.get('label') or entity.get('entity_label') or entity.get('entity_key')}",
                 "summary": summary,

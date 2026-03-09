@@ -199,7 +199,9 @@ class RecommendationScorer:
             for cat, values in rows.items():
                 if not values:
                     continue
-                self._outcome_boosts[cat] = MAX_HARVESTED_OUTCOME_BOOST * (sum(values) / len(values))
+                self._outcome_boosts[cat] = MAX_HARVESTED_OUTCOME_BOOST * (
+                    sum(values) / len(values)
+                )
 
             logger.debug("outcomes.category_boosts", boosts=self._outcome_boosts)
         except Exception as e:

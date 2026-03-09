@@ -60,10 +60,7 @@ async def get_briefing(
             goal_intel_matches=goal_intel_matches,
         )
         daily_brief = DailyBriefModel(
-            items=[
-                DailyBriefItemModel(**item)
-                for item in brief_data["items"]
-            ],
+            items=[DailyBriefItemModel(**item) for item in brief_data["items"]],
             budget_minutes=brief_data["budget_minutes"],
             used_minutes=brief_data["used_minutes"],
             generated_at=brief_data["generated_at"],

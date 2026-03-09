@@ -39,7 +39,9 @@ def _get_db_components(collection: str):
     if collection in ("intel", "all"):
         import sqlite3
 
-        intel_storage = get_intel_storage(config, storage_paths=get_storage_paths(config=config, paths=paths))
+        intel_storage = get_intel_storage(
+            config, storage_paths=get_storage_paths(config=config, paths=paths)
+        )
         intel_embeddings = IntelEmbeddingManager(paths["chroma_dir"] / "intel")
         intel_search = IntelSearch(intel_storage, intel_embeddings)
         # Count rows directly — IntelStorage has no count() method

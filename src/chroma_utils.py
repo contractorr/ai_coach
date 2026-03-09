@@ -98,7 +98,9 @@ class LocalCollection:
     ) -> None:
         metadata_list = metadatas or [{} for _ in ids]
         vectors = self.embedding_function(documents)
-        for item_id, document, meta, vector in zip(ids, documents, metadata_list, vectors, strict=True):
+        for item_id, document, meta, vector in zip(
+            ids, documents, metadata_list, vectors, strict=True
+        ):
             self._records[str(item_id)] = {
                 "document": document,
                 "metadata": meta or {},
@@ -152,7 +154,10 @@ class LocalCollection:
             documents_out.append([record.get("document", "") for _, record in ranked])
             metadatas_out.append([record.get("metadata", {}) for _, record in ranked])
             distances_out.append(
-                [self._cosine_distance(query_vector, record.get("vector", [])) for _, record in ranked]
+                [
+                    self._cosine_distance(query_vector, record.get("vector", []))
+                    for _, record in ranked
+                ]
             )
 
         return {

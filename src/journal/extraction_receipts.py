@@ -205,7 +205,9 @@ class ReceiptBuilder:
             }
         )
 
-    def derive_theme_goal_candidates(self, entry: dict, memory_facts: list[dict]) -> tuple[list[dict], list[dict]]:
+    def derive_theme_goal_candidates(
+        self, entry: dict, memory_facts: list[dict]
+    ) -> tuple[list[dict], list[dict]]:
         content = str(entry.get("content") or "")
         title = str(entry.get("title") or "")
         tags = [str(tag).strip() for tag in (entry.get("tags") or []) if str(tag).strip()]
@@ -227,7 +229,10 @@ class ReceiptBuilder:
         ]
         for phrase in seed_phrases:
             if phrase in lowered:
-                snippet = next((line.strip() for line in text.splitlines() if phrase in line.lower()), title or content[:120])
+                snippet = next(
+                    (line.strip() for line in text.splitlines() if phrase in line.lower()),
+                    title or content[:120],
+                )
                 themes.append({"label": phrase, "confidence": 0.72, "snippet": snippet[:160]})
 
         for fact in memory_facts:
@@ -264,7 +269,9 @@ class ReceiptBuilder:
 
         seen_theme_labels: set[str] = set()
         filtered_themes = []
-        for theme in sorted(themes, key=lambda item: float(item.get("confidence") or 0.0), reverse=True):
+        for theme in sorted(
+            themes, key=lambda item: float(item.get("confidence") or 0.0), reverse=True
+        ):
             label = str(theme.get("label") or "").strip().lower()
             if not label or label in seen_theme_labels:
                 continue
@@ -277,7 +284,9 @@ class ReceiptBuilder:
 
         seen_goal_titles: set[str] = set()
         filtered_goals = []
-        for goal in sorted(goal_candidates, key=lambda item: float(item.get("confidence") or 0.0), reverse=True):
+        for goal in sorted(
+            goal_candidates, key=lambda item: float(item.get("confidence") or 0.0), reverse=True
+        ):
             goal_title = str(goal.get("title") or "").strip().lower()
             if not goal_title or goal_title in seen_goal_titles:
                 continue
@@ -339,7 +348,9 @@ class ReceiptBuilder:
             )
 
         has_signal = bool(thread_match or memory_facts or theme_candidates or goal_candidates)
-        status = "complete" if has_signal and not warnings else "partial" if has_signal else "failed"
+        status = (
+            "complete" if has_signal and not warnings else "partial" if has_signal else "failed"
+        )
         if not has_signal and not warnings:
             status = "partial"
 

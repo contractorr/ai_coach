@@ -167,7 +167,7 @@ export default function AdvisorPage() {
     try {
       const uploaded = await uploadPending();
       const messageAttachments = uploaded.map((item) => ({
-        library_item_id: item.id,
+        library_item_id: item.attachment_id,
         file_name: item.file_name,
         mime_type: item.mime_type,
       }));
@@ -184,7 +184,7 @@ export default function AdvisorPage() {
             question,
             advice_type: adviceType,
             conversation_id: conversationId,
-            attachment_ids: uploaded.map((item) => item.id),
+            attachment_ids: uploaded.map((item) => item.attachment_id),
           }),
         },
         token,

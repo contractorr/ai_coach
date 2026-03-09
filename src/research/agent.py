@@ -159,7 +159,9 @@ class DeepResearchAgent:
 
         active_dossiers = self.dossiers.get_active_dossiers(limit=self.max_topics)
         if active_dossiers:
-            return [self._run_dossier(dossier, run_source="scheduled") for dossier in active_dossiers]
+            return [
+                self._run_dossier(dossier, run_source="scheduled") for dossier in active_dossiers
+            ]
 
         recent = self.topic_selector.get_recent_research_topics()
         return self._run_topics(self.topic_selector.get_topics(researched_topics=recent))
@@ -181,13 +183,26 @@ class DeepResearchAgent:
             try:
                 search_results = self.search_client.search(topic)
                 if not search_results:
-                    results.append({"topic": topic, "filepath": None, "success": False, "error": "No search results"})
+                    results.append(
+                        {
+                            "topic": topic,
+                            "filepath": None,
+                            "success": False,
+                            "error": "No search results",
+                        }
+                    )
                     continue
 
-                report = self.synthesizer.synthesize(topic=topic, results=search_results, user_context=user_context)
+                report = self.synthesizer.synthesize(
+                    topic=topic, results=search_results, user_context=user_context
+                )
                 filepath = self._store_journal_entry(topic, report, topic_info)
                 self._store_intel_item(topic, report, search_results)
-                self._add_embeddings(filepath, report, {"type": "research", "topic": topic, "research_kind": "report"})
+                self._add_embeddings(
+                    filepath,
+                    report,
+                    {"type": "research", "topic": topic, "research_kind": "report"},
+                )
                 results.append(
                     {
                         "topic": topic,
@@ -202,7 +217,9 @@ class DeepResearchAgent:
                 )
             except (IOError, ValueError, KeyError) as e:
                 logger.error("research_failed", topic=topic, error=str(e))
-                results.append({"topic": topic, "filepath": None, "success": False, "error": str(e)})
+                results.append(
+                    {"topic": topic, "filepath": None, "success": False, "error": str(e)}
+                )
         return results
 
     def _run_dossier(self, dossier: dict, run_source: str) -> dict:
@@ -320,7 +337,9 @@ class DeepResearchAgent:
         if dossier.get("scope"):
             parts.append(f"DOSSIER SCOPE: {dossier['scope']}")
         if dossier.get("core_questions"):
-            parts.append("CORE QUESTIONS:\n" + "\n".join(f"- {q}" for q in dossier["core_questions"]))
+            parts.append(
+                "CORE QUESTIONS:\n" + "\n".join(f"- {q}" for q in dossier["core_questions"])
+            )
         if dossier.get("assumptions"):
             parts.append("ASSUMPTIONS:\n" + "\n".join(f"- {a}" for a in dossier["assumptions"]))
         if dossier.get("related_goals"):
@@ -353,11 +372,15 @@ class DeepResearchAgent:
         summary: str | None = None,
     ) -> None:
         if dossier_id:
-            unique_url = f"research://dossier/{dossier_id}/{datetime.now().strftime('%Y%m%d%H%M%S')}"
+            unique_url = (
+                f"research://dossier/{dossier_id}/{datetime.now().strftime('%Y%m%d%H%M%S')}"
+            )
             tags = ["research", "dossier"]
             title = f"Research Update: {topic}"
         else:
-            unique_url = f"research://{topic.lower().replace(' ', '-')}/{datetime.now().strftime('%Y%m%d')}"
+            unique_url = (
+                f"research://{topic.lower().replace(' ', '-')}/{datetime.now().strftime('%Y%m%d')}"
+            )
             tags = ["research", "auto"]
             title = f"Research: {topic}"
 
@@ -424,11 +447,21 @@ class AsyncDeepResearchAgent(DeepResearchAgent):
             return [await self._run_dossier_async(dossier, run_source="manual")]
 
         if specific_topic:
-            topics = [{"topic": specific_topic, "source": "manual", "score": 10, "reason": "User specified"}]
+            topics = [
+                {
+                    "topic": specific_topic,
+                    "source": "manual",
+                    "score": 10,
+                    "reason": "User specified",
+                }
+            ]
         else:
             active_dossiers = self.dossiers.get_active_dossiers(limit=self.max_topics)
             if active_dossiers:
-                return [await self._run_dossier_async(dossier, run_source="scheduled") for dossier in active_dossiers]
+                return [
+                    await self._run_dossier_async(dossier, run_source="scheduled")
+                    for dossier in active_dossiers
+                ]
             recent = self.topic_selector.get_recent_research_topics()
             topics = self.topic_selector.get_topics(researched_topics=recent)
 
@@ -439,23 +472,46 @@ class AsyncDeepResearchAgent(DeepResearchAgent):
             try:
                 search_results = await self.search_client.search(topic)
                 if not search_results:
-                    results.append({"topic": topic, "filepath": None, "success": False, "error": "No search results"})
+                    results.append(
+                        {
+                            "topic": topic,
+                            "filepath": None,
+                            "success": False,
+                            "error": "No search results",
+                        }
+                    )
                     continue
-                report = self.synthesizer.synthesize(topic=topic, results=search_results, user_context=user_context)
+                report = self.synthesizer.synthesize(
+                    topic=topic, results=search_results, user_context=user_context
+                )
                 filepath = self._store_journal_entry(topic, report, topic_info)
                 self._store_intel_item(topic, report, search_results)
-                self._add_embeddings(filepath, report, {"type": "research", "topic": topic, "research_kind": "report"})
-                results.append({"topic": topic, "filepath": filepath, "saved_path": filepath, "success": True})
+                self._add_embeddings(
+                    filepath,
+                    report,
+                    {"type": "research", "topic": topic, "research_kind": "report"},
+                )
+                results.append(
+                    {"topic": topic, "filepath": filepath, "saved_path": filepath, "success": True}
+                )
             except (IOError, ValueError, KeyError) as e:
                 logger.error("async_research_failed", topic=topic, error=str(e))
-                results.append({"topic": topic, "filepath": None, "success": False, "error": str(e)})
+                results.append(
+                    {"topic": topic, "filepath": None, "success": False, "error": str(e)}
+                )
         return results
 
     async def _run_dossier_async(self, dossier: dict, run_source: str) -> dict:
         topic = dossier["topic"]
         search_results = await self.search_client.search(topic)
         if not search_results:
-            return {"topic": topic, "dossier_id": dossier["dossier_id"], "filepath": None, "success": False, "error": "No search results"}
+            return {
+                "topic": topic,
+                "dossier_id": dossier["dossier_id"],
+                "filepath": None,
+                "success": False,
+                "error": "No search results",
+            }
 
         report = self.synthesizer.synthesize_dossier_update(
             topic=topic,
@@ -467,10 +523,42 @@ class AsyncDeepResearchAgent(DeepResearchAgent):
         metadata = self._build_update_metadata(report, search_results, run_source)
         update = self.dossiers.append_update(dossier["dossier_id"], report, metadata)
         refreshed = self.dossiers.get_dossier(dossier["dossier_id"]) or dossier
-        self._store_intel_item(topic, report, search_results, dossier_id=dossier["dossier_id"], summary=metadata.get("change_summary"))
-        self._add_embeddings(update["path"], report, {"type": "research", "topic": topic, "research_kind": "dossier_update", "dossier_id": dossier["dossier_id"]})
-        self._add_embeddings(refreshed["path"], refreshed.get("content", ""), {"type": "research", "topic": topic, "research_kind": "dossier", "dossier_id": dossier["dossier_id"]})
-        return {"topic": topic, "title": update["title"], "summary": metadata.get("change_summary", ""), "saved_path": update["path"], "filepath": update["path"], "dossier_id": dossier["dossier_id"], "success": True}
+        self._store_intel_item(
+            topic,
+            report,
+            search_results,
+            dossier_id=dossier["dossier_id"],
+            summary=metadata.get("change_summary"),
+        )
+        self._add_embeddings(
+            update["path"],
+            report,
+            {
+                "type": "research",
+                "topic": topic,
+                "research_kind": "dossier_update",
+                "dossier_id": dossier["dossier_id"],
+            },
+        )
+        self._add_embeddings(
+            refreshed["path"],
+            refreshed.get("content", ""),
+            {
+                "type": "research",
+                "topic": topic,
+                "research_kind": "dossier",
+                "dossier_id": dossier["dossier_id"],
+            },
+        )
+        return {
+            "topic": topic,
+            "title": update["title"],
+            "summary": metadata.get("change_summary", ""),
+            "saved_path": update["path"],
+            "filepath": update["path"],
+            "dossier_id": dossier["dossier_id"],
+            "success": True,
+        }
 
     async def close(self):
         await self.search_client.close()

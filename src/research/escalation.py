@@ -167,7 +167,13 @@ class DossierEscalationStore:
 class DossierEscalationEngine:
     """Heuristic-first engine for suggesting which threads deserve dossiers."""
 
-    def __init__(self, store: DossierEscalationStore, *, min_escalation_score: float = 0.62, max_active_escalations: int = 3):
+    def __init__(
+        self,
+        store: DossierEscalationStore,
+        *,
+        min_escalation_score: float = 0.62,
+        max_active_escalations: int = 3,
+    ):
         self.store = store
         self.min_escalation_score = min_escalation_score
         self.max_active_escalations = max_active_escalations
@@ -177,7 +183,10 @@ class DossierEscalationEngine:
         recent_intel = user_context.get("recent_intel") or []
         watchlist_items = user_context.get("watchlist") or []
         goals = user_context.get("goals") or []
-        existing_dossiers = {_topic_key(d.get("topic") or d.get("title") or "") for d in (user_context.get("dossiers") or [])}
+        existing_dossiers = {
+            _topic_key(d.get("topic") or d.get("title") or "")
+            for d in (user_context.get("dossiers") or [])
+        }
 
         candidates: list[dict] = []
         for thread in threads:
@@ -191,10 +200,25 @@ class DossierEscalationEngine:
             entry_count = int(thread.get("entry_count") or 0)
             thread_recency_score = min(1.0, max(0.2, entry_count / 5.0))
             journal_frequency_score = min(1.0, entry_count / 6.0)
-            intel_hits = sum(1 for item in recent_intel if label.lower() in f"{item.get('title','')} {item.get('summary','')}".lower())
+            intel_hits = sum(
+                1
+                for item in recent_intel
+                if label.lower() in f"{item.get('title', '')} {item.get('summary', '')}".lower()
+            )
             intel_support_score = min(1.0, intel_hits / 3.0)
-            goal_bonus = 1.0 if any(label.lower() in str(goal.get("title") or "").lower() for goal in goals) else 0.0
-            watchlist_bonus = 1.0 if any(label.lower() in str(item.get("label") or "").lower() for item in watchlist_items) else 0.0
+            goal_bonus = (
+                1.0
+                if any(label.lower() in str(goal.get("title") or "").lower() for goal in goals)
+                else 0.0
+            )
+            watchlist_bonus = (
+                1.0
+                if any(
+                    label.lower() in str(item.get("label") or "").lower()
+                    for item in watchlist_items
+                )
+                else 0.0
+            )
             bonus = max(goal_bonus, watchlist_bonus)
 
             score = (
@@ -215,8 +239,16 @@ class DossierEscalationEngine:
                     "thread_id": thread.get("id"),
                     "recent_mentions": entry_count,
                     "intel_hits": intel_hits,
-                    "goal_titles": [goal.get("title") for goal in goals if label.lower() in str(goal.get("title") or "").lower()],
-                    "watchlist_labels": [item.get("label") for item in watchlist_items if label.lower() in str(item.get("label") or "").lower()],
+                    "goal_titles": [
+                        goal.get("title")
+                        for goal in goals
+                        if label.lower() in str(goal.get("title") or "").lower()
+                    ],
+                    "watchlist_labels": [
+                        item.get("label")
+                        for item in watchlist_items
+                        if label.lower() in str(item.get("label") or "").lower()
+                    ],
                 },
                 "payload": {
                     "topic": label,
@@ -230,7 +262,9 @@ class DossierEscalationEngine:
             if saved:
                 candidates.append(saved)
 
-        candidates.sort(key=lambda item: (item.get("score") or 0.0, item.get("updated_at") or ""), reverse=True)
+        candidates.sort(
+            key=lambda item: (item.get("score") or 0.0, item.get("updated_at") or ""), reverse=True
+        )
         return candidates[: self.max_active_escalations]
 
     def build_prefill(self, escalation_id: str) -> dict | None:

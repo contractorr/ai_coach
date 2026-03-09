@@ -267,9 +267,7 @@ class RecommendationActionItem(BaseModel):
     due_window: str = Field("this_week", pattern=r"^(today|this_week|later)$")
     blockers: list[str] = Field(default_factory=list)
     success_criteria: str = ""
-    status: str = Field(
-        "accepted", pattern=r"^(accepted|deferred|blocked|completed|abandoned)$"
-    )
+    status: str = Field("accepted", pattern=r"^(accepted|deferred|blocked|completed|abandoned)$")
     review_notes: Optional[str] = None
     goal_path: Optional[str] = None
     goal_title: Optional[str] = None
@@ -288,7 +286,9 @@ class RecommendationActionCreate(BaseModel):
 
 
 class RecommendationActionUpdate(BaseModel):
-    status: Optional[str] = Field(None, pattern=r"^(accepted|deferred|blocked|completed|abandoned)$")
+    status: Optional[str] = Field(
+        None, pattern=r"^(accepted|deferred|blocked|completed|abandoned)$"
+    )
     effort: Optional[str] = Field(None, pattern=r"^(small|medium|large)$")
     due_window: Optional[str] = Field(None, pattern=r"^(today|this_week|later)$")
     blockers: Optional[list[str]] = None
@@ -498,7 +498,9 @@ class ThreadInboxDetail(ThreadDetail):
 
 
 class ThreadInboxStateUpdate(BaseModel):
-    inbox_state: str = Field(..., pattern=r"^(active|dismissed|goal_created|research_started|dossier_started|dormant)$")
+    inbox_state: str = Field(
+        ..., pattern=r"^(active|dismissed|goal_created|research_started|dossier_started|dormant)$"
+    )
     linked_goal_path: Optional[str] = None
     linked_dossier_id: Optional[str] = None
     last_action: str = ""
@@ -579,13 +581,14 @@ class ProfileUpdate(BaseModel):
     active_projects: Optional[list[str]] = None
 
 
-
 # --- Library ---
 
 
 class LibraryReportCreate(BaseModel):
     prompt: str = Field(..., min_length=10, max_length=10000)
-    report_type: str = Field("custom", pattern=r"^(crash_course|overview|memo|plan|custom|document)$")
+    report_type: str = Field(
+        "custom", pattern=r"^(crash_course|overview|memo|plan|custom|document)$"
+    )
     title: Optional[str] = Field(None, max_length=200)
     collection: Optional[str] = Field(None, max_length=100)
 
@@ -715,7 +718,9 @@ class RegulatoryAlertResponse(BaseModel):
 
 class AssumptionCreate(BaseModel):
     statement: str = Field(..., min_length=3, max_length=500)
-    status: str = Field("active", pattern=r"^(suggested|active|confirmed|invalidated|resolved|archived)$")
+    status: str = Field(
+        "active", pattern=r"^(suggested|active|confirmed|invalidated|resolved|archived)$"
+    )
     source_type: str = "manual"
     source_id: str = "manual"
     extraction_confidence: Optional[float] = None
@@ -725,7 +730,9 @@ class AssumptionCreate(BaseModel):
 
 
 class AssumptionUpdate(BaseModel):
-    status: Optional[str] = Field(None, pattern=r"^(suggested|active|confirmed|invalidated|resolved|archived)$")
+    status: Optional[str] = Field(
+        None, pattern=r"^(suggested|active|confirmed|invalidated|resolved|archived)$"
+    )
     latest_evidence_summary: Optional[str] = Field(None, max_length=500)
 
 

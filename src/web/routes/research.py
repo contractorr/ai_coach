@@ -61,6 +61,7 @@ def _get_agent(user_id: str):
         config=cfg,
     )
 
+
 @router.get("/topics")
 async def get_topics(
     user: dict = Depends(get_current_user),

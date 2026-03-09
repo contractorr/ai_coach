@@ -108,12 +108,19 @@ class ThreadInboxStateStore:
 class ThreadInboxService:
     """Merge thread detection rows with inbox-state overlays and previews."""
 
-    def __init__(self, thread_store: ThreadStore, state_store: ThreadInboxStateStore, journal_storage: JournalStorage):
+    def __init__(
+        self,
+        thread_store: ThreadStore,
+        state_store: ThreadInboxStateStore,
+        journal_storage: JournalStorage,
+    ):
         self.thread_store = thread_store
         self.state_store = state_store
         self.journal_storage = journal_storage
 
-    async def list_inbox(self, *, state: str | None = None, query: str = "", limit: int = 50) -> list[dict]:
+    async def list_inbox(
+        self, *, state: str | None = None, query: str = "", limit: int = 50
+    ) -> list[dict]:
         threads = await self.thread_store.get_active_threads(min_entries=2)
         rows: list[dict] = []
         query_norm = query.strip().lower()
@@ -152,7 +159,10 @@ class ThreadInboxService:
         if not thread:
             return None
         entries = await self.thread_store.get_thread_entries(thread_id)
-        state = self.state_store.get_state(thread_id) or {"inbox_state": "active", "last_action": ""}
+        state = self.state_store.get_state(thread_id) or {
+            "inbox_state": "active",
+            "last_action": "",
+        }
 
         snippets: list[str] = []
         for entry in entries[-3:]:

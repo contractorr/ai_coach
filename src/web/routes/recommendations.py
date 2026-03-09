@@ -160,7 +160,9 @@ async def list_action_items(
     user: dict = Depends(get_current_user),
 ):
     storage = _get_storage(user["id"])
-    resolved_goal_path, _goal_title = _resolve_goal_link(goal_path, user["id"]) if goal_path else (None, None)
+    resolved_goal_path, _goal_title = (
+        _resolve_goal_link(goal_path, user["id"]) if goal_path else (None, None)
+    )
     result = list_tracked_actions(
         storage,
         status=status_filter,
@@ -177,7 +179,9 @@ async def weekly_plan(
     user: dict = Depends(get_current_user),
 ):
     storage = _get_storage(user["id"])
-    resolved_goal_path, _goal_title = _resolve_goal_link(goal_path, user["id"]) if goal_path else (None, None)
+    resolved_goal_path, _goal_title = (
+        _resolve_goal_link(goal_path, user["id"]) if goal_path else (None, None)
+    )
     plan = build_weekly_action_plan(
         storage,
         capacity_points=capacity_points,
@@ -224,10 +228,14 @@ async def list_recommendations(
     results = []
     for recommendation in recs[:limit]:
         shaped = _shape_recommendation(recommendation, ranked_watchlist_intel)
-        harvested = harvester.evaluate_recommendation({"id": recommendation.id, "metadata": recommendation.metadata or {}})
+        harvested = harvester.evaluate_recommendation(
+            {"id": recommendation.id, "metadata": recommendation.metadata or {}}
+        )
         payload = shaped.model_dump()
         payload["harvested_outcome"] = harvested
-        payload["why_now"] = reasoner.explain_recommendation(payload, {"recent_intel": ranked_watchlist_intel})
+        payload["why_now"] = reasoner.explain_recommendation(
+            payload, {"recent_intel": ranked_watchlist_intel}
+        )
         results.append(BriefingRecommendation(**payload))
     return results
 
@@ -243,7 +251,9 @@ async def get_recommendation_outcome(
     if not recommendation:
         raise HTTPException(status_code=404, detail="Recommendation not found")
     harvester = OutcomeHarvester(outcome_store, storage)
-    outcome = outcome_store.get(rec_id) or harvester.evaluate_recommendation({"id": recommendation.id, "metadata": recommendation.metadata or {}})
+    outcome = outcome_store.get(rec_id) or harvester.evaluate_recommendation(
+        {"id": recommendation.id, "metadata": recommendation.metadata or {}}
+    )
     return RecommendationOutcomeResponse(**outcome) if outcome else None
 
 
@@ -259,11 +269,14 @@ async def override_recommendation_outcome(
     if not recommendation:
         raise HTTPException(status_code=404, detail="Recommendation not found")
     if not outcome_store.get(rec_id):
-        OutcomeHarvester(outcome_store, storage).evaluate_recommendation({"id": recommendation.id, "metadata": recommendation.metadata or {}})
+        OutcomeHarvester(outcome_store, storage).evaluate_recommendation(
+            {"id": recommendation.id, "metadata": recommendation.metadata or {}}
+        )
     outcome = outcome_store.override(rec_id, payload.state, payload.note)
     if not outcome:
         raise HTTPException(status_code=404, detail="Recommendation not found")
     return RecommendationOutcomeResponse(**outcome)
+
 
 @router.post(
     "/{rec_id}/feedback",
@@ -300,9 +313,10 @@ async def add_recommendation_feedback(
     outcome = get_outcome_store(user["id"]).get(rec_id)
     payload = shaped.model_dump()
     payload["harvested_outcome"] = outcome
-    payload["why_now"] = WhyNowReasoner().explain_recommendation(payload, {"recent_intel": ranked_watchlist_intel})
+    payload["why_now"] = WhyNowReasoner().explain_recommendation(
+        payload, {"recent_intel": ranked_watchlist_intel}
+    )
     return BriefingRecommendation(**payload)
-
 
 
 @router.post(

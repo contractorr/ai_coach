@@ -29,7 +29,11 @@ class RegulatoryWatchResolver:
                     "target_key": _slug(label),
                     "label": label,
                     "topics": [label, *tags],
-                    "geographies": [str(value).strip() for value in (item.get("source_preferences") or []) if str(value).strip()],
+                    "geographies": [
+                        str(value).strip()
+                        for value in (item.get("source_preferences") or [])
+                        if str(value).strip()
+                    ],
                     "priority": {"low": 1, "medium": 2, "high": 3}.get(item.get("priority"), 2),
                     "watchlist_id": item.get("id"),
                 }
@@ -71,9 +75,12 @@ class RegulatoryAlertStore:
             for alert in alerts:
                 if alert.get("urgency") not in {"high", "medium", "low"}:
                     continue
-                dedup_hash = alert.get("dedup_hash") or hashlib.sha256(
-                    f"{alert.get('target_key')}|{alert.get('change_type')}|{alert.get('title')}|{alert.get('source_url')}".encode()
-                ).hexdigest()[:32]
+                dedup_hash = (
+                    alert.get("dedup_hash")
+                    or hashlib.sha256(
+                        f"{alert.get('target_key')}|{alert.get('change_type')}|{alert.get('title')}|{alert.get('source_url')}".encode()
+                    ).hexdigest()[:32]
+                )
                 conn.execute(
                     """
                     INSERT OR IGNORE INTO regulatory_alerts (
@@ -106,23 +113,37 @@ class RegulatoryAlertStore:
                 "SELECT * FROM regulatory_alerts WHERE observed_at >= ? ORDER BY relevance DESC, observed_at DESC LIMIT ?",
                 (since.isoformat(), limit),
             ).fetchall()
-        return [{**dict(row), "metadata": json.loads(row["metadata_json"] or "{}") } for row in rows]
+        return [{**dict(row), "metadata": json.loads(row["metadata_json"] or "{}")} for row in rows]
 
 
 class RegulatoryClassifier:
     def classify(self, raw_item: dict, target: dict) -> dict | None:
-        text = f"{raw_item.get('title','')} {raw_item.get('summary','')}".lower()
-        topics = [str(topic).lower() for topic in (target.get("topics") or []) if str(topic).strip()]
+        text = f"{raw_item.get('title', '')} {raw_item.get('summary', '')}".lower()
+        topics = [
+            str(topic).lower() for topic in (target.get("topics") or []) if str(topic).strip()
+        ]
         keyword_hits = sum(1 for topic in topics if topic and topic in text)
         if not keyword_hits:
             return None
-        geography_hits = sum(1 for geography in (target.get("geographies") or []) if str(geography).strip().lower() in text)
+        geography_hits = sum(
+            1
+            for geography in (target.get("geographies") or [])
+            if str(geography).strip().lower() in text
+        )
         priority = float(target.get("priority") or 1)
-        relevance = min(1.0, 0.45 * min(1.0, keyword_hits / max(1, len(topics) or 1)) + 0.30 * min(1.0, geography_hits) + 0.25 * min(1.0, priority / 3.0))
+        relevance = min(
+            1.0,
+            0.45 * min(1.0, keyword_hits / max(1, len(topics) or 1))
+            + 0.30 * min(1.0, geography_hits)
+            + 0.25 * min(1.0, priority / 3.0),
+        )
         if relevance < 0.35:
             return None
 
-        if any(keyword in text for keyword in ("enforcement", "effective immediately", "final rule", "finalized")):
+        if any(
+            keyword in text
+            for keyword in ("enforcement", "effective immediately", "final rule", "finalized")
+        ):
             change_type = "finalized"
             urgency = "high"
         elif any(keyword in text for keyword in ("proposed", "consultation", "draft")):
@@ -145,6 +166,8 @@ class RegulatoryClassifier:
             "relevance": round(relevance, 3),
             "effective_date": raw_item.get("effective_date"),
             "source_url": raw_item.get("url") or "",
-            "observed_at": raw_item.get("published") or raw_item.get("observed_at") or datetime.now().isoformat(),
+            "observed_at": raw_item.get("published")
+            or raw_item.get("observed_at")
+            or datetime.now().isoformat(),
             "metadata": {"target_label": target.get("label")},
         }

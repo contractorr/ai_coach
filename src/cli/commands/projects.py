@@ -32,7 +32,9 @@ def projects_discover(limit: int, days: int):
     ps = get_profile_storage(c["config"])
     profile = ps.load()
 
-    payload = discover_matching_project_issues(c["intel_storage"], profile=profile, limit=limit, days=days)
+    payload = discover_matching_project_issues(
+        c["intel_storage"], profile=profile, limit=limit, days=days
+    )
     issues = payload["issues"]
 
     if not issues:

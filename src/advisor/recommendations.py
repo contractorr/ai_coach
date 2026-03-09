@@ -123,7 +123,9 @@ class Recommender:
         intel_ctx = self.rag.get_filtered_intel_context(intel_query, max_chars=3000)
         research_ctx = self.rag.get_research_context(intel_query, max_entries=3, max_chars=2500)
         if research_ctx:
-            intel_ctx = f"{intel_ctx}\n\nRESEARCH CONTEXT:\n{research_ctx}" if intel_ctx else research_ctx
+            intel_ctx = (
+                f"{intel_ctx}\n\nRESEARCH CONTEXT:\n{research_ctx}" if intel_ctx else research_ctx
+            )
 
         # Inject AI capability context for relevant categories
         if category in AI_RELEVANT_CATEGORIES:

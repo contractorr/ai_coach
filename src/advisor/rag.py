@@ -182,9 +182,7 @@ class RAGRetriever:
         blocks = []
         for item in selected:
             file_label = f" ({item['file_name']})" if item["file_name"] else ""
-            blocks.append(
-                f"[DOCUMENT] {item['title']}{file_label}\n{item['excerpt']}"
-            )
+            blocks.append(f"[DOCUMENT] {item['title']}{file_label}\n{item['excerpt']}")
         return "DOCUMENT CONTEXT:\n" + "\n\n".join(blocks)
 
     def get_profile_keywords(self) -> list[str]:
@@ -723,9 +721,7 @@ class RAGRetriever:
                     label = r.get("title", "Unknown")
                     if r.get("change_summary"):
                         label = f"{label} — {r.get('change_summary')}"
-                    text = (
-                        f"[Research: {label}]\n{r.get('content', '')[:1500]}\n"
-                    )
+                    text = f"[Research: {label}]\n{r.get('content', '')[:1500]}\n"
                     if total_chars + len(text) > max_chars:
                         break
                     context_parts.append(text)

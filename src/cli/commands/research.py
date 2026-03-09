@@ -45,7 +45,9 @@ def research_run(topic: str | None, dossier_id: str | None):
     )
 
     if not c["config"].get("research", {}).get("enabled", False):
-        console.print("[yellow]Research not enabled. Add 'research.enabled: true' to config.yaml[/]")
+        console.print(
+            "[yellow]Research not enabled. Add 'research.enabled: true' to config.yaml[/]"
+        )
         return
 
     with console.status("Running deep research..."):
@@ -64,7 +66,9 @@ def research_run(topic: str | None, dossier_id: str | None):
                 prefix = f"{prefix} [{result['dossier_id']}]"
             console.print(f"[green]✓[/] {prefix} -> {name}")
         else:
-            console.print(f"[red]✗[/] {result.get('topic', 'unknown')}: {result.get('error', 'Unknown error')}")
+            console.print(
+                f"[red]✗[/] {result.get('topic', 'unknown')}: {result.get('error', 'Unknown error')}"
+            )
 
 
 @research.command("topics")
@@ -128,10 +132,16 @@ def research_view(filename: str):
     c = get_components(skip_advisor=True)
     journal_dir = c["paths"]["journal_dir"].resolve()
     matches = [
-        match for match in journal_dir.glob(f"*research*{filename}*") if match.resolve().is_relative_to(journal_dir)
+        match
+        for match in journal_dir.glob(f"*research*{filename}*")
+        if match.resolve().is_relative_to(journal_dir)
     ]
     if not matches:
-        matches = [match for match in journal_dir.glob(f"*{filename}*") if match.resolve().is_relative_to(journal_dir)]
+        matches = [
+            match
+            for match in journal_dir.glob(f"*{filename}*")
+            if match.resolve().is_relative_to(journal_dir)
+        ]
     if not matches:
         console.print(f"[red]Not found:[/] {filename}")
         return
@@ -202,7 +212,9 @@ def research_dossier_create(
     if not dossier:
         console.print("[red]Failed to create dossier.[/]")
         return
-    console.print(f"[green]Created dossier[/] {dossier['dossier_id']} for [cyan]{dossier['topic']}[/]")
+    console.print(
+        f"[green]Created dossier[/] {dossier['dossier_id']} for [cyan]{dossier['topic']}[/]"
+    )
 
 
 @research.command("dossier-view")
@@ -218,11 +230,15 @@ def research_dossier_view(dossier_id: str):
     console.print(f"\n[cyan bold]{dossier['title']}[/]")
     console.print(f"[dim]Status: {dossier.get('status', 'active')}[/]")
     console.print(f"[dim]Last updated: {(dossier.get('last_updated') or 'Never')[:19]}[/]")
-    console.print(f"[dim]Latest change: {dossier.get('latest_change_summary') or 'No updates yet'}[/]\n")
+    console.print(
+        f"[dim]Latest change: {dossier.get('latest_change_summary') or 'No updates yet'}[/]\n"
+    )
     console.print(Markdown(dossier.get("content", "")))
 
     updates = dossier.get("updates") or []
     if updates:
         console.print("\n[bold]Recent Updates[/]")
         for update in updates[:5]:
-            console.print(f"- {(update.get('created') or '')[:10]}: {update.get('change_summary') or update.get('title')}")
+            console.print(
+                f"- {(update.get('created') or '')[:10]}: {update.get('change_summary') or update.get('title')}"
+            )

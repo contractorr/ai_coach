@@ -12,7 +12,14 @@ from pathlib import Path
 from db import wal_connect
 from memory.models import FactCategory, FactSource, StewardFact
 
-VALID_ASSUMPTION_STATUS = {"suggested", "active", "confirmed", "invalidated", "resolved", "archived"}
+VALID_ASSUMPTION_STATUS = {
+    "suggested",
+    "active",
+    "confirmed",
+    "invalidated",
+    "resolved",
+    "archived",
+}
 
 
 def _now() -> str:
@@ -61,8 +68,12 @@ class AssumptionStore:
                 )
                 """
             )
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_assumptions_status ON assumptions(status, updated_at DESC)")
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_assumption_evidence_assumption ON assumption_evidence(assumption_id, created_at DESC)")
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_assumptions_status ON assumptions(status, updated_at DESC)"
+            )
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_assumption_evidence_assumption ON assumption_evidence(assumption_id, created_at DESC)"
+            )
 
     def create(self, assumption: dict) -> str:
         assumption_id = assumption.get("id") or uuid.uuid4().hex[:16]
@@ -117,7 +128,9 @@ class AssumptionStore:
     def get(self, assumption_id: str) -> dict | None:
         with wal_connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
-            row = conn.execute("SELECT * FROM assumptions WHERE id = ?", (assumption_id,)).fetchone()
+            row = conn.execute(
+                "SELECT * FROM assumptions WHERE id = ?", (assumption_id,)
+            ).fetchone()
         if not row:
             return None
         return {
@@ -192,7 +205,10 @@ class AssumptionExtractor:
             lower = text.lower()
             if not text:
                 continue
-            if any(trigger in lower for trigger in ("assuming ", "assume ", "if ", "as long as ", "provided that ")):
+            if any(
+                trigger in lower
+                for trigger in ("assuming ", "assume ", "if ", "as long as ", "provided that ")
+            ):
                 confidence = 0.78 if "assuming" in lower or "assume" in lower else 0.75
                 if confidence < self.min_confidence:
                     continue
@@ -213,10 +229,21 @@ class AssumptionExtractor:
 
     def extract_from_action_item(self, recommendation: dict) -> list[dict]:
         action_item = (recommendation.get("metadata") or {}).get("action_item") or {}
-        text = " ".join(filter(None, [action_item.get("objective"), action_item.get("next_step"), action_item.get("review_notes")]))
+        text = " ".join(
+            filter(
+                None,
+                [
+                    action_item.get("objective"),
+                    action_item.get("next_step"),
+                    action_item.get("review_notes"),
+                ],
+            )
+        )
         if not text:
             return []
-        return self.extract_from_journal({"content": text, "path": recommendation.get("id") or "", "type": "recommendation"})
+        return self.extract_from_journal(
+            {"content": text, "path": recommendation.get("id") or "", "type": "recommendation"}
+        )
 
     def extract_from_dossier(self, dossier: dict) -> list[dict]:
         explicit = dossier.get("assumptions") or []
@@ -244,20 +271,29 @@ class AssumptionSignalMatcher:
 
     def evaluate(self, assumption: dict, candidate_signals: list[dict]) -> list[dict]:
         assumption_text = str(assumption.get("statement") or "").lower()
-        statement_terms = {term for term in re.findall(r"[a-z0-9]+", assumption_text) if len(term) > 3}
-        linked_entities = {str(value).lower() for value in (assumption.get("linked_entities") or [])}
+        statement_terms = {
+            term for term in re.findall(r"[a-z0-9]+", assumption_text) if len(term) > 3
+        }
+        linked_entities = {
+            str(value).lower() for value in (assumption.get("linked_entities") or [])
+        }
 
         evidence_rows: list[dict] = []
         for signal in candidate_signals:
-            text = f"{signal.get('title','')} {signal.get('summary','')}".lower()
+            text = f"{signal.get('title', '')} {signal.get('summary', '')}".lower()
             overlap = sum(1 for term in statement_terms if term in text)
             entity_match = sum(1 for entity in linked_entities if entity and entity in text)
-            score = 0.40 * min(1.0, overlap / max(1, len(statement_terms) or 1)) + 0.25 * min(1.0, entity_match)
+            score = 0.40 * min(1.0, overlap / max(1, len(statement_terms) or 1)) + 0.25 * min(
+                1.0, entity_match
+            )
             if score <= 0:
                 continue
             if any(word in text for word in ("cancel", "decline", "cut", "freeze", "risk", "ban")):
                 state = "invalidating" if score >= 0.45 else "informational"
-            elif any(word in text for word in ("launch", "increase", "grow", "approve", "expand", "hiring")):
+            elif any(
+                word in text
+                for word in ("launch", "increase", "grow", "approve", "expand", "hiring")
+            ):
                 state = "confirming" if score >= 0.45 else "informational"
             else:
                 state = "informational"
@@ -265,7 +301,10 @@ class AssumptionSignalMatcher:
                 {
                     "evidence_kind": signal.get("kind") or signal.get("source_family") or "intel",
                     "evidence_state": state,
-                    "source_ref": signal.get("url") or signal.get("source_url") or signal.get("id") or "",
+                    "source_ref": signal.get("url")
+                    or signal.get("source_url")
+                    or signal.get("id")
+                    or "",
                     "excerpt": (signal.get("summary") or signal.get("title") or "")[:300],
                     "confidence": round(min(0.95, score + 0.25), 3),
                 }

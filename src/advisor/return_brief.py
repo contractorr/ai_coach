@@ -44,7 +44,9 @@ class ReturnBriefBuilder:
         parsed: list[datetime] = []
         for value in rows:
             try:
-                parsed.append(datetime.fromisoformat(value.replace("Z", "+00:00")).replace(tzinfo=None))
+                parsed.append(
+                    datetime.fromisoformat(value.replace("Z", "+00:00")).replace(tzinfo=None)
+                )
             except ValueError:
                 continue
         return max(parsed) if parsed else None
@@ -62,15 +64,36 @@ class ReturnBriefBuilder:
         sections: list[dict] = []
         next_steps: list[dict] = []
 
-        for kind, label in (("intel", "intel_matches"), ("threads", "threads"), ("dossiers", "dossiers"), ("goals", "stale_goals")):
+        for kind, label in (
+            ("intel", "intel_matches"),
+            ("threads", "threads"),
+            ("dossiers", "dossiers"),
+            ("goals", "stale_goals"),
+        ):
             items = list(provider.get(label) or [])[: self.max_section_items]
             if items:
                 sections.append({"kind": kind, "items": items})
                 first = items[0]
-                next_steps.append({"kind": kind, "label": f"Review {kind}", "target": first.get("id") or first.get("title") or first.get("path") or ""})
+                next_steps.append(
+                    {
+                        "kind": kind,
+                        "label": f"Review {kind}",
+                        "target": first.get("id") or first.get("title") or first.get("path") or "",
+                    }
+                )
 
         if not sections:
-            sections.append({"kind": "summary", "items": [{"title": "No major changes", "detail": "You were away, but nothing major changed in tracked areas."}]})
+            sections.append(
+                {
+                    "kind": "summary",
+                    "items": [
+                        {
+                            "title": "No major changes",
+                            "detail": "You were away, but nothing major changed in tracked areas.",
+                        }
+                    ],
+                }
+            )
 
         part_summaries = []
         for section in sections:

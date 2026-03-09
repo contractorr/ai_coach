@@ -102,7 +102,10 @@ class ReportStore:
             "source_kind": post.get("source_kind", "generated"),
             "created": post.get("created") or post.get("updated") or _now(),
             "updated": post.get("updated") or post.get("created") or _now(),
-            "last_generated_at": post.get("last_generated_at") or post.get("updated") or post.get("created") or _now(),
+            "last_generated_at": post.get("last_generated_at")
+            or post.get("updated")
+            or post.get("created")
+            or _now(),
             "preview": preview,
             "content": content,
             "file_name": file_name,
@@ -216,7 +219,10 @@ class ReportStore:
                 continue
             if status and record["status"] != status:
                 continue
-            if normalized_collection and (record.get("collection") or "").strip().lower() != normalized_collection:
+            if (
+                normalized_collection
+                and (record.get("collection") or "").strip().lower() != normalized_collection
+            ):
                 continue
             if query:
                 haystack = "\n".join(

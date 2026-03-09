@@ -18,7 +18,13 @@ from web.deps import (
     get_user_paths,
     safe_user_id,
 )
-from web.models import ExtractionReceiptEnvelope, JournalCreate, JournalEntry, JournalUpdate, QuickCapture
+from web.models import (
+    ExtractionReceiptEnvelope,
+    JournalCreate,
+    JournalEntry,
+    JournalUpdate,
+    QuickCapture,
+)
 from web.user_store import log_event
 
 logger = structlog.get_logger()
@@ -142,7 +148,9 @@ async def _run_post_create_hooks(
                     thread = await store.get_thread(match.thread_id)
                     thread_match_payload = {
                         "thread_id": match.thread_id,
-                        "thread_label": thread.label if thread else metadata.get("title", "Recurring topic"),
+                        "thread_label": thread.label
+                        if thread
+                        else metadata.get("title", "Recurring topic"),
                         "match_type": match.match_type,
                     }
     except Exception as exc:

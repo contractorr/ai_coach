@@ -14,8 +14,6 @@ from web.routes import ROUTERS
 logger = structlog.get_logger()
 
 
-
-
 def _env_flag(name: str, default: bool = False) -> bool:
     """Parse a boolean env flag with a conservative default."""
     value = os.getenv(name)

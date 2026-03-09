@@ -156,7 +156,7 @@ export default function HomePage() {
           role: "user",
           content: question,
           attachments: uploaded.map((item) => ({
-            library_item_id: item.id,
+            library_item_id: item.attachment_id,
             file_name: item.file_name,
             mime_type: item.mime_type,
           })),
@@ -165,7 +165,7 @@ export default function HomePage() {
       sendMessage(
         question,
         conversationId,
-        uploaded.map((item) => item.id),
+        uploaded.map((item) => item.attachment_id),
       );
     } catch (e) {
       toast.error((e as Error).message);

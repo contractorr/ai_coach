@@ -214,7 +214,9 @@ Research gathered on "{topic}" but synthesis unavailable due to API error.
         previous_change_summary: str = "",
     ) -> str:
         """Fallback dossier update when LLM synthesis is unavailable."""
-        source_lines = "\n".join(f"- {r.title}: {r.url}" for r in results[:5]) or "- No sources captured"
+        source_lines = (
+            "\n".join(f"- {r.title}: {r.url}" for r in results[:5]) or "- No sources captured"
+        )
         prior = previous_change_summary or "No prior update recorded."
         return f"""## What Changed
 - Fresh research was gathered for "{topic}", but automated delta synthesis was unavailable.

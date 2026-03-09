@@ -87,7 +87,9 @@ def _resolve_attachment_records(user_id: str, attachment_ids: list[str] | None) 
     return records
 
 
-def _validate_attachment_upload(file_name: str | None, payload: bytes, content_type: str | None) -> None:
+def _validate_attachment_upload(
+    file_name: str | None, payload: bytes, content_type: str | None
+) -> None:
     from web.routes.library import _validate_pdf_upload
 
     _validate_pdf_upload(file_name, payload, content_type)
@@ -99,7 +101,13 @@ async def upload_chat_attachment(
     conversation_id: str | None = Form(default=None),
     user: dict = Depends(get_current_user),
 ):
-    from web.routes.library import _derive_document_title, _get_index, _get_store, _index_record, _process_document_memory
+    from web.routes.library import (
+        _derive_document_title,
+        _get_index,
+        _get_store,
+        _index_record,
+        _process_document_memory,
+    )
 
     if conversation_id and not conversation_belongs_to(conversation_id, user["id"]):
         raise HTTPException(status_code=404, detail="Conversation not found")

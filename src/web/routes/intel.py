@@ -13,8 +13,8 @@ from intelligence.regulatory import RegulatoryAlertStore, RegulatoryWatchResolve
 from intelligence.watchlist import annotate_items, attach_follow_up_state, sort_ranked_items
 from web.auth import get_current_user
 from web.deps import (
-    get_company_movement_store,
     get_coach_paths,
+    get_company_movement_store,
     get_config,
     get_follow_up_store,
     get_hiring_signal_store,
@@ -197,7 +197,13 @@ async def list_company_movements(
     resolver = WatchedCompanyResolver()
     companies = resolver.from_watchlist_items(_get_watchlist_store(user["id"]).list_items())
     company_keys = {company["company_key"] for company in companies}
-    items = [item for item in _get_company_store().get_since(datetime.now() - timedelta(days=14), limit=limit * 4) if item.get("company_key") in company_keys]
+    items = [
+        item
+        for item in _get_company_store().get_since(
+            datetime.now() - timedelta(days=14), limit=limit * 4
+        )
+        if item.get("company_key") in company_keys
+    ]
     return [CompanyMovementResponse(**item) for item in items[:limit]]
 
 
@@ -207,7 +213,10 @@ async def get_company_movements(
     limit: int = Query(default=20, ge=1, le=100),
     _user: dict = Depends(get_current_user),
 ):
-    return [CompanyMovementResponse(**item) for item in _get_company_store().get_recent_for_company(company_key, limit=limit)]
+    return [
+        CompanyMovementResponse(**item)
+        for item in _get_company_store().get_recent_for_company(company_key, limit=limit)
+    ]
 
 
 @router.get("/hiring-signals", response_model=list[HiringSignalResponse])
@@ -218,7 +227,11 @@ async def list_hiring_signals(
     resolver = WatchedCompanyResolver()
     companies = resolver.from_watchlist_items(_get_watchlist_store(user["id"]).list_items())
     company_keys = {company["company_key"] for company in companies}
-    items = [item for item in _get_hiring_store().get_recent(limit=limit * 4) if item.get("entity_key") in company_keys]
+    items = [
+        item
+        for item in _get_hiring_store().get_recent(limit=limit * 4)
+        if item.get("entity_key") in company_keys
+    ]
     return [HiringSignalResponse(**item) for item in items[:limit]]
 
 
@@ -228,7 +241,10 @@ async def get_hiring_signals_for_entity(
     limit: int = Query(default=20, ge=1, le=100),
     _user: dict = Depends(get_current_user),
 ):
-    return [HiringSignalResponse(**item) for item in _get_hiring_store().get_recent(entity_key=entity_key, limit=limit)]
+    return [
+        HiringSignalResponse(**item)
+        for item in _get_hiring_store().get_recent(entity_key=entity_key, limit=limit)
+    ]
 
 
 @router.get("/regulatory-alerts", response_model=list[RegulatoryAlertResponse])
@@ -239,7 +255,13 @@ async def list_regulatory_alerts(
     resolver = RegulatoryWatchResolver()
     targets = resolver.from_watchlist_items(_get_watchlist_store(user["id"]).list_items())
     target_keys = {target["target_key"] for target in targets}
-    items = [item for item in _get_regulatory_store().get_recent(datetime.now() - timedelta(days=30), limit=limit * 4) if item.get("target_key") in target_keys]
+    items = [
+        item
+        for item in _get_regulatory_store().get_recent(
+            datetime.now() - timedelta(days=30), limit=limit * 4
+        )
+        if item.get("target_key") in target_keys
+    ]
     return [RegulatoryAlertResponse(**item) for item in items[:limit]]
 
 
@@ -249,7 +271,13 @@ async def get_regulatory_alerts_for_target(
     limit: int = Query(default=20, ge=1, le=100),
     _user: dict = Depends(get_current_user),
 ):
-    items = [item for item in _get_regulatory_store().get_recent(datetime.now() - timedelta(days=90), limit=limit * 4) if item.get("target_key") == target_key]
+    items = [
+        item
+        for item in _get_regulatory_store().get_recent(
+            datetime.now() - timedelta(days=90), limit=limit * 4
+        )
+        if item.get("target_key") == target_key
+    ]
     return [RegulatoryAlertResponse(**item) for item in items[:limit]]
 
 
@@ -346,6 +374,7 @@ def _personalize_trending(snapshot: dict, user_id: str) -> dict:
     """Re-rank trending topics by profile relevance."""
     try:
         from intelligence.search import load_profile_terms, score_profile_relevance
+
         profile_path = get_profile_path(user_id)
         terms = load_profile_terms(profile_path)
         if terms.is_empty:

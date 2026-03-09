@@ -69,7 +69,9 @@ def refresh():
     from intelligence.capability_model import CapabilityHorizonModel
     from intelligence.scheduler import IntelScheduler
 
-    storage = get_intel_storage(config, storage_paths=get_storage_paths(config=config, paths={"intel_db": db_path}))
+    storage = get_intel_storage(
+        config, storage_paths=get_storage_paths(config=config, paths={"intel_db": db_path})
+    )
     scheduler = IntelScheduler(
         storage,
         config=config.get("sources", {}),

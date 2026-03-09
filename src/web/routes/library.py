@@ -102,7 +102,9 @@ def _generate_report_content(user_id: str, prompt: str, report_type: str) -> str
         context_parts.append("[PROFILE]\n" + profile_summary)
     if goals:
         context_parts.append("[ACTIVE GOALS]\n- " + "\n- ".join(goals))
-    context_text = "\n\n".join(context_parts) if context_parts else "No saved personal context is available."
+    context_text = (
+        "\n\n".join(context_parts) if context_parts else "No saved personal context is available."
+    )
 
     system = (
         "You write clear, practical markdown reports for a single user. "
@@ -209,7 +211,12 @@ def _process_document_memory(user_id: str, report: dict, extracted_text: str) ->
             },
         )
     except Exception as exc:
-        logger.warning("library_document_memory_failed", user_id=user_id, report_id=report["id"], error=str(exc))
+        logger.warning(
+            "library_document_memory_failed",
+            user_id=user_id,
+            report_id=report["id"],
+            error=str(exc),
+        )
 
 
 def _validate_pdf_upload(file_name: str | None, payload: bytes, content_type: str | None) -> None:

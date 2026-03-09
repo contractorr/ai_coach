@@ -34,7 +34,7 @@ export interface BriefingRecommendation {
     confidence: number;
     source_summary: string;
     user_overridden: boolean;
-    evidence?: any[];
+    evidence?: Array<Record<string, unknown>>;
   } | null;
 }
 

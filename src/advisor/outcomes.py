@@ -137,7 +137,15 @@ class HarvestedOutcomeStore:
                 "confidence": 1.0,
                 "source_summary": note or f"User marked this outcome as {state}.",
                 "user_overridden": True,
-                "evidence": list(existing.get("evidence") or []) + [{"kind": "override", "value": state, "source_id": recommendation_id, "excerpt": note}],
+                "evidence": list(existing.get("evidence") or [])
+                + [
+                    {
+                        "kind": "override",
+                        "value": state,
+                        "source_id": recommendation_id,
+                        "excerpt": note,
+                    }
+                ],
             }
         )
         self.upsert(payload)
@@ -165,19 +173,47 @@ class OutcomeHarvester:
         action_status = action_item.get("status")
         if action_status == "completed":
             positive_score += 1.0
-            evidence.append({"kind": "action_status", "value": "completed", "source_id": recommendation["id"], "excerpt": ""})
+            evidence.append(
+                {
+                    "kind": "action_status",
+                    "value": "completed",
+                    "source_id": recommendation["id"],
+                    "excerpt": "",
+                }
+            )
         elif action_status in {"blocked", "abandoned"}:
             negative_score += 1.0
-            evidence.append({"kind": "action_status", "value": action_status, "source_id": recommendation["id"], "excerpt": ""})
+            evidence.append(
+                {
+                    "kind": "action_status",
+                    "value": action_status,
+                    "source_id": recommendation["id"],
+                    "excerpt": "",
+                }
+            )
 
         rating = meta.get("user_rating")
         if isinstance(rating, int):
             if rating >= 4:
                 positive_score += 0.7
-                evidence.append({"kind": "feedback", "value": "positive", "source_id": recommendation["id"], "excerpt": meta.get("feedback_comment") or ""})
+                evidence.append(
+                    {
+                        "kind": "feedback",
+                        "value": "positive",
+                        "source_id": recommendation["id"],
+                        "excerpt": meta.get("feedback_comment") or "",
+                    }
+                )
             elif rating <= 2:
                 negative_score += 0.7
-                evidence.append({"kind": "feedback", "value": "negative", "source_id": recommendation["id"], "excerpt": meta.get("feedback_comment") or ""})
+                evidence.append(
+                    {
+                        "kind": "feedback",
+                        "value": "negative",
+                        "source_id": recommendation["id"],
+                        "excerpt": meta.get("feedback_comment") or "",
+                    }
+                )
 
         state = "unresolved"
         confidence = 0.4

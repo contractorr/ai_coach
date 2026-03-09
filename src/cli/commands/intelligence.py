@@ -361,11 +361,15 @@ def watchlist_update(
             "kind": kind,
             "priority": priority,
             "why": why,
-            "aliases": [part.strip() for part in aliases.split(",")] if aliases is not None else None,
+            "aliases": [part.strip() for part in aliases.split(",")]
+            if aliases is not None
+            else None,
             "tags": [part.strip() for part in tags.split(",")] if tags is not None else None,
             "goal": goal,
             "time_horizon": time_horizon,
-            "source_preferences": [part.strip() for part in sources.split(",")] if sources is not None else None,
+            "source_preferences": [part.strip() for part in sources.split(",")]
+            if sources is not None
+            else None,
         }.items()
         if value is not None
     }

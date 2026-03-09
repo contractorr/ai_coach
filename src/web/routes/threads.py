@@ -5,8 +5,19 @@ import asyncio
 from fastapi import APIRouter, Depends, HTTPException
 
 from web.auth import get_current_user
-from web.deps import get_thread_inbox_service, get_thread_inbox_state_store, get_thread_store, get_user_paths
-from web.models import ThreadDetail, ThreadInboxDetail, ThreadInboxStateUpdate, ThreadInboxSummary, ThreadSummary
+from web.deps import (
+    get_thread_inbox_service,
+    get_thread_inbox_state_store,
+    get_thread_store,
+    get_user_paths,
+)
+from web.models import (
+    ThreadDetail,
+    ThreadInboxDetail,
+    ThreadInboxStateUpdate,
+    ThreadInboxSummary,
+    ThreadSummary,
+)
 
 router = APIRouter(prefix="/api/threads", tags=["threads"])
 
@@ -31,7 +42,15 @@ async def list_threads(
     for t in threads:
         detail = await _get_inbox(user["id"]).get_thread_detail(t.id)
         if detail:
-            result.append(ThreadSummary(**{key: value for key, value in detail.items() if key != "entries" and key != "available_actions"}))
+            result.append(
+                ThreadSummary(
+                    **{
+                        key: value
+                        for key, value in detail.items()
+                        if key != "entries" and key != "available_actions"
+                    }
+                )
+            )
     return result
 
 
@@ -43,7 +62,16 @@ async def list_thread_inbox(
     user: dict = Depends(get_current_user),
 ):
     rows = await _get_inbox(user["id"]).list_inbox(state=state, query=query, limit=limit)
-    return [ThreadInboxSummary(**{key: value for key, value in row.items() if key != "entries" and key != "available_actions"}) for row in rows]
+    return [
+        ThreadInboxSummary(
+            **{
+                key: value
+                for key, value in row.items()
+                if key != "entries" and key != "available_actions"
+            }
+        )
+        for row in rows
+    ]
 
 
 @router.get("/{thread_id}", response_model=ThreadDetail)
@@ -51,7 +79,6 @@ async def get_thread(
     thread_id: str,
     user: dict = Depends(get_current_user),
 ):
-    store = _get_store(user["id"])
     detail = await _get_inbox(user["id"]).get_thread_detail(thread_id)
     if not detail:
         raise HTTPException(status_code=404, detail="Thread not found")
@@ -165,7 +192,9 @@ async def reindex_threads(
     paths = get_user_paths(user["id"])
     config = get_config()
     threads_cfg = config.threads
-    embeddings = EmbeddingManager(paths["chroma_dir"], collection_name=f"journal_{safe_user_id(user['id'])}")
+    embeddings = EmbeddingManager(
+        paths["chroma_dir"], collection_name=f"journal_{safe_user_id(user['id'])}"
+    )
     store = get_thread_store(user["id"])
     detector = ThreadDetector(
         embeddings,

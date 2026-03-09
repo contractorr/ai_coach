@@ -121,7 +121,9 @@ def _derive_action_item(
     success_criteria: Optional[str] = None,
 ) -> dict[str, Any]:
     action_plan = (rec.metadata or {}).get("action_plan") if rec.metadata else None
-    derived_next_step = next_step or _first_meaningful_line(action_plan, rec.description, rec.rationale)
+    derived_next_step = next_step or _first_meaningful_line(
+        action_plan, rec.description, rec.rationale
+    )
     if not derived_next_step:
         derived_next_step = "Choose the first concrete step and schedule time for it."
 
@@ -134,7 +136,8 @@ def _derive_action_item(
         "due_window": _normalize_due_window(due_window),
         "blockers": cleaned_blockers,
         "success_criteria": (
-            success_criteria or _extract_success_criteria(action_plan, rec.rationale, rec.description)
+            success_criteria
+            or _extract_success_criteria(action_plan, rec.rationale, rec.description)
         ).strip(),
         "status": ActionItemStatus.ACCEPTED.value,
         "review_notes": None,

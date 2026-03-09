@@ -103,8 +103,8 @@ class ResearchDossierStore:
                 if dossier["updates"]:
                     latest = dossier["updates"][0]
                     dossier["last_updated"] = latest.get("created") or dossier.get("last_updated")
-                    dossier["latest_change_summary"] = (
-                        latest.get("change_summary") or dossier.get("latest_change_summary")
+                    dossier["latest_change_summary"] = latest.get("change_summary") or dossier.get(
+                        "latest_change_summary"
                     )
                     dossier["update_count"] = max(
                         int(dossier.get("update_count", 0) or 0),
@@ -157,7 +157,8 @@ class ResearchDossierStore:
             latest_change_summary=(latest or {}).get("change_summary", ""),
             last_updated=(latest or {}).get("created"),
             update_count=len(updates),
-            open_questions=(latest or {}).get("open_questions") or dossier.get("open_questions", []),
+            open_questions=(latest or {}).get("open_questions")
+            or dossier.get("open_questions", []),
         )
         return self._build_update_record(path, frontmatter.load(path))
 
@@ -174,8 +175,12 @@ class ResearchDossierStore:
             "core_questions": _normalize_list(
                 fields.get("core_questions", dossier.get("core_questions", []))
             ),
-            "assumptions": _normalize_list(fields.get("assumptions", dossier.get("assumptions", []))),
-            "related_goals": _normalize_list(fields.get("related_goals", dossier.get("related_goals", []))),
+            "assumptions": _normalize_list(
+                fields.get("assumptions", dossier.get("assumptions", []))
+            ),
+            "related_goals": _normalize_list(
+                fields.get("related_goals", dossier.get("related_goals", []))
+            ),
             "tracked_subtopics": _normalize_list(
                 fields.get("tracked_subtopics", dossier.get("tracked_subtopics", []))
             ),
@@ -206,7 +211,10 @@ class ResearchDossierStore:
             if kind and post.get("research_kind") != kind:
                 continue
             posts.append((path, post))
-        posts.sort(key=lambda item: _parse_dt(item[1].get("last_updated") or item[1].get("created")), reverse=True)
+        posts.sort(
+            key=lambda item: _parse_dt(item[1].get("last_updated") or item[1].get("created")),
+            reverse=True,
+        )
         return posts
 
     def _build_dossier_record(self, path: Path, post) -> dict:
@@ -283,5 +291,11 @@ class ResearchDossierStore:
             lines.append("")
 
         last_updated = metadata.get("last_updated") or "Not updated yet"
-        lines.extend(["## Timeline", f"- Last updated: {last_updated}", f"- Updates recorded: {metadata.get('update_count', 0)}"])
+        lines.extend(
+            [
+                "## Timeline",
+                f"- Last updated: {last_updated}",
+                f"- Updates recorded: {metadata.get('update_count', 0)}",
+            ]
+        )
         return "\n".join(lines).strip() + "\n"

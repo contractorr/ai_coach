@@ -69,7 +69,9 @@ def discover_matching_project_issues(
 
     issues = get_matching_issues(intel_storage, profile=profile, limit=limit, days=days)
     serialized = [
-        serialize_project_issue(issue, summary_limit=summary_limit, include_scraped_at=include_scraped_at)
+        serialize_project_issue(
+            issue, summary_limit=summary_limit, include_scraped_at=include_scraped_at
+        )
         for issue in issues
     ]
     return {"issues": serialized, "count": len(serialized)}
@@ -87,7 +89,9 @@ def list_project_issues(
     items = intel_storage.get_recent(days=days, limit=limit)
     issues = [item for item in items if item.get("source") == "github_issues"]
     serialized = [
-        serialize_project_issue(issue, summary_limit=summary_limit, include_scraped_at=include_scraped_at)
+        serialize_project_issue(
+            issue, summary_limit=summary_limit, include_scraped_at=include_scraped_at
+        )
         for issue in issues
     ]
     return {"issues": serialized, "count": len(serialized)}

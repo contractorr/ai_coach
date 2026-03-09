@@ -21,7 +21,9 @@ router = APIRouter(prefix="/api/assumptions", tags=["assumptions"])
 def _candidate_signals() -> list[dict]:
     signals = []
     try:
-        signals.extend(get_company_movement_store().get_since(datetime.now() - timedelta(days=30), limit=100))
+        signals.extend(
+            get_company_movement_store().get_since(datetime.now() - timedelta(days=30), limit=100)
+        )
     except Exception:
         pass
     try:
@@ -29,7 +31,9 @@ def _candidate_signals() -> list[dict]:
     except Exception:
         pass
     try:
-        signals.extend(get_regulatory_alert_store().get_recent(datetime.now() - timedelta(days=60), limit=100))
+        signals.extend(
+            get_regulatory_alert_store().get_recent(datetime.now() - timedelta(days=60), limit=100)
+        )
     except Exception:
         pass
     return signals
@@ -43,13 +47,22 @@ async def list_assumptions(user: dict = Depends(get_current_user)):
     assumptions = store.list_active(limit=100)
     for assumption in assumptions:
         for evidence in matcher.evaluate(assumption, signals)[:3]:
-            if not any(existing.get("source_ref") == evidence["source_ref"] for existing in assumption.get("evidence") or []):
+            if not any(
+                existing.get("source_ref") == evidence["source_ref"]
+                for existing in assumption.get("evidence") or []
+            ):
                 store.append_evidence(assumption["id"], evidence)
         refreshed = store.get(assumption["id"])
         if refreshed:
-            if any(item.get("evidence_state") == "confirming" for item in refreshed.get("evidence") or []):
+            if any(
+                item.get("evidence_state") == "confirming"
+                for item in refreshed.get("evidence") or []
+            ):
                 store.update_status(assumption["id"], "confirmed")
-            elif any(item.get("evidence_state") == "invalidating" for item in refreshed.get("evidence") or []):
+            elif any(
+                item.get("evidence_state") == "invalidating"
+                for item in refreshed.get("evidence") or []
+            ):
                 store.update_status(assumption["id"], "invalidated")
     return [AssumptionResponse(**item) for item in store.list_active(limit=100)]
 
@@ -65,7 +78,9 @@ async def create_assumption(body: AssumptionCreate, user: dict = Depends(get_cur
 
 
 @router.patch("/{assumption_id}", response_model=AssumptionResponse)
-async def update_assumption(assumption_id: str, body: AssumptionUpdate, user: dict = Depends(get_current_user)):
+async def update_assumption(
+    assumption_id: str, body: AssumptionUpdate, user: dict = Depends(get_current_user)
+):
     store = get_assumption_store(user["id"])
     assumption = store.get(assumption_id)
     if not assumption:

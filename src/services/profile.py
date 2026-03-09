@@ -31,8 +31,7 @@ def serialize_profile(profile) -> dict[str, Any]:
     data = profile.model_dump()
     data["career_stage"] = str(data["career_stage"])
     data["skills"] = [
-        {"name": skill["name"], "proficiency": skill["proficiency"]}
-        for skill in data["skills"]
+        {"name": skill["name"], "proficiency": skill["proficiency"]} for skill in data["skills"]
     ]
     data["summary"] = profile.summary()
     data["is_stale"] = profile.is_stale()

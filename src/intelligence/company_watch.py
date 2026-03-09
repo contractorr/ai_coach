@@ -81,9 +81,12 @@ class CompanyMovementStore:
                     title = movement["title"]
                     summary = movement["summary"]
                     movement_type = movement.get("movement_type") or "product"
-                    dedup_hash = movement.get("dedup_hash") or hashlib.sha256(
-                        f"{company_key}|{movement_type}|{title}|{movement.get('source_url','')}".encode()
-                    ).hexdigest()[:32]
+                    dedup_hash = (
+                        movement.get("dedup_hash")
+                        or hashlib.sha256(
+                            f"{company_key}|{movement_type}|{title}|{movement.get('source_url', '')}".encode()
+                        ).hexdigest()[:32]
+                    )
                     conn.execute(
                         """
                         INSERT OR IGNORE INTO company_movements (
@@ -140,4 +143,11 @@ class CompanyMovementCollector:
         return []
 
     def rank(self, events: list[dict]) -> list[dict]:
-        return sorted(events, key=lambda item: (float(item.get("significance") or 0.0), item.get("observed_at") or ""), reverse=True)
+        return sorted(
+            events,
+            key=lambda item: (
+                float(item.get("significance") or 0.0),
+                item.get("observed_at") or "",
+            ),
+            reverse=True,
+        )

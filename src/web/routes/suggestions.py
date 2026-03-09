@@ -82,7 +82,9 @@ async def get_suggestions(
         escalation_rows = engine.refresh(
             {
                 "threads": thread_rows,
-                "recent_intel": get_intel_storage().get_recent(days=7, limit=40, include_duplicates=True),
+                "recent_intel": get_intel_storage().get_recent(
+                    days=7, limit=40, include_duplicates=True
+                ),
                 "watchlist": watchlist_items,
                 "goals": data.get("all_goals") or [],
                 "dossiers": [],

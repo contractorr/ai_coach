@@ -111,7 +111,10 @@ class WatchlistStore:
 
         replaced = False
         for index, existing in enumerate(items):
-            if existing.get("id") == normalized["id"] or _normalize_key(existing.get("label", "")) == normalized_label:
+            if (
+                existing.get("id") == normalized["id"]
+                or _normalize_key(existing.get("label", "")) == normalized_label
+            ):
                 normalized["id"] = existing.get("id") or normalized["id"]
                 normalized["created_at"] = existing.get("created_at") or normalized["created_at"]
                 items[index] = normalized
@@ -236,7 +239,9 @@ def _term_matches(text: str, term: str) -> bool:
 
 
 def _candidate_terms(item: dict) -> list[str]:
-    return _as_list([item.get("label", ""), *_as_list(item.get("aliases")), *_as_list(item.get("tags"))])
+    return _as_list(
+        [item.get("label", ""), *_as_list(item.get("aliases")), *_as_list(item.get("tags"))]
+    )
 
 
 def annotate_items(items: list[dict], watchlist_items: list[dict]) -> list[dict]:
@@ -252,7 +257,9 @@ def annotate_items(items: list[dict], watchlist_items: list[dict]) -> list[dict]
             if not matched_terms:
                 continue
             score = _priority_value(watch.get("priority")) + min(1.5, len(matched_terms) * 0.4)
-            preferred_sources = {value.lower() for value in _as_list(watch.get("source_preferences"))}
+            preferred_sources = {
+                value.lower() for value in _as_list(watch.get("source_preferences"))
+            }
             if preferred_sources and source_key in preferred_sources:
                 score += 0.35
             matches.append(
@@ -274,9 +281,10 @@ def annotate_items(items: list[dict], watchlist_items: list[dict]) -> list[dict]
             if top.get("why"):
                 item["why_this_matters"] = top["why"]
             else:
-                item["why_this_matters"] = (
-                    f"Matches your watchlist for {top['label']}"
-                    + (f" via {', '.join(top['matched_terms'][:2])}" if top.get("matched_terms") else "")
+                item["why_this_matters"] = f"Matches your watchlist for {top['label']}" + (
+                    f" via {', '.join(top['matched_terms'][:2])}"
+                    if top.get("matched_terms")
+                    else ""
                 )
         else:
             item.pop("watchlist_matches", None)
@@ -319,7 +327,9 @@ def find_evidence_for_text(text: str, annotated_items: list[dict], limit: int = 
         item_text = " ".join(
             [item.get("title", ""), item.get("summary", ""), item.get("why_this_matters", "")]
         ).lower()
-        if haystack and not any(_term_matches(haystack + " " + item_text, match.get("label", "")) for match in matches):
+        if haystack and not any(
+            _term_matches(haystack + " " + item_text, match.get("label", "")) for match in matches
+        ):
             continue
         top = matches[0]
         line = f"{top.get('label', 'Watchlist')}: {item.get('title', 'Untitled')}"

@@ -51,14 +51,18 @@ def update_action_item(storage, rec_id: str, **kwargs) -> dict[str, Any]:
     }
 
 
-def list_action_items(storage, *, status: str | None = None, goal_path: str | None = None, limit: int = 20) -> dict[str, Any]:
+def list_action_items(
+    storage, *, status: str | None = None, goal_path: str | None = None, limit: int = 20
+) -> dict[str, Any]:
     """List tracked recommendation action items as serialized DTOs."""
     actions = storage.list_action_items(status=status, goal_path=goal_path, limit=limit)
     serialized = [serialize_action_record(action) for action in actions]
     return {"actions": serialized, "count": len(serialized)}
 
 
-def build_weekly_plan(storage, *, capacity_points: int = 6, goal_path: str | None = None) -> dict[str, Any]:
+def build_weekly_plan(
+    storage, *, capacity_points: int = 6, goal_path: str | None = None
+) -> dict[str, Any]:
     """Build a weekly plan and serialize the selected action items."""
     plan = storage.build_weekly_plan(capacity_points=capacity_points, goal_path=goal_path)
     capacity_points = plan["capacity_points"]

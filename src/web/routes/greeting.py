@@ -110,8 +110,12 @@ async def get_greeting(user: dict = Depends(get_current_user)):
         return_brief = None
 
     if cached_text:
-        return GreetingResponse(text=cached_text, cached=True, stale=False, return_brief=return_brief)
+        return GreetingResponse(
+            text=cached_text, cached=True, stale=False, return_brief=return_brief
+        )
 
     # No cache — return fallback and generate in background
     _schedule_greeting_refresh(user["id"])
-    return GreetingResponse(text=STATIC_FALLBACK, cached=False, stale=True, return_brief=return_brief)
+    return GreetingResponse(
+        text=STATIC_FALLBACK, cached=False, stale=True, return_brief=return_brief
+    )
