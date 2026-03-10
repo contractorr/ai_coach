@@ -63,6 +63,18 @@ class TestAddEntry:
         assert len(entries) == 1
         assert entries[0].similarity == 0.90
 
+    @pytest.mark.asyncio
+    async def test_strength_increases_when_entries_join(self, store):
+        t = await store.create_thread("topic")
+        await store.add_entry(t.id, "entry1", 0.84, datetime(2026, 1, 5))
+        after_one = await store.get_thread(t.id)
+        await store.add_entry(t.id, "entry2", 0.91, datetime(2026, 1, 12))
+        after_two = await store.get_thread(t.id)
+
+        assert after_one is not None
+        assert after_two is not None
+        assert after_two.strength > after_one.strength
+
 
 class TestGetThreadsForEntry:
     @pytest.mark.asyncio

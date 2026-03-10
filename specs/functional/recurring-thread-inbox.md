@@ -17,6 +17,8 @@ Recurring threads now live in Radar so active monitoring and triage stay in one 
 - Each thread shows label, activity timing, recent snippets, and inbox state.
 - Inline actions allow goal creation, research, dossier creation, or dismissal.
 - Thread review is part of monitoring, not a standalone workspace.
+- Each thread also carries an internal strength score that rises with repeated high-similarity recurrence and falls with inactivity or divergence.
+- Thread strength is the primary ranking signal for advisor recurring-thought context, with recent activity used only as a secondary tie-breaker.
 
 ## User Flows
 
