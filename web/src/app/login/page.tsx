@@ -38,7 +38,7 @@ export default function LoginPage() {
           <CardTitle className="text-2xl text-primary">StewardMe</CardTitle>
           <CardDescription className="text-balance">
             AI steward that scans the world, learns from your journal, and
-            tells you what matters next. Open-source and self-hosted.
+            guides you through what&apos;s next. Open-source and self-hosted.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">

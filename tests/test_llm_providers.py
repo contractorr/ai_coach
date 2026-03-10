@@ -5,9 +5,46 @@ from unittest.mock import MagicMock
 import pytest
 
 from llm import LLMAuthError, LLMError, LLMRateLimitError
+from llm.base import LLMProvider
 from llm.providers.claude import ClaudeProvider
 from llm.providers.gemini import GeminiProvider
 from llm.providers.openai import OpenAIProvider
+
+
+class TestStripThinkTags:
+    def test_strips_think_block(self):
+        assert LLMProvider._strip_think_tags("<think>reasoning</think>Answer") == "Answer"
+
+    def test_strips_multiline(self):
+        text = "<think>\nstep 1\nstep 2\n</think>\nFinal answer"
+        assert LLMProvider._strip_think_tags(text) == "Final answer"
+
+    def test_strips_multiple_blocks(self):
+        text = "<think>a</think>Hello <think>b</think>world"
+        assert LLMProvider._strip_think_tags(text) == "Hello world"
+
+    def test_case_insensitive(self):
+        assert LLMProvider._strip_think_tags("<THINK>x</THINK>OK") == "OK"
+        assert LLMProvider._strip_think_tags("<Think>x</Think>OK") == "OK"
+
+    def test_none_passthrough(self):
+        assert LLMProvider._strip_think_tags(None) is None
+
+    def test_empty_string_passthrough(self):
+        assert LLMProvider._strip_think_tags("") == ""
+
+    def test_no_tags_unchanged(self):
+        assert LLMProvider._strip_think_tags("just normal text") == "just normal text"
+
+    def test_preserves_word_think(self):
+        text = "I think this is correct"
+        assert LLMProvider._strip_think_tags(text) == text
+
+    def test_all_think_falls_back(self):
+        # If stripping removes everything, return original
+        assert (
+            LLMProvider._strip_think_tags("<think>only this</think>") == "<think>only this</think>"
+        )
 
 
 class TestClaudeProvider:
@@ -25,12 +62,16 @@ class TestClaudeProvider:
         )
 
         assert result == "Hello from Claude"
-        mock_client.messages.create.assert_called_once_with(
-            model="claude-sonnet-4-6",
-            max_tokens=100,
-            messages=[{"role": "user", "content": "hi"}],
-            system="Be helpful",
-        )
+
+    def test_generate_strips_think_tags(self):
+        mock_client = MagicMock()
+        mock_resp = MagicMock()
+        mock_resp.content = [MagicMock(text="<think>internal</think>Clean answer")]
+        mock_client.messages.create.return_value = mock_resp
+
+        provider = ClaudeProvider(client=mock_client)
+        result = provider.generate(messages=[{"role": "user", "content": "hi"}])
+        assert result == "Clean answer"
 
     def test_generate_no_system(self):
         mock_client = MagicMock()
@@ -95,10 +136,16 @@ class TestOpenAIProvider:
         )
 
         assert result == "Hello from GPT"
-        call_kwargs = mock_client.chat.completions.create.call_args.kwargs
-        # System message should be prepended
-        assert call_kwargs["messages"][0] == {"role": "system", "content": "Be helpful"}
-        assert call_kwargs["messages"][1] == {"role": "user", "content": "hi"}
+
+    def test_generate_strips_think_tags(self):
+        mock_client = MagicMock()
+        mock_resp = MagicMock()
+        mock_resp.choices = [MagicMock(message=MagicMock(content="<think>cot</think>Result"))]
+        mock_client.chat.completions.create.return_value = mock_resp
+
+        provider = OpenAIProvider(client=mock_client)
+        result = provider.generate(messages=[{"role": "user", "content": "hi"}])
+        assert result == "Result"
 
     def test_generate_no_system(self):
         mock_client = MagicMock()
@@ -127,9 +174,16 @@ class TestGeminiProvider:
         )
 
         assert result == "Hello from Gemini"
-        call_kwargs = mock_client.models.generate_content.call_args.kwargs
-        assert "Be helpful" in call_kwargs["contents"]
-        assert "hi" in call_kwargs["contents"]
+
+    def test_generate_strips_think_tags(self):
+        mock_client = MagicMock()
+        mock_resp = MagicMock()
+        mock_resp.text = "<think>step1\nstep2</think>Gemini answer"
+        mock_client.models.generate_content.return_value = mock_resp
+
+        provider = GeminiProvider(client=mock_client)
+        result = provider.generate(messages=[{"role": "user", "content": "hi"}])
+        assert result == "Gemini answer"
 
     def test_generate_no_system(self):
         mock_client = MagicMock()

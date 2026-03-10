@@ -18,12 +18,12 @@ First-time visitors arriving from search, social links, Product Hunt, HN Show po
 
 A new public page at `/` for unauthenticated visitors, separate from the existing `/login` page. Authenticated users hitting `/` still see the dashboard home as today.
 
-The page has five sections in vertical scroll order:
+The page has seven sections in vertical scroll order:
 
 ### 1. Hero
 
 1. Short tagline (7 words max) — the one-line value proposition.
-2. One-sentence expansion beneath it (the current tagline works here: "AI steward that scans the world, learns from your journal, and tells you what matters next").
+2. One-sentence expansion beneath it (the current tagline works here: "AI steward that scans the world, learns from your journal, and guides you through what's next").
 3. Two pills/badges: "Open source" and "Self-hostable" — linking to the GitHub repo.
 4. Primary CTA button: "Get started" → navigates to `/login`.
 5. Secondary CTA: "View on GitHub" → links to the repo.
@@ -39,18 +39,40 @@ The page has five sections in vertical scroll order:
 1. Three-step horizontal sequence (stacks vertical on mobile):
    - **Step 1 — "Sign up"**: "Connect with GitHub or Google. No credit card."
    - **Step 2 — "Tell it what matters"**: "Add topics, goals, or paste your first journal entry."
-   - **Step 3 — "Get briefed"**: "Your steward surfaces what matters and tells you what to do next."
+   - **Step 3 — "Get briefed"**: "Your steward cross-references live intel with your journal and goals — then tells you what to do next and why."
 2. Each step has a number, short title, and one-line description.
 
-### 4. Feature grid
+### 4. Why StewardMe?
+
+1. A comparison table contrasting StewardMe with ChatGPT/Copilot and Notion AI across 6 axes:
+   - Your data stays local
+   - Scans live sources
+   - Learns from your feedback
+   - Self-hosted
+   - Multi-provider LLM
+   - Open source
+2. Competitors show "—", StewardMe shows a checkmark with brief detail text.
+3. Section label above the table: "WHY STEWARDME?"
+4. Table scrolls horizontally on mobile.
+
+### 5. Feature grid
 
 1. Reuse the existing 4-feature grid from `/login` (Intelligence Radar, AI Steward, Goal Tracking, Journal) — same icons, same copy.
 2. Displayed in a 2x2 grid on desktop, single column on mobile.
 
-### 5. Footer CTA + links
+### 6. Built for developers
+
+1. Icon: `Code2` in a primary-colored circle (matching hero icon style).
+2. Heading: "Open source and easy to extend"
+3. Body: "RAG pipeline backed by Python + FastAPI, Next.js frontend, ChromaDB embeddings, SQLite intel storage. Add a scraper in under 50 lines."
+4. Tech stack badge pills: Python, FastAPI, Next.js, TypeScript, ChromaDB, SQLite, Tailwind CSS.
+5. Two outline CTAs: "Good first issues" → GitHub issues filter, "Contributing guide" → CONTRIBUTING.md.
+
+### 7. Footer CTA + links
 
 1. Repeat CTA: "Get started free" → `/login`.
-2. Links: Privacy Policy, Terms of Service, GitHub.
+2. Secondary CTA: "Explore the code" with GitHub icon → links to the repo.
+3. Links: Privacy Policy, Terms of Service, GitHub.
 
 ### Navigation behavior
 
@@ -67,9 +89,12 @@ The page has five sections in vertical scroll order:
 - [ ] "Open source" and "Self-hostable" badges are visible and link to GitHub.
 - [ ] Primary CTA ("Get started") navigates to `/login`.
 - [ ] Source logos section shows at least 5 recognizable data source icons.
-- [ ] "How it works" section displays 3 steps.
+- [ ] "How it works" section displays 3 steps, step 3 mentions cross-referencing journal and goals.
+- [ ] "Why StewardMe?" comparison table renders 6 rows with checkmarks for StewardMe and dashes for competitors.
+- [ ] Comparison table scrolls horizontally on mobile viewports.
 - [ ] Feature grid matches the existing `/login` feature tiles (same icons, same copy).
-- [ ] Footer repeats the CTA and links to Privacy, Terms, and GitHub.
+- [ ] "Built for developers" section shows tech stack pills and two CTAs linking to GitHub issues and CONTRIBUTING.md.
+- [ ] Footer repeats the CTA, includes "Explore the code" secondary CTA, and links to Privacy, Terms, and GitHub.
 - [ ] Page is fully responsive: hero stacks, steps go vertical, features go single-column on mobile.
 - [ ] Page loads without JavaScript for SEO (server-rendered, no `"use client"` for the main content).
 - [ ] OG metadata on `/` is populated for social sharing (title, description, image).

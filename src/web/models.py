@@ -99,6 +99,18 @@ class AdvisorResponse(BaseModel):
     council_partial: bool = False
 
 
+class TraceListItem(BaseModel):
+    session_id: str
+    size_bytes: int
+    created_at: float
+
+
+class TraceDetail(BaseModel):
+    session_id: str
+    entries: list[dict] = Field(default_factory=list)
+    from_line: int = 0
+
+
 class ConversationAttachment(BaseModel):
     library_item_id: str
     file_name: str | None = None

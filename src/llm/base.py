@@ -1,7 +1,10 @@
 """Base LLM provider abstraction."""
 
+import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+
+_THINK_TAG_RE = re.compile(r"<think>[\s\S]*?</think>", re.IGNORECASE)
 
 
 class LLMError(Exception):
@@ -57,6 +60,14 @@ class LLMProvider(ABC):
     """Abstract LLM provider interface."""
 
     provider_name: str = "base"
+
+    @staticmethod
+    def _strip_think_tags(text: str | None) -> str | None:
+        """Strip <think>...</think> tags leaked by some models (DeepSeek, MiniMax, etc.)."""
+        if not text:
+            return text
+        cleaned = _THINK_TAG_RE.sub("", text).strip()
+        return cleaned or text  # fall back to original if stripping empties it
 
     @abstractmethod
     def generate(

@@ -6,7 +6,7 @@
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-green.svg)](LICENSE)
 [![Contributions Welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
-**An open-source AI steward that monitors the world and tells you what to do next.**
+**An open-source AI steward that scans the world, learns from your journal, and guides you through what's next.**
 
 **[Try the live demo at StewardMe.ai](https://stewardme.ai)** — sign in with GitHub or Google.
 

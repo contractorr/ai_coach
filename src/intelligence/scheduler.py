@@ -947,9 +947,7 @@ class IntelScheduler:
                 except (ValueError, KeyError):
                     continue
 
-            engine = AutonomousActionEngine(
-                journal_storage, db_path, self.full_config, embeddings
-            )
+            engine = AutonomousActionEngine(journal_storage, db_path, self.full_config, embeddings)
             results = engine.process_signals(signals)
             logger.info("autonomous_actions_complete", count=len(results))
             return results

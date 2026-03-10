@@ -131,4 +131,6 @@ class ToolRegistry:
     def __iter__(self):
         """Support legacy `(tools, handlers)` unpacking used by older tests/callers."""
         yield self.get_mcp_definitions()
-        yield {name: entry.handler for name, entry in self._tools.items() if self._is_available(entry)}
+        yield {
+            name: entry.handler for name, entry in self._tools.items() if self._is_available(entry)
+        }

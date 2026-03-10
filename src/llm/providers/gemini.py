@@ -70,7 +70,7 @@ class GeminiProvider(LLMProvider):
                 contents=prompt,
                 config=config,
             )
-            return response.text
+            return self._strip_think_tags(response.text)
         except Exception as e:
             _handle_gemini_error(e)
 
@@ -137,7 +137,7 @@ class GeminiProvider(LLMProvider):
                     elif part.text:
                         text_parts.append(part.text)
 
-            content = "\n".join(text_parts) if text_parts else None
+            content = self._strip_think_tags("\n".join(text_parts)) if text_parts else None
             finish = "tool_calls" if tool_calls else "stop"
 
             return GenerateResponse(content=content, tool_calls=tool_calls, finish_reason=finish)

@@ -26,10 +26,14 @@ src/
 ├── research/       # Deep research agent
 ├── llm/            # Provider factory (Claude/OpenAI/Gemini)
 ├── profile/        # User profile
-├── coach_mcp/      # MCP server (22 tools)
+├── memory/         # Persistent user memory (facts, context)
+├── library/        # Content library management
+├── services/       # Shared service layer
+├── coach_mcp/      # MCP server (46 tools across 12 modules)
 ├── web/            # FastAPI backend
 ├── cli/            # Click CLI + config
 web/                # Next.js frontend
+specs/              # Functional + technical specs
 tests/              # Mirrors src/ structure
 ```
 
@@ -37,14 +41,18 @@ tests/              # Mirrors src/ structure
 
 1. Fork the repo
 2. Create a branch: `git checkout -b feat/your-feature`
-3. Make changes
-4. Run checks: `ruff check src tests && ruff format src tests && ANTHROPIC_API_KEY=test-key pytest`
-5. Commit with a descriptive message
-6. Open a PR against `main`
+3. Update or create the **functional spec** in `specs/functional/` (acceptance criteria, edge cases)
+4. Update or create the **technical spec** in `specs/technical/` (component signatures, invariants)
+5. Implement code changes
+6. Run checks: `ruff check src tests && ruff format src tests && ANTHROPIC_API_KEY=test-key pytest`
+7. Commit with a descriptive message
+8. Open a PR against `main`
+
+> **Spec-first rule:** All changes follow functional spec → technical spec → code, in that order. Even small changes need spec updates if they affect behavior.
 
 ## Code style
 
-- **Python:** Ruff for linting and formatting, line length 100
+- **Python:** Ruff for linting and formatting (E501 ignored — no line length cap)
 - **TypeScript:** Next.js defaults, Tailwind CSS for styling
 - **Tests:** pytest with `asyncio_mode = "auto"`. Tests use `ANTHROPIC_API_KEY=test-key`
 - **Types:** mypy is advisory (not enforced in CI), but appreciated

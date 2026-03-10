@@ -71,7 +71,7 @@ class TestAgenticOrchestrator:
             finish_reason="stop",
         )
 
-        orch = AgenticOrchestrator(mock_llm, registry, "system prompt")
+        orch = AgenticOrchestrator(mock_llm, registry, "system prompt", min_tool_calls=0)
         result = orch.run("What should I do?")
 
         assert result == "Here's my advice."
@@ -95,7 +95,7 @@ class TestAgenticOrchestrator:
             ),
         ]
 
-        orch = AgenticOrchestrator(mock_llm, registry, "system prompt")
+        orch = AgenticOrchestrator(mock_llm, registry, "system prompt", min_tool_calls=0)
         result = orch.run("What are my goals?")
 
         assert result == "You have no goals yet."
@@ -125,7 +125,7 @@ class TestAgenticOrchestrator:
             GenerateResponse(content="Combined analysis.", finish_reason="stop"),
         ]
 
-        orch = AgenticOrchestrator(mock_llm, registry, "system prompt")
+        orch = AgenticOrchestrator(mock_llm, registry, "system prompt", min_tool_calls=0)
         result = orch.run("How do my goals relate to recent news?")
 
         assert result == "Combined analysis."
@@ -155,7 +155,7 @@ class TestAgenticOrchestrator:
             GenerateResponse(content="Final answer.", finish_reason="stop"),
         ]
 
-        orch = AgenticOrchestrator(mock_llm, registry, "system prompt")
+        orch = AgenticOrchestrator(mock_llm, registry, "system prompt", min_tool_calls=0)
         result = orch.run("Analyze everything")
 
         assert result == "Final answer."
@@ -205,7 +205,7 @@ class TestAgenticOrchestrator:
             GenerateResponse(content="That entry doesn't exist.", finish_reason="stop"),
         ]
 
-        orch = AgenticOrchestrator(mock_llm, registry, "system prompt")
+        orch = AgenticOrchestrator(mock_llm, registry, "system prompt", min_tool_calls=0)
         result = orch.run("Read my entry")
 
         assert result == "That entry doesn't exist."
@@ -226,7 +226,7 @@ class TestAgenticOrchestrator:
             GenerateResponse(content="Sorry, that tool doesn't exist.", finish_reason="stop"),
         ]
 
-        orch = AgenticOrchestrator(mock_llm, registry, "system prompt")
+        orch = AgenticOrchestrator(mock_llm, registry, "system prompt", min_tool_calls=0)
         result = orch.run("Do something weird")
 
         assert result == "Sorry, that tool doesn't exist."
@@ -238,7 +238,7 @@ class TestAgenticOrchestrator:
             content="ok", finish_reason="stop"
         )
 
-        orch = AgenticOrchestrator(mock_llm, registry, "You are a coach.")
+        orch = AgenticOrchestrator(mock_llm, registry, "You are a coach.", min_tool_calls=0)
         orch.run("hi")
 
         call_kwargs = mock_llm.generate_with_tools.call_args.kwargs
@@ -257,7 +257,7 @@ class TestAgenticOrchestrator:
             {"role": "assistant", "content": "You have 3 goals."},
         ]
 
-        orch = AgenticOrchestrator(mock_llm, registry, "system prompt")
+        orch = AgenticOrchestrator(mock_llm, registry, "system prompt", min_tool_calls=0)
         result = orch.run("Tell me more about goal 1", conversation_history=history)
 
         assert result == "Based on our earlier discussion..."
@@ -275,7 +275,7 @@ class TestAgenticOrchestrator:
             finish_reason="stop",
         )
 
-        orch = AgenticOrchestrator(mock_llm, registry, "system")
+        orch = AgenticOrchestrator(mock_llm, registry, "system", min_tool_calls=0)
         orch.run("hi", conversation_history=None)
 
         call_messages = mock_llm.generate_with_tools.call_args.kwargs["messages"]
@@ -294,7 +294,7 @@ class TestAgenticOrchestrator:
             GenerateResponse(content="Here are your goals: none.", finish_reason="stop"),
         ]
 
-        orch = AgenticOrchestrator(mock_llm, registry, "system")
+        orch = AgenticOrchestrator(mock_llm, registry, "system", min_tool_calls=0)
         orch.run("goals?")
 
         second_call_messages = mock_llm.generate_with_tools.call_args_list[1].kwargs["messages"]
@@ -310,10 +310,125 @@ class TestAgenticOrchestrator:
             usage={"input_tokens": 321, "output_tokens": 12},
         )
 
-        orch = AgenticOrchestrator(mock_llm, registry, "system")
+        orch = AgenticOrchestrator(mock_llm, registry, "system", min_tool_calls=0)
         orch.run("hi")
 
         assert orch._total_input_tokens == 321
+
+    def test_nudge_when_no_tools_used(self, registry):
+        """LLM answers immediately → nudge injected → LLM calls tools then answers."""
+        mock_llm = MagicMock()
+        mock_llm.generate_with_tools.side_effect = [
+            # First: premature text answer with no tools
+            GenerateResponse(content="Quick answer.", finish_reason="stop"),
+            # Second: after nudge, LLM calls tools
+            GenerateResponse(
+                content=None,
+                tool_calls=[ToolCall(id="t1", name="goals_list", arguments={})],
+                finish_reason="tool_calls",
+            ),
+            # Third: after tool results, LLM calls another tool
+            GenerateResponse(
+                content=None,
+                tool_calls=[ToolCall(id="t2", name="intel_get_recent", arguments={"days": 7})],
+                finish_reason="tool_calls",
+            ),
+            # Fourth: final answer
+            GenerateResponse(content="Thorough answer.", finish_reason="stop"),
+        ]
+
+        orch = AgenticOrchestrator(mock_llm, registry, "system", min_tool_calls=2)
+        result = orch.run("Analyze my situation")
+
+        assert result == "Thorough answer."
+        assert mock_llm.generate_with_tools.call_count == 4
+        # Check nudge message was injected
+        second_call_msgs = mock_llm.generate_with_tools.call_args_list[1].kwargs["messages"]
+        nudge_msg = [
+            m
+            for m in second_call_msgs
+            if m["role"] == "user" and "Unused tools" in m.get("content", "")
+        ]
+        assert len(nudge_msg) == 1
+
+    def test_nudge_only_once(self, registry):
+        """Nudge fires once; second premature stop is accepted."""
+        mock_llm = MagicMock()
+        mock_llm.generate_with_tools.side_effect = [
+            # First: premature stop → triggers nudge
+            GenerateResponse(content="Quick.", finish_reason="stop"),
+            # Second: still no tools → accepted (already nudged)
+            GenerateResponse(content="Final.", finish_reason="stop"),
+        ]
+
+        orch = AgenticOrchestrator(mock_llm, registry, "system", min_tool_calls=2)
+        result = orch.run("question")
+
+        assert result == "Final."
+        assert mock_llm.generate_with_tools.call_count == 2
+
+    def test_no_nudge_when_enough_tools(self, registry):
+        """No nudge when min_tool_calls satisfied."""
+        mock_llm = MagicMock()
+        mock_llm.generate_with_tools.side_effect = [
+            GenerateResponse(
+                content=None,
+                tool_calls=[
+                    ToolCall(id="t1", name="goals_list", arguments={}),
+                    ToolCall(id="t2", name="intel_search", arguments={"query": "ai"}),
+                ],
+                finish_reason="tool_calls",
+            ),
+            GenerateResponse(content="Good answer.", finish_reason="stop"),
+        ]
+
+        orch = AgenticOrchestrator(mock_llm, registry, "system", min_tool_calls=2)
+        result = orch.run("question")
+
+        assert result == "Good answer."
+        assert mock_llm.generate_with_tools.call_count == 2
+
+    def test_no_nudge_when_disabled(self, registry):
+        """min_tool_calls=0 disables nudging."""
+        mock_llm = MagicMock()
+        mock_llm.generate_with_tools.return_value = GenerateResponse(
+            content="Instant.", finish_reason="stop"
+        )
+
+        orch = AgenticOrchestrator(mock_llm, registry, "system", min_tool_calls=0)
+        result = orch.run("hi")
+
+        assert result == "Instant."
+        assert mock_llm.generate_with_tools.call_count == 1
+
+    def test_nudge_includes_used_tool_names(self, registry):
+        """Nudge message lists the tools already used."""
+        mock_llm = MagicMock()
+        mock_llm.generate_with_tools.side_effect = [
+            # One tool call
+            GenerateResponse(
+                content=None,
+                tool_calls=[ToolCall(id="t1", name="goals_list", arguments={})],
+                finish_reason="tool_calls",
+            ),
+            # Premature stop with only 1 tool → nudge
+            GenerateResponse(content="Shallow.", finish_reason="stop"),
+            # After nudge, final answer
+            GenerateResponse(content="Deep.", finish_reason="stop"),
+        ]
+
+        orch = AgenticOrchestrator(mock_llm, registry, "system", min_tool_calls=2)
+        result = orch.run("question")
+
+        assert result == "Deep."
+        # Check the nudge message mentions goals_list
+        third_call_msgs = mock_llm.generate_with_tools.call_args_list[2].kwargs["messages"]
+        nudge_msgs = [
+            m
+            for m in third_call_msgs
+            if m["role"] == "user" and "goals_list" in m.get("content", "")
+        ]
+        assert len(nudge_msgs) == 1
 
 
 class TestAgenticEngineIntegration:

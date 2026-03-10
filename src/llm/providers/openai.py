@@ -78,7 +78,7 @@ class OpenAIProvider(LLMProvider):
                 max_tokens=max_tokens,
                 messages=full_messages,
             )
-            return response.choices[0].message.content
+            return self._strip_think_tags(response.choices[0].message.content)
         except Exception as e:
             _handle_openai_error(e)
 
@@ -173,7 +173,7 @@ class OpenAIProvider(LLMProvider):
                         )
                     )
 
-            content = message.content
+            content = self._strip_think_tags(message.content)
 
             if choice.finish_reason == "tool_calls":
                 finish = "tool_calls"

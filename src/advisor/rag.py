@@ -246,7 +246,9 @@ class RAGRetriever:
             # Always include high-confidence facts
             all_active = self._fact_store.get_all_active()
             high_conf_facts = [
-                f for f in all_active if self._effective_fact_confidence(f, thread_boosts) >= high_conf
+                f
+                for f in all_active
+                if self._effective_fact_confidence(f, thread_boosts) >= high_conf
             ]
 
             # Merge, dedup by ID, cap at max
@@ -272,7 +274,9 @@ class RAGRetriever:
             logger.debug("memory_context_failed", error=str(e))
             return ""
 
-    def _format_memory_block(self, facts: list, thread_boosts: dict[str, float] | None = None) -> str:
+    def _format_memory_block(
+        self, facts: list, thread_boosts: dict[str, float] | None = None
+    ) -> str:
         """Format facts into grouped system prompt block."""
         from memory.models import FactCategory
 
@@ -671,7 +675,7 @@ class RAGRetriever:
 
     def _resolve_journal_weight(
         self,
-        query: str,
+        query: str = "",
         journal_weight: Optional[float] = None,
     ) -> float:
         if journal_weight is not None:

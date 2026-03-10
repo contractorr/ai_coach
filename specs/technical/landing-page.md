@@ -83,7 +83,7 @@ No props. Auth state is read server-side. Renders static HTML for unauthenticate
 
 #### Behavior
 
-Pure presentational component. No `"use client"` — fully server-rendered for SEO. Composed of five sections:
+Pure presentational component. No `"use client"` — fully server-rendered for SEO. Composed of seven sections:
 
 **Section 1: Hero**
 ```tsx
@@ -93,7 +93,7 @@ Pure presentational component. No `"use client"` — fully server-rendered for S
   </h1>
   <p className="mt-4 max-w-md text-lg text-muted-foreground">
     AI steward that scans the world, learns from your journal,
-    and tells you what matters next.
+    and guides you through what's next.
   </p>
   <div className="mt-4 flex gap-2">
     <Badge variant="secondary">Open source</Badge>
@@ -132,13 +132,32 @@ Icons: use Lucide icons where available (Github for GitHub, Newspaper for HN, Bo
 const STEPS = [
   { number: "1", title: "Sign up", description: "Connect with GitHub or Google. No credit card." },
   { number: "2", title: "Tell it what matters", description: "Add topics, goals, or paste your first journal entry." },
-  { number: "3", title: "Get briefed", description: "Your steward surfaces what matters and tells you what to do next." },
+  { number: "3", title: "Get briefed", description: "Your steward cross-references live intel with your journal and goals — then tells you what to do next and why." },
 ];
 ```
 
 Layout: `flex flex-col sm:flex-row` for responsive stacking. Each step is a card-like block with the number in a rounded circle, title bold, description muted.
 
-**Section 4: Feature grid**
+**Section 4: Why StewardMe? (comparison table)**
+
+Data-driven comparison table. Renders between "How it works" and Feature grid.
+
+```tsx
+const COMPARISON_ROWS = [
+  { axis: "Your data stays local", detail: "SQLite + markdown files" },
+  { axis: "Scans live sources for you", detail: "10 async scrapers (HN, arXiv, GitHub, Reddit, RSS, ...)" },
+  { axis: "Learns from your feedback", detail: "Per-category scoring adjusts over time" },
+  { axis: "Self-hosted", detail: "Docker one-liner or bare metal" },
+  { axis: "Multi-provider LLM", detail: "Claude, OpenAI, Gemini (auto-detect)" },
+  { axis: "Open source", detail: "AGPL-3.0" },
+];
+```
+
+Layout: `overflow-x-auto rounded-xl border bg-card` wrapper for mobile horizontal scroll. Table uses `<table>` with `min-w-[600px]`. Column headers: (axis) | ChatGPT / Copilot | Notion AI | StewardMe. Competitors show "—" in muted text. StewardMe column shows `<Check />` icon + detail text.
+
+Section label above table: `text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground` — "WHY STEWARDME?"
+
+**Section 5: Feature grid**
 
 Reuses the same `features` array from `/login/page.tsx`. Extract into a shared constant at `web/src/lib/features.ts` to avoid duplication:
 
@@ -154,12 +173,38 @@ export const FEATURES = [
 
 Both `landing.tsx` and `login/page.tsx` import from this shared file.
 
-**Section 5: Footer CTA + links**
+**Section 6: Built for developers**
+
+Contributor-focused section between Feature grid and Footer.
+
+```tsx
+const TECH_STACK = ["Python", "FastAPI", "Next.js", "TypeScript", "ChromaDB", "SQLite", "Tailwind CSS"];
+```
+
+Layout: centered column. `Code2` icon in `h-14 w-14 rounded-full bg-primary/10` circle (same style as hero Brain icon). Heading: "Open source and easy to extend". Body paragraph: "RAG pipeline backed by Python + FastAPI, Next.js frontend, ChromaDB embeddings, SQLite intel storage. Add a scraper in under 50 lines."
+
+Tech pills: `Badge variant="secondary"` for each item, flex-wrap on mobile.
+
+Two outline CTAs:
+- "Good first issues" → `{GITHUB_URL}/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22`
+- "Contributing guide" → `{GITHUB_URL}/blob/main/CONTRIBUTING.md`
+
+New Lucide imports needed: `Check`, `Code2`.
+
+**Section 7: Footer CTA + links**
 ```tsx
 <section className="flex flex-col items-center py-16 px-4">
-  <Button asChild size="lg">
-    <Link href="/login">Get started free</Link>
-  </Button>
+  <div className="flex gap-3">
+    <Button asChild size="lg">
+      <Link href="/login">Get started free</Link>
+    </Button>
+    <Button variant="outline" size="lg" asChild>
+      <a href={GITHUB_URL}>
+        <Github className="mr-2 h-4 w-4" />
+        Explore the code
+      </a>
+    </Button>
+  </div>
   <div className="mt-6 flex gap-3 text-xs text-muted-foreground">
     <Link href="/privacy">Privacy Policy</Link>
     <span>&middot;</span>
@@ -175,7 +220,7 @@ Both `landing.tsx` and `login/page.tsx` import from this shared file.
 | Key | Value | Source |
 |-----|-------|--------|
 | `TAGLINE` | TBD (7 words max) | Hardcoded in component |
-| `GITHUB_URL` | TBD | Hardcoded or env var `NEXT_PUBLIC_GITHUB_URL` |
+| `GITHUB_URL` | `https://github.com/contractorr/stewardme` | Hardcoded constant |
 | `SOURCE_ICONS` | HN, GitHub, arXiv, Reddit, RSS | Hardcoded array |
 
 #### Invariants
@@ -203,10 +248,10 @@ Export page-level metadata for the landing page:
 ```typescript
 export const metadata: Metadata = {
   title: "StewardMe — Know what matters next",
-  description: "Open-source AI steward that scans HN, GitHub, arXiv, Reddit & RSS, learns from your journal, and tells you what matters next.",
+  description: "Open-source AI steward that scans HN, GitHub, arXiv, Reddit & RSS, learns from your journal, and guides you through what's next.",
   openGraph: {
     title: "StewardMe — Know what matters next",
-    description: "Open-source AI steward that scans HN, GitHub, arXiv, Reddit & RSS, learns from your journal, and tells you what matters next.",
+    description: "Open-source AI steward that scans HN, GitHub, arXiv, Reddit & RSS, learns from your journal, and guides you through what's next.",
     url: "https://stewardme.ai",
     siteName: "StewardMe",
     images: [{ url: "/og-image.jpg", width: 1024, height: 1024 }],
@@ -215,7 +260,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "StewardMe — Know what matters next",
-    description: "Open-source AI steward that scans HN, GitHub, arXiv, Reddit & RSS, learns from your journal, and tells you what matters next.",
+    description: "Open-source AI steward that scans HN, GitHub, arXiv, Reddit & RSS, learns from your journal, and guides you through what's next.",
     images: ["/og-image.jpg"],
   },
 };
@@ -296,6 +341,8 @@ export const FEATURES: Feature[] = [
 - All CTA links point to `/login`.
 - Page HTML includes OG meta tags for social sharing.
 - Feature grid content matches `FEATURES` constant.
+- "Why StewardMe?" comparison table renders 6 rows with check icons for StewardMe column.
+- "Built for developers" section renders tech stack pills and two GitHub CTAs.
 - No client-side JavaScript required for initial content render (check with JS disabled).
-- Mobile viewport renders all sections in single-column layout.
+- Mobile viewport renders all sections in single-column layout; comparison table scrolls horizontally.
 - Mock: auth session (authenticated vs unauthenticated).

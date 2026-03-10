@@ -1,29 +1,18 @@
 """Structured logging configuration using structlog."""
 
 import logging
-import re
 import sys
 
 import structlog
 
 from services.redact import RedactingFormatter, redact_sensitive_text
 
-_MASKED_SECRET_RE = re.compile(r"(?:[A-Za-z0-9._-]{2,})\.\.\.(?:[A-Za-z0-9._-]{3,})")
-_MASKED_AUTH_RE = re.compile(
-    r"(\bAuthorization\s*:\s*(?:Bearer|Token|Basic)\s+)(?:[A-Za-z0-9._-]{2,}\.\.\.[A-Za-z0-9._-]{3,})",
-    re.IGNORECASE,
-)
-
 
 def _redact_sensitive(_, __, event_dict: dict) -> dict:
     """Structlog processor to redact API keys/tokens from log output."""
     for key, value in event_dict.items():
         if isinstance(value, str):
-            redacted = redact_sensitive_text(value)
-            if redacted != value:
-                redacted = _MASKED_AUTH_RE.sub(r"\1[REDACTED]", redacted)
-                redacted = _MASKED_SECRET_RE.sub("[REDACTED]", redacted)
-            event_dict[key] = redacted
+            event_dict[key] = redact_sensitive_text(value)
     return event_dict
 
 
