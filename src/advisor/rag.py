@@ -236,6 +236,7 @@ class RAGRetriever:
         try:
             max_facts = self._memory_config.get("max_context_facts", 25)
             high_conf = self._memory_config.get("high_confidence_threshold", 0.9)
+            thread_boosts = self._get_thread_fact_boosts()
 
             # Semantic search for query-relevant facts
             relevant = []
@@ -244,12 +245,21 @@ class RAGRetriever:
 
             # Always include high-confidence facts
             all_active = self._fact_store.get_all_active()
-            high_conf_facts = [f for f in all_active if f.confidence >= high_conf]
+            high_conf_facts = [
+                f
+                for f in all_active
+                if self._effective_fact_confidence(f, thread_boosts) >= high_conf
+            ]
 
             # Merge, dedup by ID, cap at max
             seen = set()
             merged = []
-            for f in high_conf_facts + relevant:
+            ranked_candidates = sorted(
+                high_conf_facts + relevant,
+                key=lambda fact: self._effective_fact_confidence(fact, thread_boosts),
+                reverse=True,
+            )
+            for f in ranked_candidates:
                 if f.id not in seen:
                     seen.add(f.id)
                     merged.append(f)
@@ -259,12 +269,14 @@ class RAGRetriever:
             if not merged:
                 return ""
 
-            return self._format_memory_block(merged)
+            return self._format_memory_block(merged, thread_boosts=thread_boosts)
         except Exception as e:
             logger.debug("memory_context_failed", error=str(e))
             return ""
 
-    def _format_memory_block(self, facts: list) -> str:
+    def _format_memory_block(
+        self, facts: list, thread_boosts: dict[str, float] | None = None
+    ) -> str:
         """Format facts into grouped system prompt block."""
         from memory.models import FactCategory
 
@@ -297,7 +309,11 @@ class RAGRetriever:
                 continue
             lines.append(f"## {section}")
             # Sort by confidence desc within section
-            for f in sorted(grouped[section], key=lambda x: x.confidence, reverse=True):
+            for f in sorted(
+                grouped[section],
+                key=lambda x: self._effective_fact_confidence(x, thread_boosts or {}),
+                reverse=True,
+            ):
                 lines.append(f"- {f.text}")
             lines.append("")
 
@@ -313,11 +329,9 @@ class RAGRetriever:
             return ""
 
         try:
-            import asyncio
             from datetime import datetime, timedelta
 
-            loop = asyncio.get_event_loop()
-            threads = loop.run_until_complete(self._thread_store.get_active_threads(min_entries=2))
+            threads = self._run_async(self._thread_store.get_active_threads(min_entries=2))
 
             if not threads:
                 return ""
@@ -328,7 +342,7 @@ class RAGRetriever:
             # Compute entries_last_30_days for sorting
             scored = []
             for t in threads:
-                entries = loop.run_until_complete(self._thread_store.get_thread_entries(t.id))
+                entries = self._run_async(self._thread_store.get_thread_entries(t.id))
                 recent_count = sum(1 for e in entries if e.entry_date >= thirty_days_ago)
                 first_date = min(e.entry_date for e in entries) if entries else t.created_at
                 last_date = max(e.entry_date for e in entries) if entries else t.updated_at
@@ -338,17 +352,20 @@ class RAGRetriever:
                 scored.append(
                     {
                         "thread": t,
+                        "strength": getattr(t, "strength", 0.0),
                         "recent_count": recent_count,
                         "weeks_span": weeks_span,
                         "days_since_last": days_since_last,
                     }
                 )
 
-            # Sort by recent activity
-            scored.sort(key=lambda x: x["recent_count"], reverse=True)
+            scored.sort(
+                key=lambda x: (x["strength"], x["recent_count"], -x["days_since_last"]),
+                reverse=True,
+            )
             top = scored[:max_threads]
 
-            if not any(s["recent_count"] > 0 for s in top):
+            if not any(s["strength"] > 0.05 for s in top):
                 return ""
 
             lines = ["<recurring_thoughts>", "The user has persistent recurring thoughts:"]
@@ -365,6 +382,32 @@ class RAGRetriever:
         except Exception as e:
             logger.debug("recurring_thoughts_failed", error=str(e))
             return ""
+
+    def _get_thread_fact_boosts(self) -> dict[str, float]:
+        """Map source entry IDs to a small confidence bonus from strong threads."""
+        if not self._thread_store:
+            return {}
+
+        boosts: dict[str, float] = {}
+        try:
+            threads = self._run_async(self._thread_store.get_active_threads(min_entries=2))
+            for thread in threads:
+                strength = float(getattr(thread, "strength", 0.0))
+                if strength <= 0.5:
+                    continue
+                bonus = min(0.1, max(0.0, (strength - 0.5) * 0.2))
+                if bonus <= 0:
+                    continue
+                entries = self._run_async(self._thread_store.get_thread_entries(thread.id))
+                for entry in entries:
+                    boosts[entry.entry_id] = max(boosts.get(entry.entry_id, 0.0), bonus)
+        except Exception as exc:
+            logger.debug("thread_fact_boosts_failed", error=str(exc))
+        return boosts
+
+    @staticmethod
+    def _effective_fact_confidence(fact, thread_boosts: dict[str, float]) -> float:
+        return min(1.0, fact.confidence + thread_boosts.get(fact.source_id, 0.0))
 
     def get_journal_context(
         self,
@@ -514,11 +557,11 @@ class RAGRetriever:
         except sqlite3.OperationalError:
             return "No external intelligence available."
 
-    def compute_dynamic_weight(self, user_id: Optional[str] = None) -> float:
+    def compute_dynamic_weight(self, user_id: Optional[str] = None, query: str = "") -> float:
         """Compute journal_weight from engagement data.
 
-        Formula: base(0.7) + 0.15 * (journal_ratio - 0.5), clamped [0.5, 0.85].
-        Returns default 0.7 when <10 events in last 30 days.
+        Base formula uses journal vs intel engagement, then applies a small
+        query-aligned tilt from recommendation engagement categories.
         """
         uid = user_id or self._user_id
         if not uid or not self._users_db_path:
@@ -558,16 +601,87 @@ class RAGRetriever:
 
             journal_ratio = journal_score / denom
             weight = 0.7 + 0.15 * (journal_ratio - 0.5)
+            weight += self._recommendation_weight_adjustment(uid, query)
             return max(0.5, min(0.85, weight))
         except Exception as e:
             logger.debug("dynamic_weight_fallback", error=str(e))
             return self.journal_weight
 
-    def _resolve_journal_weight(self, journal_weight: Optional[float] = None) -> float:
+    def _recommendation_weight_adjustment(self, user_id: str, query: str) -> float:
+        """Tilt journal vs intel weight when the query aligns with engaged categories."""
+        if not query.strip():
+            return 0.0
+
+        try:
+            from advisor.recommendations import CATEGORY_QUERIES
+        except Exception:
+            return 0.0
+
+        query_terms = {token for token in query.lower().split() if token}
+        if not query_terms:
+            return 0.0
+
+        category_direction = {
+            "learning": 0.05,
+            "career": 0.04,
+            "entrepreneurial": 0.03,
+            "projects": 0.03,
+            "investment": -0.05,
+        }
+
+        try:
+            with wal_connect(self._users_db_path) as conn:
+                conn.row_factory = sqlite3.Row
+                rows = conn.execute(
+                    """
+                    SELECT json_extract(metadata_json, '$.category') as category,
+                           event_type,
+                           COUNT(*) as cnt
+                    FROM engagement_events
+                    WHERE user_id = ?
+                      AND target_type = 'recommendation'
+                      AND event_type IN ('feedback_useful', 'feedback_irrelevant')
+                      AND created_at >= datetime('now', '-30 days')
+                    GROUP BY category, event_type
+                    """,
+                    (user_id,),
+                ).fetchall()
+        except Exception as exc:
+            logger.debug("recommendation_weight_adjustment_failed", error=str(exc))
+            return 0.0
+
+        counts: dict[str, dict[str, int]] = {}
+        for row in rows:
+            category = row["category"] or "unknown"
+            counts.setdefault(category, {"feedback_useful": 0, "feedback_irrelevant": 0})
+            counts[category][row["event_type"]] += row["cnt"]
+
+        adjustment = 0.0
+        for category, query_text in CATEGORY_QUERIES.items():
+            if category not in counts or category not in category_direction:
+                continue
+            category_terms = {token for token in query_text.lower().split() if token}
+            if not (query_terms & category_terms):
+                continue
+            useful = counts[category]["feedback_useful"]
+            irrelevant = counts[category]["feedback_irrelevant"]
+            total = useful + irrelevant
+            if total < 4:
+                continue
+            sentiment = (useful - irrelevant) / total
+            adjustment += category_direction[category] * sentiment
+
+        return max(-0.05, min(0.05, adjustment))
+
+    def _resolve_journal_weight(
+        self,
+        query: str = "",
+        journal_weight: Optional[float] = None,
+    ) -> float:
         if journal_weight is not None:
             return journal_weight
         if self._users_db_path and self._user_id:
-            return self.compute_dynamic_weight()
+            return self.compute_dynamic_weight(query=query)
         return self.journal_weight
 
     def _get_text_context_for_budget(
@@ -576,7 +690,7 @@ class RAGRetriever:
         total_chars: int,
         journal_weight: Optional[float] = None,
     ) -> tuple[str, str]:
-        weight = self._resolve_journal_weight(journal_weight)
+        weight = self._resolve_journal_weight(query, journal_weight)
         journal_chars = int(total_chars * weight)
         intel_chars = total_chars - journal_chars
         journal_ctx = self.get_journal_context(query, max_chars=journal_chars)
@@ -597,7 +711,7 @@ class RAGRetriever:
         Returns:
             Tuple of (journal_context, intel_context)
         """
-        weight = self._resolve_journal_weight(journal_weight)
+        weight = self._resolve_journal_weight(query, journal_weight)
         total_chars = self.max_context_chars
 
         if self.cache:
@@ -692,7 +806,7 @@ class RAGRetriever:
         if not journal_parts and not intel_parts:
             return self._get_text_context_for_budget(query, total_chars)
 
-        weight = self._resolve_journal_weight()
+        weight = self._resolve_journal_weight(query)
         journal_budget = int(total_chars * weight)
         intel_budget = total_chars - journal_budget
         return (

@@ -72,6 +72,11 @@ class QueryAnalysis:
 - If `entity_store` is None, entity modes are never selected.
 - If `llm` is None, only heuristic classification is used.
 
+Additional retrieval notes:
+
+- `compute_dynamic_weight()` may apply a small query-aligned adjustment from recommendation engagement categories after the base journal-vs-intel ratio is computed.
+- Memory selection may apply a temporary ranking bonus to facts whose source entries belong to strong recurring threads.
+
 #### Error Handling
 
 | Trigger | Action |

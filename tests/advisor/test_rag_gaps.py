@@ -140,6 +140,7 @@ class TestGetRecurringThoughtsContext:
             entry_count: int = 5
             created_at: datetime = now - timedelta(days=30)
             updated_at: datetime = now
+            strength: float = 0.8
 
         @dataclass
         class FakeEntry:
@@ -151,14 +152,10 @@ class TestGetRecurringThoughtsContext:
 
         rag = _make_rag(thread_store=ts)
 
-        import asyncio
-
-        with patch.object(asyncio, "get_event_loop") as mock_get_loop:
-            loop = MagicMock()
-            mock_get_loop.return_value = loop
-            loop.run_until_complete.side_effect = [
-                [fake_thread],  # get_active_threads
-                fake_entries,  # get_thread_entries for t1
+        with patch.object(rag, "_run_async") as mock_run_async:
+            mock_run_async.side_effect = [
+                [fake_thread],
+                fake_entries,
             ]
             result = rag.get_recurring_thoughts_context()
 
@@ -176,6 +173,7 @@ class TestGetRecurringThoughtsContext:
             entry_count: int = 2
             created_at: datetime = now - timedelta(days=90)
             updated_at: datetime = now - timedelta(days=60)
+            strength: float = 0.01
 
         @dataclass
         class FakeEntry:
@@ -184,18 +182,66 @@ class TestGetRecurringThoughtsContext:
         ts = MagicMock()
         rag = _make_rag(thread_store=ts)
 
-        import asyncio
-
-        with patch.object(asyncio, "get_event_loop") as mock_get_loop:
-            loop = MagicMock()
-            mock_get_loop.return_value = loop
-            loop.run_until_complete.side_effect = [
+        with patch.object(rag, "_run_async") as mock_run_async:
+            mock_run_async.side_effect = [
                 [FakeThread()],
                 [FakeEntry()],
             ]
             result = rag.get_recurring_thoughts_context()
 
         assert result == ""
+
+    def test_threads_rank_by_strength_over_recent_count(self):
+        now = datetime.now()
+
+        @dataclass
+        class FakeThread:
+            id: str
+            label: str
+            entry_count: int
+            created_at: datetime
+            updated_at: datetime
+            strength: float
+
+        @dataclass
+        class FakeEntry:
+            entry_date: datetime
+
+        strong = FakeThread(
+            id="strong",
+            label="deep focus",
+            entry_count=3,
+            created_at=now - timedelta(days=21),
+            updated_at=now - timedelta(days=1),
+            strength=0.9,
+        )
+        noisy = FakeThread(
+            id="noisy",
+            label="busywork",
+            entry_count=6,
+            created_at=now - timedelta(days=21),
+            updated_at=now - timedelta(days=1),
+            strength=0.3,
+        )
+
+        ts = MagicMock()
+        rag = _make_rag(thread_store=ts)
+
+        import asyncio
+
+        with patch.object(asyncio, "get_running_loop", side_effect=RuntimeError):
+            with patch.object(asyncio, "run") as mock_run:
+                mock_run.side_effect = [
+                    [noisy, strong],
+                    [FakeEntry(now - timedelta(days=1)) for _ in range(5)],
+                    [FakeEntry(now - timedelta(days=2)) for _ in range(2)],
+                ]
+                result = rag.get_recurring_thoughts_context()
+
+        lines = result.splitlines()
+        assert any("deep focus" in line for line in lines)
+        ranked_lines = [line for line in lines if line[:2] in {"1.", "2."}]
+        assert "deep focus" in ranked_lines[0]
 
 
 # ── build_context_for_ask flags ──
