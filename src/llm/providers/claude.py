@@ -95,8 +95,8 @@ class ClaudeProvider(LLMProvider):
             # With thinking enabled, extract the text block (skip thinking blocks)
             for block in response.content:
                 if hasattr(block, "type") and block.type == "text":
-                    return block.text
-            return response.content[0].text
+                    return self._strip_think_tags(block.text)
+            return self._strip_think_tags(response.content[0].text)
         except Exception as e:
             self._handle_error(e)
 
@@ -159,7 +159,7 @@ class ClaudeProvider(LLMProvider):
                         )
                     )
 
-            content = "\n".join(text_parts) if text_parts else None
+            content = self._strip_think_tags("\n".join(text_parts)) if text_parts else None
 
             if response.stop_reason == "tool_use":
                 finish = "tool_calls"
