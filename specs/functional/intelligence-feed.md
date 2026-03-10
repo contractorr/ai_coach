@@ -18,6 +18,8 @@ Radar is the unified monitoring workspace for external signals, recurring thread
 - Threads and active dossiers live inside Radar because they are active monitoring work.
 - A `Scan now` action refreshes monitoring on demand.
 - The advanced `/intel` page remains available for power users but is no longer the primary monitoring entry point.
+- Web deployments run the same background monitoring families as the richer scheduler path: signal detection, goal-intel matching, trending radar, and heartbeat when enabled.
+- Weekly research and weekly recommendation generation are scheduled for web users only when that user has a personal API key configured.
 
 ## User Flows
 

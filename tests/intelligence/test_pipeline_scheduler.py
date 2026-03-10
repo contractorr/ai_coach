@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from unittest.mock import MagicMock
 
 from intelligence.company_watch import CompanyMovementStore
 from intelligence.hiring_signals import HiringSignalStore
@@ -115,3 +116,64 @@ def test_scheduler_registers_entity_extraction_job(tmp_path, monkeypatch):
     scheduler._schedule_entity_extraction_job()
 
     assert scheduler.scheduler.get_job("entity_extraction") is not None
+
+
+def test_start_web_registers_full_job_set(tmp_path, monkeypatch):
+    monkeypatch.setenv("COACH_HOME", str(tmp_path))
+    scheduler = IntelScheduler(
+        storage=IntelStorage(tmp_path / "intel.db"),
+        config={},
+        full_config={
+            "research": {"enabled": True},
+            "recommendations": {"enabled": True, "delivery": {"schedule": "0 8 * * 0"}},
+            "agent": {"enabled": True, "signals": {"schedule": "0 9 * * *"}},
+            "heartbeat": {"enabled": True, "interval_minutes": 30},
+            "trending_radar": {"enabled": True, "interval_hours": 6},
+        },
+    )
+    scheduler.scheduler.start = MagicMock()
+
+    scheduler.start_web()
+
+    assert scheduler.scheduler.get_job("intel_gather") is not None
+    assert scheduler.scheduler.get_job("deep_research") is not None
+    assert scheduler.scheduler.get_job("weekly_recommendations") is not None
+    assert scheduler.scheduler.get_job("signal_detection") is not None
+    assert scheduler.scheduler.get_job("autonomous_actions") is not None
+    assert scheduler.scheduler.get_job("goal_intel_matching") is not None
+    assert scheduler.scheduler.get_job("trending_radar") is not None
+    assert scheduler.scheduler.get_job("heartbeat") is not None
+
+
+def test_web_scheduler_filters_research_jobs_to_users_with_personal_keys(tmp_path, monkeypatch):
+    monkeypatch.setenv("COACH_HOME", str(tmp_path))
+    scheduler = IntelScheduler(
+        storage=IntelStorage(tmp_path / "intel.db"),
+        config={},
+        full_config={"recommendations": {"enabled": True}},
+        web_user_contexts_factory=lambda require_personal_key: (
+            [{"user_id": "u1"}] if require_personal_key else [{"user_id": "u1"}, {"user_id": "u2"}]
+        ),
+    )
+
+    contexts = scheduler._iter_web_user_contexts(require_personal_key=True)
+
+    assert [ctx["user_id"] for ctx in contexts] == ["u1"]
+
+
+def test_start_keeps_cli_job_set_minimal(tmp_path, monkeypatch):
+    monkeypatch.setenv("COACH_HOME", str(tmp_path))
+    scheduler = IntelScheduler(
+        storage=IntelStorage(tmp_path / "intel.db"),
+        config={},
+        full_config={"entity_extraction": {"enabled": True, "schedule_minutes": 15}},
+    )
+    scheduler.scheduler.start = MagicMock()
+
+    scheduler.start()
+
+    assert scheduler.scheduler.get_job("intel_gather") is not None
+    assert scheduler.scheduler.get_job("entity_extraction") is not None
+    assert scheduler.scheduler.get_job("deep_research") is None
+    assert scheduler.scheduler.get_job("weekly_recommendations") is None
+    assert scheduler.scheduler.get_job("signal_detection") is None

@@ -27,6 +27,17 @@ def test_start_intel_scheduler_returns_none_on_failure(monkeypatch):
     assert result is None
 
 
+def test_start_intel_scheduler_uses_web_scheduler_path(monkeypatch):
+    monkeypatch.delenv("DISABLE_INTEL_SCHEDULER", raising=False)
+
+    with patch("intelligence.scheduler.IntelScheduler") as scheduler_cls:
+        result = web_app._start_intel_scheduler()
+
+    mock_scheduler = scheduler_cls.return_value
+    assert result is mock_scheduler
+    mock_scheduler.start_web.assert_called_once()
+
+
 def test_verify_secret_key_requires_env(monkeypatch):
     monkeypatch.delenv("SECRET_KEY", raising=False)
 

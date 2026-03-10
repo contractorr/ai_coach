@@ -37,6 +37,75 @@ def _verify_secret_key() -> None:
     logger.info("crypto.canary_ok")
 
 
+def _build_web_user_contexts(require_personal_key: bool = False) -> list[dict]:
+    from journal.embeddings import EmbeddingManager
+    from journal.storage import JournalStorage
+    from web.deps import get_personal_llm_keys_for_user, get_user_paths, safe_user_id
+    from web.user_store import list_user_ids
+
+    contexts = []
+    for user_id in list_user_ids():
+        if require_personal_key and not get_personal_llm_keys_for_user(user_id):
+            continue
+        paths = get_user_paths(user_id)
+        contexts.append(
+            {
+                "user_id": user_id,
+                "paths": paths,
+                "journal_storage": JournalStorage(paths["journal_dir"]),
+                "embeddings": EmbeddingManager(
+                    paths["chroma_dir"],
+                    collection_name=f"journal_{safe_user_id(user_id)}",
+                ),
+            }
+        )
+    return contexts
+
+
+def _run_web_research_for_user(user_id: str):
+    from web.routes.research import _get_agent
+
+    agent = _get_agent(user_id)
+    try:
+        return agent.run()
+    finally:
+        try:
+            agent.close()
+        except Exception:
+            pass
+
+
+def _run_web_recommendations_for_user(user_id: str) -> dict:
+    from journal.storage import JournalStorage
+    from web.deps import get_config, get_user_paths
+    from web.routes.advisor import _get_engine
+
+    config = get_config().to_dict()
+    rec_config = config.get("recommendations", {})
+    delivery = rec_config.get("delivery", {})
+    max_per_cat = rec_config.get("scoring", {}).get("max_per_category", 3)
+    paths = get_user_paths(user_id)
+
+    advisor = _get_engine(user_id, use_tools=False)
+    recs = advisor.generate_recommendations(
+        "all",
+        paths["recommendations_dir"],
+        rec_config,
+        max_items=max_per_cat,
+    )
+
+    brief_saved = False
+    if "journal" in delivery.get("methods", ["journal"]):
+        advisor.generate_action_brief(
+            paths["recommendations_dir"],
+            journal_storage=JournalStorage(paths["journal_dir"]),
+            save=True,
+        )
+        brief_saved = True
+
+    return {"recommendations": len(recs), "brief_saved": brief_saved}
+
+
 def _start_intel_scheduler():
     """Start background intel scheduler (daily 6am scrape)."""
     if _env_flag("DISABLE_INTEL_SCHEDULER"):
@@ -55,9 +124,12 @@ def _start_intel_scheduler():
             storage=storage,
             config=full.get("sources", {}),
             full_config=full,
+            web_user_contexts_factory=_build_web_user_contexts,
+            web_research_runner=_run_web_research_for_user,
+            web_recommendations_runner=_run_web_recommendations_for_user,
         )
         cron = full.get("schedule", {}).get("intelligence_gather", "0 6 * * *")
-        scheduler.start(cron_expr=cron)
+        scheduler.start_web(cron_expr=cron)
         logger.info("intel_scheduler.started", cron=cron)
         return scheduler
     except Exception as e:

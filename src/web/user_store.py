@@ -657,6 +657,24 @@ def get_all_user_rss_feeds(
         conn.close()
 
 
+def list_user_ids(
+    db_path: Path | None = None,
+) -> list[str]:
+    """Return known user IDs ordered by most recent login."""
+    conn = _get_conn(db_path)
+    try:
+        rows = conn.execute(
+            """
+            SELECT id
+            FROM users
+            ORDER BY COALESCE(last_login, created_at) DESC, id ASC
+            """
+        ).fetchall()
+        return [row["id"] for row in rows if row["id"]]
+    finally:
+        conn.close()
+
+
 def get_feedback_count(
     user_id: str,
     days: int = 30,

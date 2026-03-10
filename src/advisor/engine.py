@@ -265,12 +265,12 @@ class AdvisorEngine:
         if include_research and hasattr(self.rag, "get_research_context"):
             research_ctx = self.rag.get_research_context(question)
         has_research = bool(research_ctx.strip())
-        enhanced_ctx = self.rag.get_enhanced_context(question)
         system_prompt = PromptTemplates.SYSTEM
-        if enhanced_ctx.entity_context:
-            system_prompt += "\n\n" + PromptTemplates.ENTITY_SYSTEM_SUFFIX
 
         if use_extended:
+            enhanced_ctx = self.rag.get_enhanced_context(question)
+            if enhanced_ctx.entity_context:
+                system_prompt += "\n\n" + PromptTemplates.ENTITY_SYSTEM_SUFFIX
             ctx = self.rag.build_context_for_ask(
                 question,
                 self._rag_config,
@@ -296,13 +296,27 @@ class AdvisorEngine:
             )
             return system_prompt, user_prompt
 
+        query_analyzer = getattr(getattr(self.rag, "__dict__", {}), "get", lambda _key, _default=None: None)(
+            "query_analyzer", None
+        )
+        if query_analyzer:
+            enhanced_ctx = self.rag.get_enhanced_context(question)
+            if enhanced_ctx.entity_context:
+                system_prompt += "\n\n" + PromptTemplates.ENTITY_SYSTEM_SUFFIX
+            journal_ctx = enhanced_ctx.journal
+            intel_ctx = enhanced_ctx.intel
+            entity_ctx = enhanced_ctx.entity_context
+        else:
+            journal_ctx, intel_ctx = self.rag.get_combined_context(question)
+            entity_ctx = ""
+
         profile_ctx = self.rag.get_profile_context()
         prompt_template = PromptTemplates.get_prompt(advice_type, with_research=has_research)
         user_prompt = prompt_template.format(
-            journal_context=profile_ctx + enhanced_ctx.journal,
-            intel_context=enhanced_ctx.intel,
+            journal_context=profile_ctx + journal_ctx,
+            intel_context=intel_ctx,
             research_context=research_ctx if has_research else "",
-            entity_context=enhanced_ctx.entity_context,
+            entity_context=entity_ctx,
             question=question,
         )
         return system_prompt, user_prompt

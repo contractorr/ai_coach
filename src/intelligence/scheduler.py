@@ -210,6 +210,9 @@ class IntelScheduler:
         embeddings=None,
         full_config: Optional[dict] = None,
         on_error: Optional[Callable] = None,
+        web_user_contexts_factory: Optional[Callable[[bool], list[dict]]] = None,
+        web_research_runner: Optional[Callable[[str], object]] = None,
+        web_recommendations_runner: Optional[Callable[[str], dict]] = None,
     ):
         self.storage = storage
         self.config = config or {}
@@ -220,6 +223,9 @@ class IntelScheduler:
         self.scheduler = BackgroundScheduler()
         self._scrapers: list = []
         self._entity_extraction_runner = None
+        self._web_user_contexts_factory = web_user_contexts_factory
+        self._web_research_runner = web_research_runner
+        self._web_recommendations_runner = web_recommendations_runner
 
         self._health = ScraperHealthTracker(storage.db_path)
         self._research = ResearchRunner(storage, journal_storage, embeddings, self.full_config)
@@ -889,16 +895,17 @@ class IntelScheduler:
 
     # --- Signal detection + autonomous actions ---
 
-    def run_signal_detection(self) -> list:
+    def run_signal_detection(self, journal_storage=None) -> list:
         """Run signal detection across all data sources."""
-        if not self.journal_storage:
+        journal_storage = journal_storage or self.journal_storage
+        if not journal_storage:
             logger.warning("Signal detection requires journal_storage")
             return []
         try:
             from advisor.signals import SignalDetector
 
             db_path = self.storage.db_path
-            detector = SignalDetector(self.journal_storage, db_path, self.full_config)
+            detector = SignalDetector(journal_storage, db_path, self.full_config)
             signals = detector.detect_all()
             logger.info("signal_detection_complete", count=len(signals))
             return signals
@@ -906,9 +913,11 @@ class IntelScheduler:
             logger.error("signal_detection_failed", error=str(e))
             return []
 
-    def run_autonomous_actions(self) -> list:
+    def run_autonomous_actions(self, journal_storage=None, embeddings=None) -> list:
         """Run autonomous actions based on current signals."""
-        if not self.journal_storage:
+        journal_storage = journal_storage or self.journal_storage
+        embeddings = embeddings or self.embeddings
+        if not journal_storage:
             logger.warning("Autonomous actions require journal_storage")
             return []
         try:
@@ -939,7 +948,7 @@ class IntelScheduler:
                     continue
 
             engine = AutonomousActionEngine(
-                self.journal_storage, db_path, self.full_config, self.embeddings
+                journal_storage, db_path, self.full_config, embeddings
             )
             results = engine.process_signals(signals)
             logger.info("autonomous_actions_complete", count=len(results))
@@ -996,6 +1005,227 @@ class IntelScheduler:
             domains_fallback=fallback,
         )
         return {"items_scraped": len(items), "domains": len(model.domains)}
+
+    def _schedule_base_jobs(self, scrape_cron: str) -> None:
+        scrape_trigger = _parse_cron(scrape_cron)
+        self.scheduler.add_job(
+            self.run_now,
+            trigger=scrape_trigger,
+            id="intel_gather",
+            replace_existing=True,
+        )
+
+        cap_config = self.config.get("capability_horizon", {})
+        ai_cap_config = self.config.get("ai_capabilities", {})
+        enabled_sources = self.config.get("enabled", [])
+        if (
+            cap_config.get("enabled", False)
+            or "ai_capabilities" in enabled_sources
+            or ai_cap_config.get("enabled", False)
+        ):
+            self.scheduler.add_job(
+                self.refresh_capability_model,
+                trigger=_parse_cron(scrape_cron),
+                id="refresh_capability_model",
+                replace_existing=True,
+            )
+            logger.info("Capability model refresh job scheduled: %s", scrape_cron)
+
+        self._schedule_extended_jobs()
+        self._schedule_entity_extraction_job()
+
+    def _schedule_full_job_set(
+        self,
+        *,
+        research_job: Callable,
+        recommendations_job: Callable,
+        signal_job: Callable,
+        autonomous_job: Callable,
+        heartbeat_job: Callable,
+        goal_match_job: Callable,
+        research_cron: str = "0 21 * * 0",
+    ) -> None:
+        research_config = self.full_config.get("research", {})
+        if research_config.get("enabled", False):
+            research_trigger = _parse_cron(
+                research_cron,
+                defaults={
+                    "minute": "0",
+                    "hour": "21",
+                    "day": "*",
+                    "month": "*",
+                    "day_of_week": "0",
+                },
+            )
+            self.scheduler.add_job(
+                research_job,
+                trigger=research_trigger,
+                id="deep_research",
+                replace_existing=True,
+            )
+            logger.info("Research job scheduled: %s", research_cron)
+
+        rec_config = self.full_config.get("recommendations", {})
+        if rec_config.get("enabled", False):
+            rec_cron = rec_config.get("delivery", {}).get("schedule", "0 8 * * 0")
+            self._add_recommendations_job(rec_cron, job_func=recommendations_job)
+
+        agent_config = self.full_config.get("agent", {})
+        if agent_config.get("enabled", False):
+            signal_cron = agent_config.get("signals", {}).get("schedule", "0 9 * * *")
+            self.scheduler.add_job(
+                signal_job,
+                trigger=_parse_cron(signal_cron),
+                id="signal_detection",
+                replace_existing=True,
+            )
+            logger.info("Signal detection job scheduled: %s", signal_cron)
+
+            auto_trigger = _parse_cron(
+                "0 10 * * *",
+                defaults={
+                    "minute": "0",
+                    "hour": "10",
+                    "day": "*",
+                    "month": "*",
+                    "day_of_week": "*",
+                },
+            )
+            self.scheduler.add_job(
+                autonomous_job,
+                trigger=auto_trigger,
+                id="autonomous_actions",
+                replace_existing=True,
+            )
+            logger.info("Autonomous actions job scheduled")
+
+        tr_config = self.full_config.get("trending_radar", {})
+        if tr_config.get("enabled", True):
+            from apscheduler.triggers.interval import IntervalTrigger as _ITrigger
+
+            self.scheduler.add_job(
+                self.run_trending_radar,
+                trigger=_ITrigger(hours=tr_config.get("interval_hours", 6)),
+                id="trending_radar",
+                replace_existing=True,
+                coalesce=True,
+                max_instances=1,
+            )
+            logger.info(
+                "trending_radar.scheduled",
+                interval_hours=tr_config.get("interval_hours", 6),
+            )
+
+        hb_config = self.full_config.get("heartbeat", {})
+        if hb_config.get("enabled", False):
+            from apscheduler.triggers.interval import IntervalTrigger
+
+            self.scheduler.add_job(
+                heartbeat_job,
+                trigger=IntervalTrigger(minutes=hb_config.get("interval_minutes", 30)),
+                id="heartbeat",
+                replace_existing=True,
+                coalesce=True,
+                max_instances=1,
+            )
+            logger.info(
+                "heartbeat.scheduled",
+                interval_minutes=hb_config.get("interval_minutes", 30),
+            )
+
+        self.scheduler.add_job(
+            goal_match_job,
+            trigger=_parse_cron("0 */4 * * *"),
+            id="goal_intel_matching",
+            replace_existing=True,
+        )
+        logger.info("Goal-intel matching job scheduled: every 4h")
+
+        self.scheduler.add_job(
+            self.run_weekly_summary,
+            trigger=_parse_cron("0 8 * * 1"),
+            id="weekly_summary",
+            replace_existing=True,
+        )
+        logger.info("Weekly summary job scheduled: Monday 8am")
+
+    def _iter_web_user_contexts(self, require_personal_key: bool = False) -> list[dict]:
+        if not self._web_user_contexts_factory:
+            logger.warning("web_scheduler_context_unavailable", error="missing_factory")
+            return []
+        try:
+            return list(self._web_user_contexts_factory(require_personal_key))
+        except Exception as exc:
+            logger.warning("web_scheduler_context_unavailable", error=str(exc))
+            return []
+
+    def run_web_signal_detection(self) -> dict:
+        results = {}
+        for ctx in self._iter_web_user_contexts():
+            signals = self.run_signal_detection(journal_storage=ctx["journal_storage"])
+            results[ctx["user_id"]] = len(signals)
+        return results
+
+    def run_web_autonomous_actions(self) -> dict:
+        results = {}
+        for ctx in self._iter_web_user_contexts():
+            actions = self.run_autonomous_actions(
+                journal_storage=ctx["journal_storage"],
+                embeddings=ctx["embeddings"],
+            )
+            results[ctx["user_id"]] = len(actions)
+        return results
+
+    def run_web_goal_intel_matching(self) -> dict:
+        results = {}
+        for ctx in self._iter_web_user_contexts():
+            self.run_goal_intel_matching(journal_storage=ctx["journal_storage"])
+            results[ctx["user_id"]] = "ok"
+        return results
+
+    def run_web_heartbeat(self) -> dict:
+        results = {}
+        for ctx in self._iter_web_user_contexts():
+            self.run_heartbeat(journal_storage=ctx["journal_storage"])
+            results[ctx["user_id"]] = "ok"
+        return results
+
+    def run_web_research(self) -> dict:
+        results = {}
+        if not self._web_research_runner:
+            logger.warning("web_research_unavailable", error="missing_runner")
+            return results
+
+        for ctx in self._iter_web_user_contexts(require_personal_key=True):
+            try:
+                user_results = self._web_research_runner(ctx["user_id"])
+                results[ctx["user_id"]] = (
+                    len(user_results) if isinstance(user_results, list) else user_results
+                )
+            except Exception as exc:
+                logger.warning("web_research_failed", user_id=ctx["user_id"], error=str(exc))
+                results[ctx["user_id"]] = {"error": str(exc)}
+        return results
+
+    def run_web_recommendations(self) -> dict:
+        rec_config = self.full_config.get("recommendations", {})
+        if not rec_config.get("enabled", False):
+            logger.warning("Recommendations not enabled")
+            return {"error": "not_enabled"}
+
+        if not self._web_recommendations_runner:
+            logger.warning("web_recommendations_unavailable", error="missing_runner")
+            return {"error": "missing_runner"}
+
+        results = {}
+
+        for ctx in self._iter_web_user_contexts(require_personal_key=True):
+            try:
+                results[ctx["user_id"]] = self._web_recommendations_runner(ctx["user_id"])
+            except Exception as exc:
+                logger.warning("web_recommendations_failed", user_id=ctx["user_id"], error=str(exc))
+                results[ctx["user_id"]] = {"error": str(exc)}
+        return results
 
     def start_with_research(
         self,
@@ -1148,9 +1378,30 @@ class IntelScheduler:
         self.scheduler.add_listener(self._default_error_handler, EVENT_JOB_ERROR)
         self.scheduler.start()
 
-    def run_goal_intel_matching(self):
+    def start_web(
+        self,
+        cron_expr: str = "0 6 * * *",
+        research_cron: str = "0 21 * * 0",
+    ) -> None:
+        """Start the full scheduler path for web deployments with lazy per-user context."""
+        self._schedule_base_jobs(cron_expr)
+        self._schedule_full_job_set(
+            research_job=self.run_web_research,
+            recommendations_job=self.run_web_recommendations,
+            signal_job=self.run_web_signal_detection,
+            autonomous_job=self.run_web_autonomous_actions,
+            heartbeat_job=self.run_web_heartbeat,
+            goal_match_job=self.run_web_goal_intel_matching,
+            research_cron=research_cron,
+        )
+
+        self.scheduler.add_listener(self._default_error_handler, EVENT_JOB_ERROR)
+        self.scheduler.start()
+
+    def run_goal_intel_matching(self, journal_storage=None):
         """Match active goals against recent intel. Keyword scoring + optional LLM eval."""
-        if not self.journal_storage:
+        journal_storage = journal_storage or self.journal_storage
+        if not journal_storage:
             return
         try:
             from advisor.goals import GoalTracker
@@ -1161,7 +1412,7 @@ class IntelScheduler:
                 GoalIntelMatchStore,
             )
 
-            tracker = GoalTracker(self.journal_storage)
+            tracker = GoalTracker(journal_storage)
             goals = tracker.get_goals(include_inactive=False)
             if not goals:
                 return
@@ -1183,16 +1434,17 @@ class IntelScheduler:
         except Exception as e:
             logger.error("goal_intel_matching_failed", error=str(e))
 
-    def run_heartbeat(self):
+    def run_heartbeat(self, journal_storage=None):
         """Run heartbeat cycle: filter recent intel -> evaluate -> notify."""
-        if not self.journal_storage:
+        journal_storage = journal_storage or self.journal_storage
+        if not journal_storage:
             return
         try:
             from advisor.goals import GoalTracker
 
             from .heartbeat import HeartbeatPipeline
 
-            tracker = GoalTracker(self.journal_storage)
+            tracker = GoalTracker(journal_storage)
             goals = tracker.get_goals(include_inactive=False)
             if not goals:
                 return
@@ -1275,14 +1527,14 @@ class IntelScheduler:
         except Exception as e:
             logger.error("trending_radar.failed", error=str(e))
 
-    def _add_recommendations_job(self, cron_expr: str):
+    def _add_recommendations_job(self, cron_expr: str, job_func: Callable | None = None):
         """Add weekly recommendations/action brief job."""
         trigger = _parse_cron(
             cron_expr,
             defaults={"minute": "0", "hour": "8", "day": "*", "month": "*", "day_of_week": "0"},
         )
         self.scheduler.add_job(
-            self.run_recommendations_now,
+            job_func or self.run_recommendations_now,
             trigger=trigger,
             id="weekly_recommendations",
             replace_existing=True,
