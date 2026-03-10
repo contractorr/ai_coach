@@ -69,7 +69,6 @@ const TECH_STACK = [
   "SQLite",
   "Tailwind CSS",
 ];
-
 export default function Landing() {
   return (
     <div className="flex min-h-screen flex-col items-center bg-muted/40">
