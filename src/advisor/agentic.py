@@ -11,6 +11,12 @@ from .context_compressor import ContextCompressor
 
 logger = structlog.get_logger()
 
+_NUDGE_TEMPLATE = (
+    "You've only used {used} tool(s) so far ({used_names}). "
+    "Consider using additional tools for a more thorough answer. "
+    "Unused tools: {unused_names}"
+)
+
 
 class AgenticOrchestrator:
     """Runs an LLM tool-calling loop until the model responds with text."""
@@ -21,6 +27,7 @@ class AgenticOrchestrator:
         registry: ToolRegistry,
         system_prompt: str,
         max_iterations: int = 10,
+        min_tool_calls: int = 2,
         cheap_llm: LLMProvider | None = None,
         token_threshold: int = 100_000,
     ):
@@ -28,11 +35,20 @@ class AgenticOrchestrator:
         self.registry = registry
         self.system_prompt = system_prompt
         self.max_iterations = max_iterations
+        self.min_tool_calls = min_tool_calls
         self.compressor = ContextCompressor(
             cheap_llm=cheap_llm,
             token_threshold=token_threshold,
         )
         self._total_input_tokens = 0
+
+    def _build_nudge(self, used_tools: set[str], available_tools: list[str]) -> str:
+        unused = sorted(set(available_tools) - used_tools)
+        return _NUDGE_TEMPLATE.format(
+            used=len(used_tools),
+            used_names=", ".join(sorted(used_tools)),
+            unused_names=", ".join(unused[:5]),  # cap at 5 to avoid huge prompts
+        )
 
     def run(
         self,
@@ -43,6 +59,9 @@ class AgenticOrchestrator:
         messages = list(conversation_history or [])
         messages.append({"role": "user", "content": user_message})
         tools = self.registry.get_definitions()
+        available_tool_names = [t.name for t in tools]
+        used_tools: set[str] = set()
+        nudged = False
 
         for iteration in range(self.max_iterations):
             response = self.llm.generate_with_tools(
@@ -62,8 +81,23 @@ class AgenticOrchestrator:
             else:
                 logger.warning("agentic_usage_missing", iteration=iteration)
 
-            # LLM finished with text - return it
+            # LLM finished with text — check minimum tool call enforcement
             if response.finish_reason == "stop" or not response.tool_calls:
+                if len(used_tools) < self.min_tool_calls and not nudged and available_tool_names:
+                    # Not enough tools used — nudge and continue
+                    nudged = True
+                    nudge = self._build_nudge(used_tools, available_tool_names)
+                    logger.info(
+                        "agentic_nudge",
+                        used=len(used_tools),
+                        min=self.min_tool_calls,
+                    )
+                    # Append the LLM's premature answer + a user nudge
+                    if response.content:
+                        messages.append({"role": "assistant", "content": response.content})
+                    messages.append({"role": "user", "content": nudge})
+                    continue
+
                 logger.info("agentic_complete", iterations=iteration + 1)
                 content = response.content or ""
                 if event_callback:
@@ -84,6 +118,7 @@ class AgenticOrchestrator:
 
             # Execute each tool call and append results
             for tc in response.tool_calls:
+                used_tools.add(tc.name)
                 logger.info("tool_call", tool=tc.name, args=list(tc.arguments.keys()))
                 if event_callback:
                     event_callback({"type": "tool_start", "tool": tc.name})
