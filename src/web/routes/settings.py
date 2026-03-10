@@ -20,6 +20,20 @@ logger = structlog.get_logger()
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
 
+FEATURE_TOGGLE_FIELDS = [
+    "feature_extended_thinking",
+    "feature_memory_enabled",
+    "feature_threads_enabled",
+    "feature_recommendations_enabled",
+    "feature_research_enabled",
+    "feature_entity_extraction_enabled",
+    "feature_trending_radar_enabled",
+    "feature_heartbeat_enabled",
+    "feature_company_movement_enabled",
+    "feature_hiring_signals_enabled",
+    "feature_regulatory_signals_enabled",
+]
+
 
 def _detect_provider_from_key(api_key: str | None) -> str | None:
     if not api_key:
@@ -134,6 +148,13 @@ async def update_settings(
         else:
             delete_user_secret(user_id, key)
             updated_keys.append(f"remove:{key}")
+
+    # Feature toggles
+    for field in FEATURE_TOGGLE_FIELDS:
+        value = getattr(body, field)
+        if value is not None:
+            set_user_secret(user_id, field, str(value), fernet_key)
+            updated_keys.append(field)
 
     logger.info("settings.updated", user_id=user_id, keys=updated_keys)
     return SettingsResponse(**get_settings_mask_for_user(user["id"]))

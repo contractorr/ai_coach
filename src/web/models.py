@@ -21,6 +21,18 @@ class SettingsUpdate(BaseModel):
     tavily_api_key: Optional[str] = None
     github_token: Optional[str] = None
     eventbrite_token: Optional[str] = None
+    # Feature toggles
+    feature_extended_thinking: Optional[bool] = None
+    feature_memory_enabled: Optional[bool] = None
+    feature_threads_enabled: Optional[bool] = None
+    feature_recommendations_enabled: Optional[bool] = None
+    feature_research_enabled: Optional[bool] = None
+    feature_entity_extraction_enabled: Optional[bool] = None
+    feature_trending_radar_enabled: Optional[bool] = None
+    feature_heartbeat_enabled: Optional[bool] = None
+    feature_company_movement_enabled: Optional[bool] = None
+    feature_hiring_signals_enabled: Optional[bool] = None
+    feature_regulatory_signals_enabled: Optional[bool] = None
 
 
 class LLMProviderKeyStatus(BaseModel):
@@ -47,6 +59,18 @@ class SettingsResponse(BaseModel):
     github_token_set: bool = False
     github_token_hint: Optional[str] = None
     eventbrite_token_set: bool = False
+    # Feature toggles (default = global config fallback)
+    feature_extended_thinking: bool = True
+    feature_memory_enabled: bool = True
+    feature_threads_enabled: bool = True
+    feature_recommendations_enabled: bool = False
+    feature_research_enabled: bool = False
+    feature_entity_extraction_enabled: bool = True
+    feature_trending_radar_enabled: bool = True
+    feature_heartbeat_enabled: bool = False
+    feature_company_movement_enabled: bool = False
+    feature_hiring_signals_enabled: bool = False
+    feature_regulatory_signals_enabled: bool = False
 
 
 # --- Journal ---

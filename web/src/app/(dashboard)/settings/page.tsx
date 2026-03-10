@@ -25,6 +25,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
 import { ApiKeyInput } from "@/components/ApiKeyInput";
 import { DeleteAccountModal } from "@/components/DeleteAccountModal";
 import { WorkspacePageHeader } from "@/components/WorkspacePageHeader";
@@ -52,6 +53,17 @@ interface Settings {
   github_token_set: boolean;
   github_token_hint: string | null;
   eventbrite_token_set: boolean;
+  feature_extended_thinking: boolean;
+  feature_memory_enabled: boolean;
+  feature_threads_enabled: boolean;
+  feature_recommendations_enabled: boolean;
+  feature_research_enabled: boolean;
+  feature_entity_extraction_enabled: boolean;
+  feature_trending_radar_enabled: boolean;
+  feature_heartbeat_enabled: boolean;
+  feature_company_movement_enabled: boolean;
+  feature_hiring_signals_enabled: boolean;
+  feature_regulatory_signals_enabled: boolean;
 }
 
 interface UserMe {
@@ -461,6 +473,7 @@ export default function SettingsPage() {
     { id: "account", label: "Account" },
     { id: "ai-settings", label: "AI" },
     { id: "api-keys", label: "Keys" },
+    { id: "features", label: "Features" },
     { id: "rss-feeds", label: "RSS" },
     { id: "watchlist", label: "Watchlist" },
     { id: "profile", label: "Profile" },
@@ -956,6 +969,82 @@ export default function SettingsPage() {
             hint={settings.github_token_hint}
             description="Optional. Raises GitHub scraper rate limit from 60 to 5,000 req/hr. Needs only public_repo scope."
           />
+        </CardContent>
+      </Card>
+      </section>
+
+      <section id="features">
+      <Card>
+        <CardHeader>
+          <CardTitle>Features</CardTitle>
+          <CardDescription>Enable or disable optional capabilities for your account.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="space-y-3">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Advisor</p>
+            {([
+              { key: "feature_extended_thinking", label: "Extended thinking", description: "Deeper reasoning before responding. Higher token cost." },
+              { key: "feature_memory_enabled", label: "Memory", description: "Distilled facts from journal entries to personalise advice." },
+              { key: "feature_threads_enabled", label: "Recurring thoughts", description: "Detect patterns across journal entries." },
+              { key: "feature_recommendations_enabled", label: "Weekly recommendations", description: "Generate action recommendations each week." },
+            ] as const).map(({ key, label, description }) => (
+              <div key={key} className="flex items-center justify-between gap-4 rounded-lg border p-3">
+                <div className="space-y-0.5">
+                  <p className="text-sm font-medium">{label}</p>
+                  <p className="text-xs text-muted-foreground">{description}</p>
+                </div>
+                <Switch
+                  checked={form[key] !== undefined ? form[key] === "true" : settings?.[key] ?? false}
+                  onCheckedChange={(checked) => setForm({ ...form, [key]: String(checked) })}
+                />
+              </div>
+            ))}
+          </div>
+
+          <Separator />
+
+          <div className="space-y-3">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Intelligence</p>
+            {([
+              { key: "feature_research_enabled", label: "Deep research", description: "LLM-synthesised topic reports via Tavily or DuckDuckGo." },
+              { key: "feature_entity_extraction_enabled", label: "Entity extraction", description: "Extract companies, people, and concepts from intel." },
+              { key: "feature_trending_radar_enabled", label: "Trending radar", description: "Cross-source topic convergence detection." },
+              { key: "feature_heartbeat_enabled", label: "Goal-intel matching", description: "Proactively match incoming intel to your goals." },
+            ] as const).map(({ key, label, description }) => (
+              <div key={key} className="flex items-center justify-between gap-4 rounded-lg border p-3">
+                <div className="space-y-0.5">
+                  <p className="text-sm font-medium">{label}</p>
+                  <p className="text-xs text-muted-foreground">{description}</p>
+                </div>
+                <Switch
+                  checked={form[key] !== undefined ? form[key] === "true" : settings?.[key] ?? false}
+                  onCheckedChange={(checked) => setForm({ ...form, [key]: String(checked) })}
+                />
+              </div>
+            ))}
+          </div>
+
+          <Separator />
+
+          <div className="space-y-3">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Signal pipelines</p>
+            {([
+              { key: "feature_company_movement_enabled", label: "Company movements", description: "Track strategic moves at watchlisted companies." },
+              { key: "feature_hiring_signals_enabled", label: "Hiring signals", description: "Detect hiring spikes and role pattern shifts." },
+              { key: "feature_regulatory_signals_enabled", label: "Regulatory alerts", description: "Surface relevant regulatory changes." },
+            ] as const).map(({ key, label, description }) => (
+              <div key={key} className="flex items-center justify-between gap-4 rounded-lg border p-3">
+                <div className="space-y-0.5">
+                  <p className="text-sm font-medium">{label}</p>
+                  <p className="text-xs text-muted-foreground">{description}</p>
+                </div>
+                <Switch
+                  checked={form[key] !== undefined ? form[key] === "true" : settings?.[key] ?? false}
+                  onCheckedChange={(checked) => setForm({ ...form, [key]: String(checked) })}
+                />
+              </div>
+            ))}
+          </div>
         </CardContent>
       </Card>
       </section>

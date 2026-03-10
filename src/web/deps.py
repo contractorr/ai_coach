@@ -250,6 +250,18 @@ def _parse_bool_secret(value: str | None, default: bool = True) -> bool:
     return str(value).strip().lower() not in {"0", "false", "no", "off"}
 
 
+def resolve_feature_toggle(
+    secrets: dict[str, str],
+    feature_key: str,
+    config_default: bool,
+) -> bool:
+    """User secret takes precedence; falls back to global config value."""
+    raw = secrets.get(feature_key)
+    if raw is None:
+        return config_default
+    return _parse_bool_secret(raw, default=config_default)
+
+
 def _detect_provider_from_key(api_key: str | None) -> str | None:
     if not api_key:
         return None
@@ -448,6 +460,40 @@ def get_settings_mask_for_user(user_id: str) -> dict:
         "github_token_set": bool(secrets.get("github_token")),
         "github_token_hint": _hint(secrets.get("github_token")),
         "eventbrite_token_set": bool(secrets.get("eventbrite_token")),
+        # Feature toggles
+        "feature_extended_thinking": resolve_feature_toggle(
+            secrets, "feature_extended_thinking", config.llm.extended_thinking
+        ),
+        "feature_memory_enabled": resolve_feature_toggle(
+            secrets, "feature_memory_enabled", config.memory.enabled
+        ),
+        "feature_threads_enabled": resolve_feature_toggle(
+            secrets, "feature_threads_enabled", config.threads.enabled
+        ),
+        "feature_recommendations_enabled": resolve_feature_toggle(
+            secrets, "feature_recommendations_enabled", config.recommendations.enabled
+        ),
+        "feature_research_enabled": resolve_feature_toggle(
+            secrets, "feature_research_enabled", config.research.enabled
+        ),
+        "feature_entity_extraction_enabled": resolve_feature_toggle(
+            secrets, "feature_entity_extraction_enabled", True
+        ),
+        "feature_trending_radar_enabled": resolve_feature_toggle(
+            secrets, "feature_trending_radar_enabled", config.trending_radar.enabled
+        ),
+        "feature_heartbeat_enabled": resolve_feature_toggle(
+            secrets, "feature_heartbeat_enabled", config.heartbeat.enabled
+        ),
+        "feature_company_movement_enabled": resolve_feature_toggle(
+            secrets, "feature_company_movement_enabled", config.company_movement.enabled
+        ),
+        "feature_hiring_signals_enabled": resolve_feature_toggle(
+            secrets, "feature_hiring_signals_enabled", config.hiring.enabled
+        ),
+        "feature_regulatory_signals_enabled": resolve_feature_toggle(
+            secrets, "feature_regulatory_signals_enabled", config.regulatory.enabled
+        ),
     }
 
 
