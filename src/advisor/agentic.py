@@ -1,5 +1,6 @@
 """Agentic orchestrator — LLM tool-calling loop."""
 
+import uuid
 from collections.abc import Callable
 
 import structlog
@@ -8,6 +9,15 @@ from llm.base import LLMProvider
 from services.tool_registry import ToolRegistry
 
 from .context_compressor import ContextCompressor
+from .trace import (
+    make_answer_entry,
+    make_llm_entry,
+    make_max_iter_entry,
+    make_nudge_entry,
+    make_session_entry,
+    make_tool_done_entry,
+    make_tool_start_entry,
+)
 
 logger = structlog.get_logger()
 
@@ -41,6 +51,8 @@ class AgenticOrchestrator:
             token_threshold=token_threshold,
         )
         self._total_input_tokens = 0
+        self._session_id: str = ""
+        self._trace: list[dict] = []
 
     def _build_nudge(self, used_tools: set[str], available_tools: list[str]) -> str:
         unused = sorted(set(available_tools) - used_tools)
@@ -56,6 +68,10 @@ class AgenticOrchestrator:
         conversation_history: list[dict] | None = None,
         event_callback: Callable[[dict], None] | None = None,
     ) -> str:
+        # Reset trace for this run
+        self._session_id = uuid.uuid4().hex[:16]
+        self._trace = [make_session_entry(self._session_id, user_message)]
+
         messages = list(conversation_history or [])
         messages.append({"role": "user", "content": user_message})
         tools = self.registry.get_definitions()
@@ -76,10 +92,21 @@ class AgenticOrchestrator:
                 finish_reason=response.finish_reason,
                 tool_call_count=len(response.tool_calls) if response.tool_calls else 0,
             )
+            input_tokens = 0
             if response.usage:
-                self._total_input_tokens = int(response.usage.get("input_tokens", 0))
+                input_tokens = int(response.usage.get("input_tokens", 0))
+                self._total_input_tokens = input_tokens
             else:
                 logger.warning("agentic_usage_missing", iteration=iteration)
+
+            self._trace.append(
+                make_llm_entry(
+                    iteration=iteration,
+                    finish_reason=response.finish_reason,
+                    tool_call_count=len(response.tool_calls) if response.tool_calls else 0,
+                    input_tokens=input_tokens,
+                )
+            )
 
             # LLM finished with text — check minimum tool call enforcement
             if response.finish_reason == "stop" or not response.tool_calls:
@@ -92,6 +119,7 @@ class AgenticOrchestrator:
                         used=len(used_tools),
                         min=self.min_tool_calls,
                     )
+                    self._trace.append(make_nudge_entry(len(used_tools), self.min_tool_calls))
                     # Append the LLM's premature answer + a user nudge
                     if response.content:
                         messages.append({"role": "assistant", "content": response.content})
@@ -100,6 +128,7 @@ class AgenticOrchestrator:
 
                 logger.info("agentic_complete", iterations=iteration + 1)
                 content = response.content or ""
+                self._trace.append(make_answer_entry(iteration, len(content)))
                 if event_callback:
                     event_callback({"type": "answer", "content": content})
                 return content
@@ -122,6 +151,7 @@ class AgenticOrchestrator:
                 logger.info("tool_call", tool=tc.name, args=list(tc.arguments.keys()))
                 if event_callback:
                     event_callback({"type": "tool_start", "tool": tc.name})
+                self._trace.append(make_tool_start_entry(tc.name, tc.id, list(tc.arguments.keys())))
 
                 result_text = self.registry.execute(tc.name, tc.arguments)
                 is_error = '"error"' in result_text[:50]
@@ -134,6 +164,7 @@ class AgenticOrchestrator:
                 )
                 if event_callback:
                     event_callback({"type": "tool_done", "tool": tc.name, "is_error": is_error})
+                self._trace.append(make_tool_done_entry(tc.name, tc.id, len(result_text), is_error))
 
                 messages.append(
                     {
@@ -149,6 +180,7 @@ class AgenticOrchestrator:
 
         # Max iterations reached - return whatever we have
         logger.warning("agentic_max_iterations", max=self.max_iterations)
+        self._trace.append(make_max_iter_entry(self.max_iterations))
         if response.content:
             return response.content
         return "I wasn't able to complete that request within the allowed steps."

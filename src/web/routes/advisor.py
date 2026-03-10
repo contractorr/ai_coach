@@ -47,6 +47,8 @@ from web.models import (
     ConversationDetail,
     ConversationListItem,
     ConversationMessage,
+    TraceDetail,
+    TraceListItem,
 )
 from web.user_store import get_default_db_path, log_event
 
@@ -289,6 +291,7 @@ async def ask_advisor(
         )
 
         engine = _get_engine(user_id, use_tools=use_tools)
+        paths = get_user_paths(user_id)
         result = await asyncio.to_thread(
             run_advice,
             engine,
@@ -296,6 +299,7 @@ async def ask_advisor(
             advice_type=body.advice_type,
             conversation_history=history or None,
             attachment_ids=body.attachment_ids,
+            trace_data_dir=Path(paths["data_dir"]),
         )
 
         finish_conversation_turn(
@@ -362,6 +366,7 @@ async def ask_advisor_stream(
     async def _run_engine():
         try:
             engine = _get_engine(user_id, use_tools=use_tools)
+            paths = get_user_paths(user_id)
             loop = asyncio.get_event_loop()
             result = await loop.run_in_executor(
                 None,
@@ -372,6 +377,7 @@ async def ask_advisor_stream(
                     conversation_history=history or None,
                     attachment_ids=body.attachment_ids,
                     event_callback=_event_callback,
+                    trace_data_dir=Path(paths["data_dir"]),
                 ),
             )
             finish_conversation_turn(
@@ -450,3 +456,35 @@ async def delete_user_conversation(
     if not deleted:
         raise HTTPException(status_code=404, detail="Conversation not found")
     return {"ok": True}
+
+
+# --- Trace endpoints ---
+
+
+@router.get("/traces", response_model=list[TraceListItem])
+async def list_advisor_traces(
+    limit: int = Query(20, ge=1, le=100),
+    user: dict = Depends(get_current_user),
+):
+    from advisor.trace_store import list_traces
+
+    paths = get_user_paths(user["id"])
+    return [TraceListItem(**t) for t in list_traces(paths["data_dir"], limit=limit)]
+
+
+@router.get("/traces/{session_id}", response_model=TraceDetail)
+async def get_advisor_trace(
+    session_id: str,
+    from_line: int = Query(0, ge=0),
+    user: dict = Depends(get_current_user),
+):
+    from advisor.trace_store import InvalidSessionIdError, read_trace
+
+    paths = get_user_paths(user["id"])
+    try:
+        entries = list(read_trace(paths["data_dir"], session_id, from_line=from_line))
+    except InvalidSessionIdError:
+        raise HTTPException(status_code=400, detail="Invalid session_id format")
+    if not entries and from_line == 0:
+        raise HTTPException(status_code=404, detail="Trace not found")
+    return TraceDetail(session_id=session_id, entries=entries, from_line=from_line)

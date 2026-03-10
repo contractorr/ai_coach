@@ -1,7 +1,12 @@
 """Shared advisor/advice orchestration helpers."""
 
 import time
+from pathlib import Path
 from typing import Any, Callable
+
+import structlog
+
+logger = structlog.get_logger()
 
 DEFAULT_MAX_HISTORY_CHARS = 64_000
 
@@ -66,6 +71,26 @@ def finish_conversation_turn(
     log_event_fn("chat_query", user_id, {"latency_ms": latency_ms})
 
 
+def _maybe_persist_trace(engine, trace_data_dir: Path | None) -> None:
+    """Write orchestrator trace to disk if available. Never raises."""
+    if trace_data_dir is None:
+        return
+    try:
+        orch = getattr(engine, "_orchestrator", None)
+        if orch is None:
+            return
+        trace = getattr(orch, "_trace", None)
+        session_id = getattr(orch, "_session_id", None)
+        if not trace or not session_id:
+            return
+        from advisor.trace_store import purge_old_traces, write_trace
+
+        write_trace(trace_data_dir, session_id, trace)
+        purge_old_traces(trace_data_dir)
+    except Exception:
+        logger.debug("trace_persist_failed", exc_info=True)
+
+
 def run_advice(
     engine,
     question: str,
@@ -74,6 +99,7 @@ def run_advice(
     conversation_history: list[dict] | None = None,
     attachment_ids: list[str] | None = None,
     event_callback: Callable[[dict], Any] | None = None,
+    trace_data_dir: Path | None = None,
 ) -> dict[str, Any]:
     """Run an advisor request and return the answer with latency metadata."""
     start = time.monotonic()
@@ -86,6 +112,7 @@ def run_advice(
             attachment_ids=attachment_ids,
             event_callback=event_callback,
         )
+        _maybe_persist_trace(engine, trace_data_dir)
         payload = {
             "answer": result.answer,
             "latency_ms": int((time.monotonic() - start) * 1000),
@@ -104,6 +131,7 @@ def run_advice(
         attachment_ids=attachment_ids,
         event_callback=event_callback,
     )
+    _maybe_persist_trace(engine, trace_data_dir)
     return {
         "answer": answer,
         "latency_ms": int((time.monotonic() - start) * 1000),
