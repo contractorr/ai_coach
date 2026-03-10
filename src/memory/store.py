@@ -2,7 +2,7 @@
 
 import sqlite3
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import structlog
@@ -14,6 +14,8 @@ from .models import FactCategory, FactSource, StewardFact
 logger = structlog.get_logger()
 
 SCHEMA_VERSION = 1
+DEFAULT_REINFORCEMENT = 0.05
+DEFAULT_CONTRADICTION_DECAY = 0.15
 
 
 class FactStore:
@@ -102,26 +104,79 @@ class FactStore:
                 ),
             )
 
-        # Embed in ChromaDB
-        coll = self._chroma
-        if coll:
-            try:
-                cat = (
-                    fact.category.value
-                    if isinstance(fact.category, FactCategory)
-                    else fact.category
-                )
-                coll.upsert(
-                    ids=[fact.id],
-                    documents=[fact.text],
-                    metadatas=[{"category": cat, "confidence": fact.confidence}],
-                )
-            except Exception as e:
-                logger.warning("chroma_upsert_failed", fact_id=fact.id, error=str(e))
+        self._upsert_embedding(fact)
 
         return fact
 
-    def update(self, fact_id: str, new_text: str, new_source_id: str) -> StewardFact:
+    def reinforce(
+        self,
+        fact_id: str,
+        amount: float = DEFAULT_REINFORCEMENT,
+        max_confidence: float = 1.0,
+    ) -> StewardFact | None:
+        """Increase fact confidence when the same signal reappears."""
+        fact = self.get(fact_id)
+        if not fact or fact.superseded_by is not None:
+            return fact
+
+        new_confidence = min(max_confidence, fact.confidence + amount)
+        return self._update_confidence(fact, new_confidence)
+
+    def decay_confidence(
+        self,
+        fact_id: str,
+        amount: float = DEFAULT_CONTRADICTION_DECAY,
+        min_confidence: float = 0.0,
+    ) -> StewardFact | None:
+        """Reduce fact confidence when contradictory evidence appears."""
+        fact = self.get(fact_id)
+        if not fact:
+            return None
+
+        new_confidence = max(min_confidence, fact.confidence - amount)
+        return self._update_confidence(fact, new_confidence)
+
+    def apply_time_decay(
+        self,
+        stale_days: int = 30,
+        amount: float = 0.02,
+        floor: float = 0.4,
+    ) -> int:
+        """Decay facts that have not been reinforced recently.
+
+        The method is opt-in so callers can decide whether to schedule time decay.
+        """
+        cutoff = datetime.now() - timedelta(days=stale_days)
+        updated = 0
+
+        with wal_connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute(
+                """
+                SELECT * FROM steward_facts
+                WHERE superseded_by IS NULL
+                  AND updated_at < ?
+                """,
+                (cutoff.isoformat(),),
+            ).fetchall()
+
+        for row in rows:
+            fact = self._row_to_fact(row)
+            new_confidence = max(floor, fact.confidence - amount)
+            if new_confidence < fact.confidence:
+                self._update_confidence(fact, new_confidence)
+                updated += 1
+
+        return updated
+
+    def update(
+        self,
+        fact_id: str,
+        new_text: str,
+        new_source_id: str,
+        new_confidence: float | None = None,
+        decay_amount: float = DEFAULT_CONTRADICTION_DECAY,
+    ) -> StewardFact:
         """Update existing fact: supersede old, create new with updated text."""
         old = self.get(fact_id)
         if not old:
@@ -129,12 +184,17 @@ class FactStore:
 
         new_id = uuid.uuid4().hex[:16]
         now = datetime.now()
+        decayed_confidence = max(0.0, old.confidence - decay_amount)
 
         # Supersede old fact
         with wal_connect(self.db_path) as conn:
             conn.execute(
-                "UPDATE steward_facts SET superseded_by = ? WHERE id = ?",
-                (new_id, fact_id),
+                """
+                UPDATE steward_facts
+                SET confidence = ?, updated_at = ?, superseded_by = ?
+                WHERE id = ?
+                """,
+                (decayed_confidence, now.isoformat(), new_id, fact_id),
             )
 
         # Remove old from ChromaDB
@@ -152,18 +212,31 @@ class FactStore:
             category=old.category,
             source_type=old.source_type,
             source_id=new_source_id,
-            confidence=old.confidence,
+            confidence=new_confidence if new_confidence is not None else old.confidence,
             created_at=old.created_at,
             updated_at=now,
         )
         return self.add(new_fact)
 
-    def delete(self, fact_id: str, reason: str = "manual") -> None:
+    def delete(
+        self,
+        fact_id: str,
+        reason: str = "manual",
+        decay_amount: float = DEFAULT_CONTRADICTION_DECAY,
+    ) -> None:
         """Soft-delete: set superseded_by. Remove from ChromaDB."""
+        fact = self.get(fact_id)
+        next_confidence = max(0.0, (fact.confidence if fact else 0.0) - decay_amount)
+        now = datetime.now()
+
         with wal_connect(self.db_path) as conn:
             conn.execute(
-                "UPDATE steward_facts SET superseded_by = ? WHERE id = ?",
-                (f"DELETED:{reason}", fact_id),
+                """
+                UPDATE steward_facts
+                SET confidence = ?, updated_at = ?, superseded_by = ?
+                WHERE id = ?
+                """,
+                (next_confidence, now.isoformat(), f"DELETED:{reason}", fact_id),
             )
 
         coll = self._chroma
@@ -366,6 +439,44 @@ class FactStore:
                 "SELECT id FROM steward_facts WHERE superseded_by IS NULL"
             ).fetchall()
             return {r[0] for r in rows}
+
+    def _update_confidence(self, fact: StewardFact, new_confidence: float) -> StewardFact:
+        now = datetime.now()
+        with wal_connect(self.db_path) as conn:
+            conn.execute(
+                "UPDATE steward_facts SET confidence = ?, updated_at = ? WHERE id = ?",
+                (new_confidence, now.isoformat(), fact.id),
+            )
+
+        updated = StewardFact(
+            id=fact.id,
+            text=fact.text,
+            category=fact.category,
+            source_type=fact.source_type,
+            source_id=fact.source_id,
+            confidence=new_confidence,
+            created_at=fact.created_at,
+            updated_at=now,
+            superseded_by=fact.superseded_by,
+        )
+        self._upsert_embedding(updated)
+        return updated
+
+    def _upsert_embedding(self, fact: StewardFact) -> None:
+        """Sync fact confidence metadata into ChromaDB when available."""
+        coll = self._chroma
+        if not coll:
+            return
+
+        try:
+            cat = fact.category.value if isinstance(fact.category, FactCategory) else fact.category
+            coll.upsert(
+                ids=[fact.id],
+                documents=[fact.text],
+                metadatas=[{"category": cat, "confidence": fact.confidence}],
+            )
+        except Exception as e:
+            logger.warning("chroma_upsert_failed", fact_id=fact.id, error=str(e))
 
     @staticmethod
     def _row_to_fact(row: sqlite3.Row) -> StewardFact:

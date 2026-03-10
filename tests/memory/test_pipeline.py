@@ -62,6 +62,25 @@ class TestJournalPipeline:
         )
         assert updates == []
 
+    def test_repeated_fact_reinforces_existing_confidence(self, pipeline, provider, store):
+        provider.generate.return_value = json.dumps(
+            [
+                {"text": "User prefers Python", "category": "preference", "confidence": 0.85},
+            ]
+        )
+
+        first = pipeline.process_journal_entry("entry-1", "Python is still my default choice.")
+        second = pipeline.process_journal_entry(
+            "entry-2", "I still prefer Python for backend work."
+        )
+
+        assert first[0].action == "ADD"
+        assert second[0].action == "NOOP"
+
+        facts = store.get_all_active()
+        assert len(facts) == 1
+        assert facts[0].confidence == pytest.approx(0.9)
+
 
 class TestFeedbackPipeline:
     def test_feedback_stores_fact(self, pipeline, store, provider):

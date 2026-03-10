@@ -72,7 +72,10 @@ class ConflictResolver:
 
         # LLM resolution
         try:
-            return self._llm_resolve(candidate, similar)
+            update = self._llm_resolve(candidate, similar)
+            if update.action == "NOOP" and not update.existing_id and similar:
+                update.existing_id = similar[0].id
+            return update
         except Exception as e:
             logger.warning("conflict_resolution_failed", error=str(e))
             # Default to ADD on failure

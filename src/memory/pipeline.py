@@ -1,4 +1,4 @@
-"""Memory pipeline — orchestrates extract -> resolve -> store."""
+"""Memory pipeline orchestrates extract -> resolve -> store."""
 
 import structlog
 
@@ -111,11 +111,7 @@ class MemoryPipeline:
             "facts_stored": 0,
         }
 
-        # Sort chronologically
-        sorted_entries = sorted(
-            journal_entries,
-            key=lambda e: e.get("created", "") or "",
-        )
+        sorted_entries = sorted(journal_entries, key=lambda e: e.get("created", "") or "")
 
         for entry in sorted_entries:
             entry_id = entry.get("path", entry.get("id", ""))
@@ -158,7 +154,6 @@ class MemoryPipeline:
     def _execute(self, updates: list[FactUpdate], candidates: list) -> int:
         """Execute resolved actions. Returns count of facts stored."""
         stored = 0
-        # Build candidate lookup by text
         candidate_map = {c.text: c for c in candidates}
 
         for update in updates:
@@ -175,12 +170,14 @@ class MemoryPipeline:
                         update.existing_id,
                         update.candidate,
                         candidate.source_id,
+                        new_confidence=candidate.confidence,
                     )
                     stored += 1
 
             elif update.action == "DELETE" and update.existing_id:
                 self.store.delete(update.existing_id, reason=update.reasoning)
 
-            # NOOP — do nothing
+            elif update.action == "NOOP" and update.existing_id:
+                self.store.reinforce(update.existing_id)
 
         return stored

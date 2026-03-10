@@ -84,6 +84,16 @@ class TestUpdateCreatesSupersessionChain:
         assert all(f.id != "old" for f in active)
         assert len(active) == 1
 
+    def test_update_decays_old_confidence_before_superseding(self, store):
+        store.add(_fact(id="old", confidence=0.9))
+        new = store.update("old", "User prefers Rust now", "entry-2", new_confidence=0.95)
+
+        old = store.get("old")
+        assert old is not None
+        assert old.confidence == pytest.approx(0.75)
+        assert old.superseded_by == new.id
+        assert new.confidence == pytest.approx(0.95)
+
 
 class TestDelete:
     def test_soft_delete(self, store):
@@ -106,6 +116,22 @@ class TestDelete:
         active = store.get_all_active()
         assert len(active) == 1
         assert active[0].id == "c"
+
+    def test_delete_decays_confidence_before_soft_delete(self, store):
+        store.add(_fact(id="d1", confidence=0.8))
+        store.delete("d1", reason="test")
+        fact = store.get("d1")
+        assert fact is not None
+        assert fact.confidence == pytest.approx(0.65)
+        assert fact.superseded_by == "DELETED:test"
+
+
+class TestConfidenceLifecycle:
+    def test_reinforce_caps_at_one(self, store):
+        store.add(_fact(id="r1", confidence=0.98))
+        updated = store.reinforce("r1")
+        assert updated is not None
+        assert updated.confidence == pytest.approx(1.0)
 
 
 class TestSearch:
