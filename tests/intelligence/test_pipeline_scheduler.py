@@ -115,3 +115,50 @@ def test_scheduler_registers_entity_extraction_job(tmp_path, monkeypatch):
     scheduler._schedule_entity_extraction_job()
 
     assert scheduler.scheduler.get_job("entity_extraction") is not None
+
+
+def test_company_movement_store_counts_only_inserted_rows(tmp_path):
+    store = CompanyMovementStore(tmp_path / "intel.db")
+    movement = {
+        "company_key": "openai",
+        "company_label": "OpenAI",
+        "movement_type": "product",
+        "title": "OpenAI launches update",
+        "summary": "Summary",
+        "source_url": "https://example.com/movement",
+    }
+
+    assert store.save_many([movement]) == 1
+    assert store.save_many([movement]) == 0
+
+
+def test_hiring_signal_store_counts_only_inserted_rows(tmp_path):
+    store = HiringSignalStore(tmp_path / "intel.db")
+    signal = {
+        "entity_key": "openai",
+        "entity_label": "OpenAI",
+        "signal_type": "hiring_signal",
+        "title": "Hiring signal",
+        "summary": "Summary",
+        "source_url": "https://example.com/hiring",
+    }
+
+    assert store.save_many([signal]) == 1
+    assert store.save_many([signal]) == 0
+
+
+def test_regulatory_alert_store_counts_only_inserted_rows(tmp_path):
+    store = RegulatoryAlertStore(tmp_path / "intel.db")
+    alert = {
+        "target_key": "ai-act",
+        "title": "EU AI Act finalized",
+        "summary": "Summary",
+        "source_family": "rss",
+        "change_type": "finalized",
+        "urgency": "high",
+        "relevance": 0.9,
+        "source_url": "https://example.com/ai-act",
+    }
+
+    assert store.save_many([alert]) == 1
+    assert store.save_many([alert]) == 0

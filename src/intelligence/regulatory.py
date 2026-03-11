@@ -112,7 +112,8 @@ class RegulatoryAlertStore:
                         json.dumps(alert.get("metadata") or {}),
                     ),
                 )
-                saved += 1
+                if conn.execute("SELECT changes()").fetchone()[0]:
+                    saved += 1
         return saved
 
     def get_recent(self, since: datetime, limit: int = 100) -> list[dict]:

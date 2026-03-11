@@ -108,7 +108,8 @@ class CompanyMovementStore:
                             json.dumps(movement.get("metadata") or {}),
                         ),
                     )
-                    saved += 1
+                    if conn.execute("SELECT changes()").fetchone()[0]:
+                        saved += 1
                 except KeyError:
                     continue
         return saved

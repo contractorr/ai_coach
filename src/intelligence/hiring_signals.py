@@ -76,7 +76,8 @@ class HiringSignalStore:
                         json.dumps(signal.get("metadata") or {}),
                     ),
                 )
-                saved += 1
+                if conn.execute("SELECT changes()").fetchone()[0]:
+                    saved += 1
         return saved
 
     def get_recent(self, entity_key: str | None = None, limit: int = 50) -> list[dict]:
