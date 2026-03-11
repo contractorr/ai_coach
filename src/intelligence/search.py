@@ -268,9 +268,9 @@ class IntelSearch:
     ) -> list[dict]:
         """Keyword search — uses FTS5 when available, else LIKE fallback."""
         try:
-            return self.storage.fts_search(query, limit=limit)
+            return self.storage.fts_search(query, limit=limit, source_filter=source_filter)
         except Exception:
-            return self.storage.search(query, limit=limit)
+            return self.storage.search(query, limit=limit, source_filter=source_filter)
 
     def hybrid_search(
         self,

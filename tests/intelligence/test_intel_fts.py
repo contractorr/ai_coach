@@ -156,3 +156,23 @@ class TestIntelSearchFTSRouting:
         search = IntelSearch(populated_intel)
         results = search.keyword_search("AI")
         assert len(results) >= 1
+
+    def test_keyword_search_applies_source_filter(self, populated_intel):
+        from intelligence.search import IntelSearch
+
+        search = IntelSearch(populated_intel)
+        results = search.keyword_search("AI", source_filter="github_trending")
+
+        assert results
+        assert {item["source"] for item in results} == {"github_trending"}
+
+    def test_keyword_search_applies_source_filter_in_fallback(self, populated_intel, monkeypatch):
+        from intelligence.search import IntelSearch
+
+        search = IntelSearch(populated_intel)
+        monkeypatch.setattr(populated_intel, "fts_search", lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("fts unavailable")))
+
+        results = search.keyword_search("AI", source_filter="hackernews")
+
+        assert results
+        assert {item["source"] for item in results} == {"hackernews"}

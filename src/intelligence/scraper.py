@@ -279,22 +279,31 @@ class IntelStorage:
             row = conn.execute("SELECT * FROM intel_items WHERE id = ?", (item_id,)).fetchone()
         return self._row_to_dict(row) if row else None
 
-    def search(self, query: str, limit: int = 20) -> list[dict]:
+    def search(self, query: str, limit: int = 20, source_filter: str | None = None) -> list[dict]:
         """Simple text search in titles and summaries."""
         with wal_connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
+            params: list[object] = [f"%{query}%", f"%{query}%"]
+            source_clause = ""
+            if source_filter:
+                source_clause = "AND source = ?"
+                params.append(source_filter)
+            params.append(limit)
             cursor = conn.execute(
-                """
+                f"""
                 SELECT * FROM intel_items
-                WHERE title LIKE ? OR summary LIKE ?
+                WHERE (title LIKE ? OR summary LIKE ?)
+                  {source_clause}
                 ORDER BY scraped_at DESC
                 LIMIT ?
             """,
-                (f"%{query}%", f"%{query}%", limit),
+                tuple(params),
             )
             return [self._row_to_dict(row) for row in cursor.fetchall()]
 
-    def fts_search(self, query: str, limit: int = 20) -> list[dict]:
+    def fts_search(
+        self, query: str, limit: int = 20, source_filter: str | None = None
+    ) -> list[dict]:
         """FTS5 full-text search with BM25 ranking.
 
         Falls back to LIKE-based ``search()`` on OperationalError.
@@ -305,21 +314,27 @@ class IntelStorage:
         try:
             with wal_connect(self.db_path) as conn:
                 conn.row_factory = sqlite3.Row
+                source_clause = "AND i.source = ?" if source_filter else ""
+                params: list[object] = [fts_query]
+                if source_filter:
+                    params.append(source_filter)
+                params.append(limit)
                 cursor = conn.execute(
-                    """
+                    f"""
                     SELECT i.*
                     FROM intel_fts f
                     JOIN intel_items i ON f.rowid = i.id
                     WHERE intel_fts MATCH ?
+                      {source_clause}
                     ORDER BY bm25(intel_fts)
                     LIMIT ?
                     """,
-                    (fts_query, limit),
+                    tuple(params),
                 )
                 return [self._row_to_dict(row) for row in cursor.fetchall()]
         except sqlite3.OperationalError as e:
             logger.warning("intel_fts_search_fallback", error=str(e))
-            return self.search(query, limit=limit)
+            return self.search(query, limit=limit, source_filter=source_filter)
 
     @staticmethod
     def _to_fts5_query(query: str) -> str:
