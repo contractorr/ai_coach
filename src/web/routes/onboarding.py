@@ -34,6 +34,7 @@ from web.user_store import (
     add_user_rss_feed,
     clear_onboarding_responses,
     log_event,
+    mark_onboarded,
     save_onboarding_turn,
     update_user_name,
 )
@@ -359,6 +360,7 @@ Output the JSON block now with whatever information you have."""
             clean_msg = _strip_json_block(response)
             if not clean_msg:
                 clean_msg = "Great, I've got everything I need! Your profile is set up and will continue to deepen over time."
+            mark_onboarded(user_id)
             log_event(
                 "onboarding_complete", user_id, {"goals_created": goals_created, "turns": turn}
             )
@@ -399,6 +401,7 @@ Now output ONLY the JSON block with profile and goals based on everything discus
             finally:
                 _sessions.pop(user_id, None)
 
+            mark_onboarded(user_id)
             log_event(
                 "onboarding_complete", user_id, {"goals_created": goals_created, "turns": turn}
             )
