@@ -31,10 +31,8 @@ const primaryNav = [
   { href: "/focus", label: "Focus", icon: Target },
   { href: "/radar", label: "Radar", icon: Newspaper },
   { href: "/library", label: "Library", icon: FileText },
-  { href: "/settings", label: "Settings", icon: Settings },
+  { href: "/journal", label: "Journal", icon: BookOpen },
 ];
-
-const shortcutsNav = [{ href: "/journal", label: "Journal", icon: BookOpen }];
 
 function NavItem({
   href,
@@ -125,23 +123,17 @@ export function Sidebar({
               />
             ))}
           </div>
-          <div className="flex flex-col gap-0.5">
-            <span className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-sidebar-foreground/35">
-              Shortcuts
-            </span>
-            {shortcutsNav.map((item) => (
-              <NavItem
-                key={item.href}
-                {...item}
-                active={pathname === item.href}
-                onClick={() => onOpenChange(false)}
-              />
-            ))}
-          </div>
         </nav>
 
         {/* Footer */}
         <div className="shrink-0 border-t border-sidebar-border p-3 space-y-1">
+          <NavItem
+            href="/settings"
+            label="Settings"
+            icon={Settings}
+            active={pathname === "/settings"}
+            onClick={() => onOpenChange(false)}
+          />
           <button
             onClick={() => setGuideOpen(true)}
             className="group relative flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-sidebar-foreground/60 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground transition-all"
