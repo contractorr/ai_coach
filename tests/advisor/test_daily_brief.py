@@ -78,6 +78,17 @@ class TestDailyBriefBuilder:
         )
         assert brief.budget_minutes == 60  # 7*60/7
 
+    def test_zero_budget_returns_no_items(self):
+        brief = self.builder.build(
+            stale_goals=[_goal("Ship MVP")],
+            recommendations=[_rec("Try X")],
+            all_goals=[_goal("Ship MVP")],
+            weekly_hours=0,
+        )
+        assert brief.budget_minutes == 0
+        assert brief.used_minutes == 0
+        assert brief.items == []
+
     def test_max_items_low_budget(self):
         """<30 min budget caps at 2 items."""
         brief = self.builder.build(

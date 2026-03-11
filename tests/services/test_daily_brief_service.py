@@ -13,6 +13,8 @@ from services.daily_brief import (
 
 def test_resolve_weekly_hours_uses_profile_value_or_default():
     assert resolve_weekly_hours(SimpleNamespace(weekly_hours_available=9)) == 9
+    assert resolve_weekly_hours(SimpleNamespace(weekly_hours_available=0)) == 0
+    assert resolve_weekly_hours(SimpleNamespace(weekly_hours_available=-3)) == 0
     assert resolve_weekly_hours(SimpleNamespace(weekly_hours_available=None)) == 5
     assert resolve_weekly_hours(None) == 5
 
@@ -75,3 +77,16 @@ def test_build_daily_brief_payload_serializes_surface_friendly_shape():
         "action",
         "priority",
     }
+
+
+def test_build_daily_brief_payload_respects_zero_budget():
+    payload = build_daily_brief_payload(
+        stale_goals=[{"title": "Check in", "days_since_check": 10}],
+        recommendations=[{"title": "Explore Go", "description": "Ship something small"}],
+        all_goals=[{"title": "Check in"}],
+        weekly_hours=0,
+    )
+
+    assert payload["budget_minutes"] == 0
+    assert payload["used_minutes"] == 0
+    assert payload["items"] == []

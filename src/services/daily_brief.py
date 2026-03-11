@@ -20,7 +20,9 @@ def resolve_weekly_hours(profile: Any, default_hours: int = DEFAULT_WEEKLY_HOURS
         return default_hours
 
     weekly_hours = getattr(profile, "weekly_hours_available", None)
-    return weekly_hours or default_hours
+    if weekly_hours is None:
+        return default_hours
+    return max(0, int(weekly_hours))
 
 
 def load_weekly_hours(profile_storage, default_hours: int = DEFAULT_WEEKLY_HOURS) -> int:

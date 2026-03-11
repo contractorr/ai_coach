@@ -89,6 +89,13 @@ class DailyBriefBuilder:
         intel_matches: list[dict] | None = None,
     ) -> DailyBrief:
         budget = round(weekly_hours * 60 / 7)
+        if budget <= 0:
+            return DailyBrief(
+                items=[],
+                budget_minutes=0,
+                used_minutes=0,
+                generated_at=datetime.now(timezone.utc).isoformat(),
+            )
         cap = _max_items(budget)
 
         _matches = intel_matches or []
