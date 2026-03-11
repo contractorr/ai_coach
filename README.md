@@ -30,13 +30,13 @@ Your journal, goals, and 10 live intel sources feed a RAG pipeline that delivers
 
 ## Why StewardMe?
 
-**The world moves fast** 
+**The world moves fast** - 
 There is a lot of signal online that is underutilised. Every day, you miss important events and updates that you might have found useful or interesting. The problem is they are buried across hundreds of sources, and everybody is time-poor.
 
-**Foundation models are complementary** 
+**Foundation models are complementary** - 
 Humans are limited in bandwidth, recall, and hours in the day. LLMs aren't. Right now our strengths are complementary. StewardMe is allows users to delegate the scanning, pattern-matching and synthesis to a model.
 
-**Journaling closes the loop.** 
+**Journaling closes the loop.** - 
 Journaling forces reflection. Writing things down also creates a signal that can be leveraged by LLMs to provide useful guidance. It creates a feedback loop that allows them to do more targeted research and surface more relevant information to you over time. Your journal is what makes the AI personal. 
 
 ### How it compares
