@@ -75,7 +75,7 @@ class ReportStore:
             path = self._validate_path(self.library_dir / extracted_text_path)
             if path.exists() and path.is_file():
                 return path.read_text(encoding="utf-8")
-        except OSError:
+        except (OSError, UnicodeError, ValueError):
             return ""
         return ""
 
@@ -255,7 +255,10 @@ class ReportStore:
         attachment_path = (record or {}).get("attachment_path")
         if not attachment_path:
             return None
-        path = self._validate_path(self.library_dir / attachment_path)
+        try:
+            path = self._validate_path(self.library_dir / attachment_path)
+        except ValueError:
+            return None
         if not path.exists() or not path.is_file():
             return None
         return path
