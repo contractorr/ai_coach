@@ -66,6 +66,22 @@ def test_get_context_no_research(mock_components):
     mock_components["rag"].get_full_context.assert_called_once_with("test", include_research=False)
 
 
+def test_get_context_restores_rag_overrides(mock_components):
+    """journal_get_context should not leak temporary RAG override values across calls."""
+    from coach_mcp.tools.journal import _get_context
+
+    mock_components["rag"].journal_weight = 0.7
+    mock_components["rag"].max_context_chars = 8000
+    mock_components["rag"].get_full_context.return_value = ("j", "i", "r")
+
+    result = _get_context({"query": "test", "journal_weight": 0.2, "max_chars": 1000})
+
+    assert result["journal_context"] == "j"
+    assert mock_components["rag"].journal_weight == 0.7
+    assert mock_components["rag"].max_context_chars == 8000
+    mock_components["rag"].get_full_context.assert_called_once_with("test", include_research=True)
+
+
 def test_create(mock_components):
     """journal_create should call storage.create and embeddings.add_entry."""
     from coach_mcp.tools.journal import _create

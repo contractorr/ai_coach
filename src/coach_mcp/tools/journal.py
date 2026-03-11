@@ -26,14 +26,22 @@ def _get_context(args: dict) -> dict:
     max_chars = args.get("max_chars")
 
     rag = c["rag"]
-    if journal_weight is not None:
-        rag.journal_weight = journal_weight
-    if max_chars is not None:
-        rag.max_context_chars = max_chars
+    original_journal_weight = getattr(rag, "journal_weight", None)
+    original_max_chars = getattr(rag, "max_context_chars", None)
+    try:
+        if journal_weight is not None:
+            rag.journal_weight = journal_weight
+        if max_chars is not None:
+            rag.max_context_chars = max_chars
 
-    journal_ctx, intel_ctx, research_ctx = rag.get_full_context(
-        query, include_research=include_research
-    )
+        journal_ctx, intel_ctx, research_ctx = rag.get_full_context(
+            query, include_research=include_research
+        )
+    finally:
+        if journal_weight is not None:
+            rag.journal_weight = original_journal_weight
+        if max_chars is not None:
+            rag.max_context_chars = original_max_chars
 
     return {
         "journal_context": journal_ctx,
