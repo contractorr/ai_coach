@@ -1,5 +1,7 @@
 """Tests for user_store: user CRUD, secrets CRUD, isolation."""
 
+import sqlite3
+
 from cryptography.fernet import Fernet
 
 from web.user_store import (
@@ -14,6 +16,7 @@ from web.user_store import (
     log_event,
     set_user_secret,
 )
+from web.conversation_store import create_conversation
 
 
 def test_create_user(tmp_path):
@@ -174,3 +177,49 @@ def test_feedback_count_includes_numeric_and_binary_feedback(tmp_path):
     log_event("recommendation_feedback", "u1", {"rating": 5, "score": 1}, db_path=db)
 
     assert get_feedback_count("u1", db_path=db) == 2
+
+
+def test_duplicate_email_secret_migration_preserves_historical_rows(tmp_path):
+    db = tmp_path / "users.db"
+    fernet_key = Fernet.generate_key().decode()
+    init_db(db)
+
+    get_or_create_user("legacy-id", email="a@b.com", name="Legacy", db_path=db)
+    set_user_secret("legacy-id", "api_key", "sk-legacy", fernet_key, db)
+    conversation_id = create_conversation("legacy-id", "Legacy conversation", db_path=db)
+
+    conn = sqlite3.connect(db)
+    try:
+        conn.execute(
+            "INSERT INTO onboarding_responses (user_id, turn_number, role, content) VALUES (?, ?, ?, ?)",
+            ("legacy-id", 1, "user", "hello"),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    migrated_user = get_or_create_user("new-id", email="a@b.com", name="Current", db_path=db)
+
+    assert migrated_user["id"] == "new-id"
+    assert get_user_secret("new-id", "api_key", fernet_key, db) == "sk-legacy"
+
+    conn = sqlite3.connect(db)
+    try:
+        conversation_row = conn.execute(
+            "SELECT user_id FROM conversations WHERE id = ?",
+            (conversation_id,),
+        ).fetchone()
+        onboarding_row = conn.execute(
+            "SELECT user_id FROM onboarding_responses WHERE user_id = ?",
+            ("legacy-id",),
+        ).fetchone()
+        legacy_user = conn.execute(
+            "SELECT id FROM users WHERE id = ?",
+            ("legacy-id",),
+        ).fetchone()
+    finally:
+        conn.close()
+
+    assert conversation_row == ("legacy-id",)
+    assert onboarding_row == ("legacy-id",)
+    assert legacy_user == ("legacy-id",)

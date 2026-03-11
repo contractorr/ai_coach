@@ -222,8 +222,7 @@ def dedup_backfill(days: int, threshold: float, dry_run: bool):
 
     c = get_components(skip_advisor=True)
     storage = c["intel_storage"]
-    paths_config = c["config"].get("paths", {})
-    chroma_dir = Path(paths_config.get("chroma_dir", "~/coach/chroma")).expanduser()
+    chroma_dir = c["paths"]["chroma_dir"] / "intel"
 
     em = IntelEmbeddingManager(chroma_dir)
 

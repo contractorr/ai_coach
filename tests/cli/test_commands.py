@@ -206,6 +206,22 @@ class TestIntelCommands:
         assert remove_result.exit_code == 0
         assert "Removed" in remove_result.output
 
+    def test_dedup_backfill_uses_intel_embedding_subdir(self, runner, tmp_path):
+        components = _make_components(tmp_path, skip_advisor=True)
+        conn = MagicMock()
+        conn.__enter__.return_value = conn
+        conn.execute.return_value.fetchall.return_value = []
+
+        with (
+            patch("cli.commands.intelligence.get_components", return_value=components),
+            patch("db.wal_connect", return_value=conn),
+            patch("intelligence.embeddings.IntelEmbeddingManager") as embedding_cls,
+        ):
+            result = runner.invoke(cli, ["dedup-backfill", "--dry-run"])
+
+        assert result.exit_code == 0
+        embedding_cls.assert_called_once_with(tmp_path / "chroma" / "intel")
+
 
 class TestMemoryCommands:
     def test_status(self, runner, patch_components):
@@ -290,6 +306,32 @@ class TestEvalCommands:
 
         assert result.exit_code == 0
         assert seen == [False]
+
+
+class TestDatabaseCommands:
+    def test_get_db_components_counts_all_journal_entries(self, tmp_path):
+        from cli.commands.database import _get_db_components
+
+        fake_storage = MagicMock()
+        fake_storage.get_all_content.return_value = [{"id": str(i)} for i in range(55)]
+        fake_storage.list_entries.return_value = [{"id": str(i)} for i in range(50)]
+        paths = {
+            "journal_dir": tmp_path / "journal",
+            "chroma_dir": tmp_path / "chroma",
+            "intel_db": tmp_path / "intel.db",
+        }
+
+        with (
+            patch("cli.config.load_config", return_value={}),
+            patch("cli.config.get_paths", return_value=paths),
+            patch("journal.JournalStorage", return_value=fake_storage),
+            patch("journal.EmbeddingManager"),
+            patch("journal.JournalSearch"),
+            patch("journal.fts.JournalFTSIndex"),
+        ):
+            components = _get_db_components("journal")
+
+        assert components["journal"]["source_count"] == 55
 
 
 # -- Goals command --

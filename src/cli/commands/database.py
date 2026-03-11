@@ -33,7 +33,7 @@ def _get_db_components(collection: str):
             "storage": storage,
             "embeddings": embeddings,
             "search": search,
-            "source_count": len(storage.list_entries()),
+            "source_count": len(storage.get_all_content()),
         }
 
     if collection in ("intel", "all"):

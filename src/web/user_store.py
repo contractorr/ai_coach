@@ -140,7 +140,7 @@ def init_db(db_path: Path | None = None) -> None:
 
 
 def _migrate_secrets(conn: sqlite3.Connection, target_id: str, email: str) -> None:
-    """Move secrets from old user IDs (same email) to the new stable ID."""
+    """Copy secrets from old user IDs (same email) to the new stable ID."""
     old_users = conn.execute(
         "SELECT id FROM users WHERE email = ? AND id != ?",
         (email, target_id),
@@ -164,10 +164,6 @@ def _migrate_secrets(conn: sqlite3.Connection, target_id: str, email: str) -> No
                     (target_id, key, value),
                 )
                 migrated += 1
-        # Clean up old user's secrets and record
-        conn.execute("DELETE FROM user_secrets WHERE user_id = ?", (old_id,))
-        conn.execute("DELETE FROM conversations WHERE user_id = ?", (old_id,))
-        conn.execute("DELETE FROM users WHERE id = ?", (old_id,))
     if migrated:
         conn.commit()
         logger.info("user_store.secrets_migrated", target=target_id, migrated=migrated)
