@@ -5,6 +5,7 @@ from intelligence.watchlist import (
     WatchlistStore,
     annotate_items,
     find_evidence_for_text,
+    list_all_watchlist_items,
     sort_ranked_items,
 )
 
@@ -86,3 +87,34 @@ def test_follow_up_store_removes_empty_unsaved_entry(tmp_path):
 
     store.upsert(url="https://example.com/a", title="A", saved=False, note="")
     assert store.list_items() == []
+
+
+def test_watchlist_store_ignores_corrupted_json(tmp_path):
+    path = tmp_path / "watchlist.json"
+    path.write_text("{not-json", encoding="utf-8")
+
+    store = WatchlistStore(path)
+
+    assert store.list_items() == []
+
+
+def test_follow_up_store_ignores_corrupted_json(tmp_path):
+    path = tmp_path / "followups.json"
+    path.write_text("{not-json", encoding="utf-8")
+
+    store = IntelFollowUpStore(path)
+
+    assert store.list_items() == []
+
+
+def test_list_all_watchlist_items_skips_corrupted_default_store(tmp_path, monkeypatch):
+    coach_home = tmp_path / "coach"
+    coach_home.mkdir()
+    (coach_home / "watchlist.json").write_text("{not-json", encoding="utf-8")
+
+    monkeypatch.setattr(
+        "storage_paths.get_coach_home",
+        lambda candidate=None: coach_home,
+    )
+
+    assert list_all_watchlist_items(coach_home) == []

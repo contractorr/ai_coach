@@ -403,7 +403,7 @@ class DeepResearchAgent:
             title = f"Research Update: {topic}"
         else:
             unique_url = (
-                f"research://{topic.lower().replace(' ', '-')}/{datetime.now().strftime('%Y%m%d')}"
+                f"research://{topic.lower().replace(' ', '-')}/{datetime.now().strftime('%Y%m%d%H%M%S%f')}"
             )
             tags = ["research", "auto"]
             title = f"Research: {topic}"

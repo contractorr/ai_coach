@@ -152,6 +152,17 @@ class TestDeepResearchAgent:
         assert len(items) == 1
         assert items[0]["source"] == "deep_research"
 
+    def test_store_intel_item_uses_unique_url_per_run(self, agent_components, agent_factory):
+        """Standalone research reruns should not collide on the synthetic intel URL."""
+        agent = agent_factory()
+
+        agent._store_intel_item("Test Topic", "Report 1", [], summary="Summary 1")
+        agent._store_intel_item("Test Topic", "Report 2", [], summary="Summary 2")
+
+        items = agent_components["intel"].search("Test Topic")
+        assert len(items) == 2
+        assert len({item["url"] for item in items}) == 2
+
     def test_run_no_search_results(self, agent_factory):
         """Test handling when search returns no results."""
         search_client = MagicMock()

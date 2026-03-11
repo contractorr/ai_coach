@@ -9,7 +9,10 @@ from copy import deepcopy
 from datetime import datetime, timezone
 from pathlib import Path
 
+import structlog
+
 PRIORITY_WEIGHTS = {"high": 3.0, "medium": 2.0, "low": 1.0}
+logger = structlog.get_logger().bind(source="watchlist")
 
 
 def _utc_now() -> str:
@@ -63,6 +66,16 @@ def _sort_items(items: list[dict]) -> list[dict]:
     )
 
 
+def _load_json_file(path: Path, default):
+    if not path.exists():
+        return default
+    try:
+        return json.loads(path.read_text(encoding="utf-8") or json.dumps(default))
+    except json.JSONDecodeError as exc:
+        logger.warning("watchlist_json_decode_failed", path=str(path), error=str(exc))
+        return default
+
+
 def _normalize_item(item: dict) -> dict:
     now = _utc_now()
     label = _normalize_space(item.get("label", ""))
@@ -97,9 +110,7 @@ class WatchlistStore:
         self.path.parent.mkdir(parents=True, exist_ok=True)
 
     def _load(self) -> list[dict]:
-        if not self.path.exists():
-            return []
-        data = json.loads(self.path.read_text(encoding="utf-8") or "[]")
+        data = _load_json_file(self.path, [])
         if not isinstance(data, list):
             return []
         return [item for item in data if isinstance(item, dict)]
@@ -169,8 +180,11 @@ def list_all_watchlist_items(coach_home: str | Path | None = None) -> list[dict]
 
     single_user_path = resolved_home / "watchlist.json"
     if single_user_path.exists():
-        for item in WatchlistStore(single_user_path).list_items():
-            all_items.append({**item, "user_id": "default"})
+        try:
+            for item in WatchlistStore(single_user_path).list_items():
+                all_items.append({**item, "user_id": "default"})
+        except Exception:
+            logger.warning("watchlist_load_failed", path=str(single_user_path))
 
     users_dir = resolved_home / "users"
     if not users_dir.exists():
@@ -195,9 +209,7 @@ class IntelFollowUpStore:
         self.path.parent.mkdir(parents=True, exist_ok=True)
 
     def _load(self) -> dict[str, dict]:
-        if not self.path.exists():
-            return {}
-        data = json.loads(self.path.read_text(encoding="utf-8") or "{}")
+        data = _load_json_file(self.path, {})
         if not isinstance(data, dict):
             return {}
         return {str(key): value for key, value in data.items() if isinstance(value, dict)}
