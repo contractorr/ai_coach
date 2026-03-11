@@ -73,7 +73,7 @@ def profile_update():
     c = get_components()
     ps = get_profile_storage(c["config"])
 
-    from profile.interview import ProfileInterviewer
+    from profile.interview import ProfileInterviewAborted, ProfileInterviewError, ProfileInterviewer
 
     from advisor.engine import LLMError
 
@@ -91,6 +91,12 @@ def profile_update():
             f"\n[green]Profile saved![/] {len(p.skills)} skills, {len(p.interests)} interests"
         )
         console.print(f"[dim]Saved to: {ps.path}[/]")
+    except ProfileInterviewAborted as e:
+        console.print(f"[yellow]Interview cancelled:[/] {e}")
+        sys.exit(1)
+    except ProfileInterviewError as e:
+        console.print(f"[red]Error:[/] {e}")
+        sys.exit(1)
     except LLMError as e:
         console.print(f"[red]Error:[/] {e}")
         sys.exit(1)

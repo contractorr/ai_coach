@@ -43,6 +43,14 @@ INTERVIEW_START = """Start the profile interview. Ask your first question to und
 who this person is professionally. Be warm but concise."""
 
 
+class ProfileInterviewError(Exception):
+    """Raised when the interview cannot continue safely."""
+
+
+class ProfileInterviewAborted(ProfileInterviewError):
+    """Raised when the user aborts the interview input stream."""
+
+
 def _extract_profile_json(text: str) -> dict | None:
     """Extract profile JSON from LLM response."""
     # Try ```json block first
@@ -133,6 +141,18 @@ class ProfileInterviewer:
         self.llm_caller = llm_caller
         self.storage = storage
 
+    def _call_llm(self, system_prompt: str, user_prompt: str, **kwargs) -> str:
+        try:
+            return self.llm_caller(system_prompt, user_prompt, **kwargs)
+        except Exception as exc:
+            raise ProfileInterviewError(f"Interview LLM call failed: {exc}") from exc
+
+    def _save_profile(self, profile: UserProfile) -> None:
+        try:
+            self.storage.save(profile)
+        except Exception as exc:
+            raise ProfileInterviewError(f"Profile save failed: {exc}") from exc
+
     def run_interactive(self, input_fn=None, output_fn=None) -> UserProfile:
         """Run interactive interview loop. Returns completed profile.
 
@@ -146,14 +166,19 @@ class ProfileInterviewer:
         conversation = []
 
         # Get first question
-        response = self.llm_caller(INTERVIEW_SYSTEM, INTERVIEW_START)
+        response = self._call_llm(INTERVIEW_SYSTEM, INTERVIEW_START)
         output_fn(f"\n{response}\n")
         conversation.append(("assistant", response))
 
-        for _ in range(10):  # max 10 turns
-            answer = input_fn("> ")
+        turns = 0
+        while turns < 10:  # max 10 substantive user turns
+            try:
+                answer = input_fn("> ")
+            except EOFError as exc:
+                raise ProfileInterviewAborted("Profile interview aborted by end-of-input") from exc
             if not answer.strip():
                 continue
+            turns += 1
 
             conversation.append(("user", answer))
 
@@ -163,14 +188,14 @@ class ProfileInterviewer:
             )
             prompt = f"Interview so far:\n{history}\n\nContinue the interview or finalize the profile if you have enough info."
 
-            response = self.llm_caller(INTERVIEW_SYSTEM, prompt, max_tokens=1500)
+            response = self._call_llm(INTERVIEW_SYSTEM, prompt, max_tokens=1500)
             conversation.append(("assistant", response))
 
             # Check if interview is done
             profile_data = _extract_profile_json(response)
             if profile_data:
                 profile = _build_profile(profile_data)
-                self.storage.save(profile)
+                self._save_profile(profile)
                 logger.info("profile_created", skills=len(profile.skills))
                 return profile
 
@@ -185,17 +210,17 @@ class ProfileInterviewer:
 {history}
 
 Output the JSON profile block now."""
-        response = self.llm_caller(INTERVIEW_SYSTEM, force_prompt, max_tokens=1500)
+        response = self._call_llm(INTERVIEW_SYSTEM, force_prompt, max_tokens=1500)
         profile_data = _extract_profile_json(response)
         if profile_data:
             profile = _build_profile(profile_data)
-            self.storage.save(profile)
+            self._save_profile(profile)
             return profile
 
         # Absolute fallback: empty profile
         logger.warning("interview_extraction_failed")
         profile = UserProfile()
-        self.storage.save(profile)
+        self._save_profile(profile)
         return profile
 
     def needs_refresh(self, days: int = 90) -> bool:
