@@ -123,6 +123,52 @@ class InsightStore:
             logger.error("insight_save_error", error=str(e))
             return False
 
+    def upsert(self, insight: Insight) -> bool:
+        """Insert or update insight by hash. Updates detail/actions/severity/expires if match exists."""
+        h = insight.insight_hash or insight.compute_hash()
+        try:
+            with wal_connect(self.db_path) as conn:
+                existing = conn.execute(
+                    "SELECT id FROM insights WHERE insight_hash = ? AND (expires_at IS NULL OR expires_at > ?)",
+                    (h, datetime.now().isoformat()),
+                ).fetchone()
+                if existing:
+                    conn.execute(
+                        """UPDATE insights
+                        SET detail = ?, actions_json = ?, severity = ?, expires_at = ?
+                        WHERE id = ?""",
+                        (
+                            insight.detail,
+                            json.dumps(insight.suggested_actions),
+                            insight.severity,
+                            insight.expires_at.isoformat() if insight.expires_at else None,
+                            existing[0],
+                        ),
+                    )
+                    return True
+                conn.execute(
+                    """INSERT INTO insights
+                    (type, severity, title, detail, evidence_json, actions_json,
+                     source_url, created_at, expires_at, insight_hash)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (
+                        insight.type.value,
+                        insight.severity,
+                        insight.title,
+                        insight.detail,
+                        json.dumps(insight.evidence),
+                        json.dumps(insight.suggested_actions),
+                        insight.source_url,
+                        insight.created_at.isoformat(),
+                        insight.expires_at.isoformat() if insight.expires_at else None,
+                        h,
+                    ),
+                )
+                return True
+        except sqlite3.Error as e:
+            logger.error("insight_upsert_error", error=str(e))
+            return False
+
     def get_active(
         self,
         insight_type: Optional[str] = None,

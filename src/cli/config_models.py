@@ -222,10 +222,11 @@ class HeartbeatWeightsConfig(BaseModel):
 class HeartbeatConfig(BaseModel):
     """Heartbeat proactive intel-to-goal matching."""
 
-    enabled: bool = False
+    enabled: bool = True
     interval_minutes: int = 30
     heuristic_threshold: float = 0.3
-    llm_budget_per_cycle: int = 5
+    llm_budget_per_cycle: int = 0
+    llm_budget_on_demand: int = 5
     notification_cooldown_hours: int = 4
     lookback_hours: int = 2
     preferred_sources: list[str] = Field(default_factory=list)

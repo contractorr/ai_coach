@@ -1111,7 +1111,7 @@ class IntelScheduler:
 
         # Heartbeat — proactive intel-to-goal matching
         hb_config = self.full_config.get("heartbeat", {})
-        if hb_config.get("enabled", False):
+        if hb_config.get("enabled", True):
             from apscheduler.triggers.interval import IntervalTrigger
 
             self.scheduler.add_job(

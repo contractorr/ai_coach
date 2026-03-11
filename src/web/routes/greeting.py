@@ -100,6 +100,45 @@ def _schedule_greeting_refresh(user_id: str):
     return asyncio.create_task(_generate_and_cache_greeting(user_id))
 
 
+async def _run_heartbeat_eval(user_id: str) -> None:
+    """Background: trigger on-demand LLM heartbeat evaluation."""
+    try:
+        api_key = get_api_key_for_user(user_id)
+        if not api_key:
+            return
+
+        from advisor.goals import GoalTracker
+        from journal.storage import JournalStorage
+        from web.deps import get_config, get_intel_storage
+
+        paths = get_user_paths(user_id)
+        tracker = GoalTracker(JournalStorage(paths["journal_dir"]))
+        goals = tracker.get_goals(include_inactive=False)
+        if not goals:
+            return
+
+        config = get_config()
+        hb_config = config.heartbeat.model_dump() if hasattr(config.heartbeat, "model_dump") else {}
+
+        from intelligence.heartbeat import HeartbeatPipeline
+
+        pipeline = HeartbeatPipeline(
+            intel_storage=get_intel_storage(),
+            goals=goals,
+            db_path=paths["intel_db"],
+            config=hb_config,
+        )
+        budget = hb_config.get("llm_budget_on_demand", 5)
+        await asyncio.to_thread(pipeline.evaluate_pending, budget)
+    except Exception as exc:
+        logger.warning("heartbeat.on_demand_failed", error=str(exc), user=user_id)
+
+
+def _schedule_heartbeat_eval(user_id: str):
+    """Schedule heartbeat LLM eval without blocking the current request."""
+    return asyncio.create_task(_run_heartbeat_eval(user_id))
+
+
 @router.get("", response_model=GreetingResponse)
 async def get_greeting(user: dict = Depends(get_current_user)):
     cache = _get_cache(user["id"])
@@ -140,12 +179,14 @@ async def get_greeting(user: dict = Depends(get_current_user)):
         return_brief = None
 
     if cached_text:
+        _schedule_heartbeat_eval(user["id"])
         return GreetingResponse(
             text=cached_text, cached=True, stale=False, return_brief=return_brief
         )
 
     # No cache — return fallback and generate in background
     _schedule_greeting_refresh(user["id"])
+    _schedule_heartbeat_eval(user["id"])
     return GreetingResponse(
         text=STATIC_FALLBACK, cached=False, stale=True, return_brief=return_brief
     )

@@ -116,14 +116,17 @@ def _web_test_state(app, tmp_path):
     app.dependency_overrides[require_personal_research_key] = lambda: None
 
     original_schedule_greeting = greeting_routes._schedule_greeting_refresh
+    original_schedule_heartbeat = greeting_routes._schedule_heartbeat_eval
     original_schedule_hooks = journal_routes._schedule_post_create_hooks
     greeting_routes._schedule_greeting_refresh = MagicMock(name="schedule_greeting_refresh")
+    greeting_routes._schedule_heartbeat_eval = MagicMock(name="schedule_heartbeat_eval")
     journal_routes._schedule_post_create_hooks = MagicMock(name="schedule_post_create_hooks")
 
     try:
         yield
     finally:
         greeting_routes._schedule_greeting_refresh = original_schedule_greeting
+        greeting_routes._schedule_heartbeat_eval = original_schedule_heartbeat
         journal_routes._schedule_post_create_hooks = original_schedule_hooks
         app.dependency_overrides.clear()
         reset_rate_limits()

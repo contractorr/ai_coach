@@ -184,10 +184,11 @@ trending_radar:
 
 # --- Heartbeat: proactive intel-to-goal matching ---
 heartbeat:
-  enabled: false
+  enabled: true
   interval_minutes: 30
   heuristic_threshold: 0.3
-  llm_budget_per_cycle: 5
+  llm_budget_per_cycle: 0          # scheduler runs heuristic only (free)
+  llm_budget_on_demand: 5          # LLM eval triggered on home page load
   notification_cooldown_hours: 4
 
 # --- Agentic Coaching ---

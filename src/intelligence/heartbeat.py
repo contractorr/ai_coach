@@ -387,6 +387,16 @@ class ActionBriefStore:
                 return datetime.fromisoformat(row[0])
             return None
 
+    def get_last_llm_run_at(self) -> datetime | None:
+        """Get timestamp of most recent heartbeat run that used LLM."""
+        with wal_connect(self.db_path) as conn:
+            row = conn.execute(
+                "SELECT started_at FROM heartbeat_runs WHERE llm_used = 1 ORDER BY id DESC LIMIT 1"
+            ).fetchone()
+            if row:
+                return datetime.fromisoformat(row[0])
+            return None
+
     def get_runs(self, limit: int = 10) -> list[dict]:
         """Get recent heartbeat runs."""
         with wal_connect(self.db_path) as conn:
@@ -495,4 +505,75 @@ class HeartbeatPipeline:
         store.log_run(stats)
 
         logger.info("heartbeat.complete", **stats)
+        return stats
+
+    def evaluate_pending(self, budget: int = 5) -> dict:
+        """On-demand LLM evaluation of heuristic-filtered intel. Respects cooldown."""
+        store = ActionBriefStore(self.db_path)
+        cooldown_hours = self.config.get("notification_cooldown_hours", 4)
+
+        last_llm = store.get_last_llm_run_at()
+        if last_llm and (datetime.now() - last_llm) < timedelta(hours=cooldown_hours):
+            return {"skipped": "cooldown"}
+
+        if not self.goals:
+            return {"skipped": "no_goals"}
+
+        started_at = datetime.now()
+        lookback = self.config.get("lookback_hours", 2)
+        threshold = self.config.get("heuristic_threshold", 0.3)
+
+        weights_cfg = self.config.get("weights", {})
+        weights = {
+            "keyword_overlap": weights_cfg.get("keyword_overlap", 0.35),
+            "recency": weights_cfg.get("recency", 0.35),
+            "source_affinity": weights_cfg.get("source_affinity", 0.3),
+        }
+        preferred_sources = self.config.get("preferred_sources", [])
+
+        last_run = store.get_last_run_at()
+        since = last_run or (started_at - timedelta(hours=lookback))
+
+        items = self.intel_storage.get_items_since(since, limit=200)
+
+        hb_filter = HeartbeatFilter(
+            self.goals,
+            threshold=threshold,
+            weights=weights,
+            preferred_sources=preferred_sources,
+        )
+        scored = hb_filter.filter(items)
+
+        evaluator = HeartbeatEvaluator(budget=budget)
+        briefs = evaluator.evaluate(scored)
+
+        from advisor.insights import Insight, InsightStore, InsightType
+
+        insight_store = InsightStore(self.db_path)
+        saved = 0
+        for b in briefs:
+            urgency_severity = {"high": 8, "medium": 5, "low": 3}.get(b.urgency, 3)
+            insight = Insight(
+                type=InsightType.INTEL_MATCH,
+                severity=urgency_severity,
+                title=b.intel_title,
+                detail=f"{b.reasoning}\n\n{b.intel_summary}",
+                suggested_actions=[b.suggested_action] if b.suggested_action else [],
+                source_url=b.intel_url,
+            )
+            if insight_store.upsert(insight):
+                saved += 1
+
+        finished_at = datetime.now()
+        stats = {
+            "started_at": started_at.isoformat(),
+            "finished_at": finished_at.isoformat(),
+            "items_checked": len(items),
+            "items_passed": len(scored),
+            "briefs_saved": saved,
+            "llm_used": 1,
+        }
+        store.log_run(stats)
+
+        logger.info("heartbeat.evaluate_pending.complete", **stats)
         return stats
