@@ -106,6 +106,9 @@ def profile_update():
 def profile_edit():
     """Edit profile YAML in $EDITOR."""
     import os
+    import yaml
+
+    from pydantic import ValidationError
 
     ps = get_profile_storage()
     if not ps.exists():
@@ -119,7 +122,11 @@ def profile_edit():
     try:
         subprocess.run([editor, str(ps.path)], check=True)
         # Validate after edit
-        p = ps.load()
+        try:
+            p = ps.load()
+        except (ValidationError, ValueError, TypeError, yaml.YAMLError) as e:
+            console.print(f"[red]Profile validation failed:[/] {e}")
+            raise SystemExit(1) from e
         if p:
             console.print(
                 f"[green]Profile valid.[/] {len(p.skills)} skills, {len(p.interests)} interests"

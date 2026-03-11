@@ -308,6 +308,23 @@ class TestEvalCommands:
         assert seen == [False]
 
 
+class TestProfileCommands:
+    def test_edit_reports_validation_error(self, runner, tmp_path):
+        storage = MagicMock()
+        storage.exists.return_value = True
+        storage.path = tmp_path / "profile.yaml"
+        storage.load.side_effect = ValueError("bad profile payload")
+
+        with (
+            patch("cli.commands.profile.get_profile_storage", return_value=storage),
+            patch("cli.commands.profile.subprocess.run"),
+        ):
+            result = runner.invoke(cli, ["profile", "edit"])
+
+        assert result.exit_code == 1
+        assert "Profile validation failed" in result.output
+
+
 class TestDatabaseCommands:
     def test_get_db_components_counts_all_journal_entries(self, tmp_path):
         from cli.commands.database import _get_db_components
