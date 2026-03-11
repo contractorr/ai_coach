@@ -33,6 +33,13 @@ def _validate_goal_path(filepath: str, user_id: str) -> Path:
         raise HTTPException(status_code=400, detail="Invalid path")
     if not resolved.exists():
         raise HTTPException(status_code=404, detail="Goal not found")
+    storage = JournalStorage(journal_dir)
+    try:
+        post = storage.read(resolved)
+    except (OSError, ValueError):
+        raise HTTPException(status_code=400, detail="Invalid goal entry")
+    if post.get("type") != "goal":
+        raise HTTPException(status_code=404, detail="Goal not found")
     return resolved
 
 
