@@ -20,6 +20,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   const liteMode = useLiteMode();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [guideOpen, setGuideOpen] = useState(false);
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const [displayName, setDisplayName] = useState<string | null>(null);
   const skipGate = pathname === "/onboarding";
@@ -62,8 +63,9 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
       <AppHeader
         onOpenSettings={() => setSettingsOpen(true)}
         onToggleSidebar={() => setSidebarOpen((v) => !v)}
+        onOpenGuide={() => setGuideOpen(true)}
       />
-      <Sidebar open={sidebarOpen} onOpenChange={setSidebarOpen} displayName={displayName} disabled={skipGate} />
+      <Sidebar open={sidebarOpen} onOpenChange={setSidebarOpen} displayName={displayName} disabled={skipGate} guideOpen={guideOpen} onGuideOpenChange={setGuideOpen} />
       {token && (
         <SettingsSheet
           open={settingsOpen}

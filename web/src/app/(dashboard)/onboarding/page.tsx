@@ -6,13 +6,17 @@ import ReactMarkdown from "react-markdown";
 import {
   Brain,
   BookOpen,
+  FileText,
+  GitMerge,
   Home,
+  Lightbulb,
   MessageSquare,
   Newspaper,
   Target,
   Sparkles,
   Send,
   FlaskConical,
+  Waypoints,
   ArrowRight,
   ExternalLink,
   Globe,
@@ -114,6 +118,11 @@ export const guideCards = [
     description: "Your daily dashboard — prioritized tasks, goal updates, and signals. Start here each day.",
   },
   {
+    icon: Target,
+    title: "Set goals in Focus",
+    description: "Track goals and milestones. Your steward uses these to prioritize your brief and surface relevant intel.",
+  },
+  {
     icon: BookOpen,
     title: "Journal daily",
     description: "Capture thoughts, decisions, observations. Every entry sharpens your steward's guidance.",
@@ -127,6 +136,34 @@ export const guideCards = [
     icon: Newspaper,
     title: "Intel runs in background",
     description: "Scrapers watch HN, GitHub, arXiv, Reddit & RSS. Relevant items surface automatically.",
+  },
+  {
+    icon: FileText,
+    title: "Browse your Library",
+    description: "Research reports, uploaded PDFs, and saved content — all searchable in one place.",
+  },
+];
+
+export const behindTheScenesCards = [
+  {
+    icon: Brain,
+    title: "Memory",
+    description: "Your steward remembers facts, preferences, and context you share — across every conversation.",
+  },
+  {
+    icon: Waypoints,
+    title: "Threads",
+    description: "Recurring themes are detected across your journal and grouped into threads you can track over time.",
+  },
+  {
+    icon: Lightbulb,
+    title: "Insights",
+    description: "Patterns in your journal and goals are surfaced as actionable insights on your brief.",
+  },
+  {
+    icon: GitMerge,
+    title: "Goal–intel matching",
+    description: "Intel articles are automatically scored against your goals so the most relevant items rise to the top.",
   },
 ];
 
