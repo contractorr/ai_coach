@@ -67,6 +67,18 @@ class JournalStorage:
             raise ValueError(f"Path escapes journal directory: {filepath}")
         return resolved
 
+    def _resolve_entry_path(self, filepath: str | Path) -> Path:
+        """Resolve an entry path relative to journal_dir and enforce containment."""
+        path = Path(filepath)
+        if not path.is_absolute():
+            path = self.journal_dir / path
+        return self._validate_path(path)
+
+    @staticmethod
+    def _validate_content(content: str) -> None:
+        if len(content) > MAX_CONTENT_LENGTH:
+            raise ValueError(f"Content exceeds max length ({MAX_CONTENT_LENGTH} chars)")
+
     def create(
         self,
         content: str,
@@ -95,8 +107,7 @@ class JournalStorage:
                 f"Invalid entry_type '{entry_type}'. Must be one of {ALLOWED_ENTRY_TYPES}"
             )
 
-        if len(content) > MAX_CONTENT_LENGTH:
-            raise ValueError(f"Content exceeds max length ({MAX_CONTENT_LENGTH} chars)")
+        self._validate_content(content)
 
         now = datetime.now()
         title = title or now.strftime("%B %d, %Y")
@@ -132,7 +143,7 @@ class JournalStorage:
 
     def read(self, filepath: str | Path) -> frontmatter.Post:
         """Read journal entry."""
-        return frontmatter.load(filepath)
+        return frontmatter.load(self._resolve_entry_path(filepath))
 
     def update(
         self,
@@ -141,10 +152,11 @@ class JournalStorage:
         metadata: Optional[dict] = None,
     ) -> Path:
         """Update existing entry."""
-        filepath = Path(filepath)
+        filepath = self._resolve_entry_path(filepath)
         post = frontmatter.load(filepath)
 
         if content is not None:
+            self._validate_content(content)
             post.content = content
 
         if metadata:
@@ -160,7 +172,7 @@ class JournalStorage:
 
     def delete(self, filepath: str | Path) -> bool:
         """Delete journal entry."""
-        filepath = Path(filepath)
+        filepath = self._resolve_entry_path(filepath)
         if filepath.exists():
             filepath.unlink()
             return True

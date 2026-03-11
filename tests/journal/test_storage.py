@@ -55,6 +55,16 @@ class TestJournalStorage:
         with pytest.raises(FileNotFoundError):
             storage.read("nonexistent.md")
 
+    def test_read_rejects_path_outside_journal_dir(self, temp_dirs):
+        from journal.storage import JournalStorage
+
+        storage = JournalStorage(temp_dirs["journal_dir"])
+        outside = temp_dirs["journal_dir"].parent / "outside.md"
+        outside.write_text("outside", encoding="utf-8")
+
+        with pytest.raises(ValueError, match="Path escapes journal directory"):
+            storage.read(outside)
+
     def test_update_entry(self, populated_journal):
         """Test updating an existing entry."""
         storage = populated_journal["storage"]
@@ -66,6 +76,25 @@ class TestJournalStorage:
         post = storage.read(path)
         assert "Updated content" in post.content
 
+    def test_update_rejects_oversized_content(self, populated_journal):
+        from journal.storage import MAX_CONTENT_LENGTH
+
+        storage = populated_journal["storage"]
+        path = populated_journal["paths"][0]
+
+        with pytest.raises(ValueError, match="Content exceeds max length"):
+            storage.update(path, content="x" * (MAX_CONTENT_LENGTH + 1))
+
+    def test_update_rejects_path_outside_journal_dir(self, temp_dirs):
+        from journal.storage import JournalStorage
+
+        storage = JournalStorage(temp_dirs["journal_dir"])
+        outside = temp_dirs["journal_dir"].parent / "outside.md"
+        outside.write_text("outside", encoding="utf-8")
+
+        with pytest.raises(ValueError, match="Path escapes journal directory"):
+            storage.update(outside, content="Updated")
+
     def test_delete_entry(self, populated_journal):
         """Test deleting an entry."""
         storage = populated_journal["storage"]
@@ -75,6 +104,16 @@ class TestJournalStorage:
 
         with pytest.raises(FileNotFoundError):
             storage.read(path)
+
+    def test_delete_rejects_path_outside_journal_dir(self, temp_dirs):
+        from journal.storage import JournalStorage
+
+        storage = JournalStorage(temp_dirs["journal_dir"])
+        outside = temp_dirs["journal_dir"].parent / "outside.md"
+        outside.write_text("outside", encoding="utf-8")
+
+        with pytest.raises(ValueError, match="Path escapes journal directory"):
+            storage.delete(outside)
 
     def test_list_entries(self, populated_journal):
         """Test listing all entries."""

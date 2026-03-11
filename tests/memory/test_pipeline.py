@@ -81,6 +81,24 @@ class TestJournalPipeline:
         assert len(facts) == 1
         assert facts[0].confidence == pytest.approx(0.9)
 
+    def test_duplicate_fact_text_in_one_batch_does_not_crash(self, pipeline, provider, store):
+        provider.generate.return_value = json.dumps(
+            [
+                {"text": "User prefers Python", "category": "preference", "confidence": 0.85},
+                {"text": "User prefers Python", "category": "preference", "confidence": 0.8},
+            ]
+        )
+
+        updates = pipeline.process_journal_entry(
+            "entry-1",
+            "I prefer Python for backend work and keep coming back to Python for backend work.",
+        )
+
+        assert [update.action for update in updates] == ["ADD", "ADD"]
+        facts = store.get_all_active()
+        assert len(facts) == 2
+        assert [fact.text for fact in facts] == ["User prefers Python", "User prefers Python"]
+
 
 class TestFeedbackPipeline:
     def test_feedback_stores_fact(self, pipeline, store, provider):
