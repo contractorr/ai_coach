@@ -114,6 +114,25 @@ class TestResolve:
         assert len(updates) == 2
         assert all(u.action == "ADD" for u in updates)
 
+    def test_batch_resolve_checks_prior_batch_candidates(self, resolver, provider):
+        provider.generate.return_value = json.dumps(
+            {
+                "action": "NOOP",
+                "existing_id": None,
+                "reasoning": "Same preference already captured earlier in the batch",
+            }
+        )
+        candidates = [
+            _fact(id="c1", text="User prefers Python for backend APIs"),
+            _fact(id="c2", text="User prefers Python for APIs"),
+        ]
+
+        updates = resolver.resolve(candidates)
+
+        assert [update.action for update in updates] == ["ADD", "NOOP"]
+        assert updates[1].existing_id == "c1"
+        provider.generate.assert_called_once()
+
     def test_batch_resolve_uses_fallback_search_for_paraphrases(self, resolver, provider, store):
         store.add(_fact(id="e1", text="User prefers Python for backend development"))
         provider.generate.return_value = json.dumps(

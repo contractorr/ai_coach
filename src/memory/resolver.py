@@ -46,12 +46,17 @@ class ConflictResolver:
     def resolve(self, candidates: list[StewardFact]) -> list[FactUpdate]:
         """Resolve a batch of candidate facts against existing facts."""
         results = []
+        accepted_candidates: list[StewardFact] = []
         for candidate in candidates:
             similar = self.store.search(candidate.text, limit=3)
             # Filter out the candidate itself if it somehow got in
             similar = [s for s in similar if s.id != candidate.id]
+            similar.extend(self._batch_similar(candidate, accepted_candidates))
+            similar = self._rank_similar(candidate, similar)[:3]
             update = self.resolve_single(candidate, similar)
             results.append(update)
+            if update.action in ("ADD", "UPDATE"):
+                accepted_candidates.append(candidate)
         return results
 
     def resolve_single(self, candidate: StewardFact, similar: list[StewardFact]) -> FactUpdate:
@@ -138,3 +143,20 @@ class ConflictResolver:
         intersection = tokens_a & tokens_b
         union = tokens_a | tokens_b
         return len(intersection) / len(union)
+
+    def _batch_similar(
+        self, candidate: StewardFact, accepted_candidates: list[StewardFact]
+    ) -> list[StewardFact]:
+        return [
+            existing
+            for existing in accepted_candidates
+            if existing.id != candidate.id
+            and self._text_similarity(candidate.text, existing.text) >= self.similarity_threshold
+        ]
+
+    def _rank_similar(self, candidate: StewardFact, similar: list[StewardFact]) -> list[StewardFact]:
+        return sorted(
+            similar,
+            key=lambda fact: self._text_similarity(candidate.text, fact.text),
+            reverse=True,
+        )

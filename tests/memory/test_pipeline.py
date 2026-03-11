@@ -94,10 +94,10 @@ class TestJournalPipeline:
             "I prefer Python for backend work and keep coming back to Python for backend work.",
         )
 
-        assert [update.action for update in updates] == ["ADD", "ADD"]
+        assert [update.action for update in updates] == ["ADD", "NOOP"]
         facts = store.get_all_active()
-        assert len(facts) == 2
-        assert [fact.text for fact in facts] == ["User prefers Python", "User prefers Python"]
+        assert len(facts) == 1
+        assert [fact.text for fact in facts] == ["User prefers Python"]
 
 
 class TestFeedbackPipeline:
