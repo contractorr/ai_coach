@@ -190,7 +190,7 @@ TOOLS = [
             "description": "Update a recommendation's status.",
             "type": "object",
             "properties": {
-                "rec_id": {"type": "integer", "description": "Recommendation ID"},
+                "rec_id": {"type": "string", "description": "Recommendation ID"},
                 "status": {
                     "type": "string",
                     "enum": ["suggested", "in_progress", "completed", "dismissed"],
@@ -294,7 +294,7 @@ TOOLS = [
             "description": "Rate a recommendation's usefulness (1-5).",
             "type": "object",
             "properties": {
-                "rec_id": {"type": "integer", "description": "Recommendation ID"},
+                "rec_id": {"type": "string", "description": "Recommendation ID"},
                 "rating": {
                     "type": "integer",
                     "description": "Rating from 1 to 5",

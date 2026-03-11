@@ -120,6 +120,18 @@ def test_tools_have_input_schemas(mock_components):
         assert tool.inputSchema["type"] == "object", f"Tool {tool.name} bad schema type"
 
 
+def test_recommendation_tools_publish_string_rec_ids(mock_components):
+    """Recommendation MCP schemas should consistently expose string recommendation IDs."""
+    from coach_mcp.server import _load_tools
+
+    tools = {tool.name: tool for tool in _load_tools().get_mcp_definitions()}
+
+    assert tools["recommendations_action_create"].inputSchema["properties"]["rec_id"]["type"] == "string"
+    assert tools["recommendations_action_update"].inputSchema["properties"]["rec_id"]["type"] == "string"
+    assert tools["recommendations_update_status"].inputSchema["properties"]["rec_id"]["type"] == "string"
+    assert tools["recommendations_rate"].inputSchema["properties"]["rec_id"]["type"] == "string"
+
+
 @pytest.mark.asyncio
 async def test_call_unknown_tool(mock_components):
     """Calling unknown tool should return error JSON."""
