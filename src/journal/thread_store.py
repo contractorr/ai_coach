@@ -182,6 +182,45 @@ class ThreadStore:
                 (label, thread_id),
             )
 
+    async def remove_entry(self, entry_id: str) -> list[str]:
+        """Remove an entry from all threads and delete any orphaned threads."""
+        deleted_thread_ids: list[str] = []
+        remaining_thread_ids: list[str] = []
+        now = datetime.now().isoformat()
+
+        with wal_connect(self.db_path) as conn:
+            thread_ids = [
+                row[0]
+                for row in conn.execute(
+                    "SELECT DISTINCT thread_id FROM thread_entries WHERE entry_id = ?",
+                    (entry_id,),
+                ).fetchall()
+            ]
+            if not thread_ids:
+                return []
+
+            conn.execute("DELETE FROM thread_entries WHERE entry_id = ?", (entry_id,))
+
+            for thread_id in thread_ids:
+                remaining = conn.execute(
+                    "SELECT COUNT(*) FROM thread_entries WHERE thread_id = ?",
+                    (thread_id,),
+                ).fetchone()[0]
+                if remaining:
+                    conn.execute(
+                        "UPDATE journal_threads SET updated_at = ? WHERE id = ?",
+                        (now, thread_id),
+                    )
+                    remaining_thread_ids.append(thread_id)
+                else:
+                    conn.execute("DELETE FROM journal_threads WHERE id = ?", (thread_id,))
+                    deleted_thread_ids.append(thread_id)
+
+        for thread_id in remaining_thread_ids:
+            self._refresh_strength(thread_id)
+
+        return deleted_thread_ids
+
     async def clear_all(self) -> None:
         """Delete all threads and entries. Used by reindex."""
         with wal_connect(self.db_path) as conn:

@@ -138,6 +138,31 @@ class TestUpdateLabel:
         assert fetched.label == "new label"
 
 
+class TestRemoveEntry:
+    @pytest.mark.asyncio
+    async def test_remove_entry_deletes_orphaned_thread(self, store):
+        t = await store.create_thread("topic")
+        await store.add_entry(t.id, "e1", 0.85, datetime(2026, 1, 5))
+
+        deleted = await store.remove_entry("e1")
+
+        assert deleted == [t.id]
+        assert await store.get_thread(t.id) is None
+        assert await store.get_threads_for_entry("e1") == []
+
+    @pytest.mark.asyncio
+    async def test_remove_entry_preserves_thread_with_other_entries(self, store):
+        t = await store.create_thread("topic")
+        await store.add_entry(t.id, "e1", 0.85, datetime(2026, 1, 5))
+        await store.add_entry(t.id, "e2", 0.82, datetime(2026, 1, 22))
+
+        deleted = await store.remove_entry("e1")
+
+        assert deleted == []
+        remaining = await store.get_thread_entries(t.id)
+        assert [entry.entry_id for entry in remaining] == ["e2"]
+
+
 class TestClearAll:
     @pytest.mark.asyncio
     async def test_clear_removes_everything(self, store):

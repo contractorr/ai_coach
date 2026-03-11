@@ -15,6 +15,7 @@ from web.deps import (
     get_memory_store,
     get_receipt_store,
     get_thread_store,
+    get_thread_inbox_state_store,
     get_user_paths,
     safe_user_id,
 )
@@ -52,6 +53,18 @@ def _generate_title(content: str, user_id: str) -> str | None:
 def _get_storage(user_id: str) -> JournalStorage:
     paths = get_user_paths(user_id)
     return JournalStorage(paths["journal_dir"])
+
+
+def _invalidate_greeting_cache(user_id: str, paths: dict) -> None:
+    try:
+        from advisor.context_cache import ContextCache
+        from advisor.greeting import invalidate_greeting
+
+        cache_db = paths["intel_db"].parent / "context_cache.db"
+        cache = ContextCache(cache_db)
+        invalidate_greeting(user_id, cache)
+    except Exception as exc:
+        logger.warning("journal.greeting_invalidate_failed", error=str(exc), user=user_id)
 
 
 async def _run_post_create_hooks(
@@ -238,15 +251,65 @@ async def _run_post_create_hooks(
         logger.warning("post_create.receipt_failed", error=str(exc), user=user_id)
 
     # 4. Invalidate greeting cache
-    try:
-        from advisor.context_cache import ContextCache
-        from advisor.greeting import invalidate_greeting
+    _invalidate_greeting_cache(user_id, paths)
 
-        cache_db = paths["intel_db"].parent / "context_cache.db"
-        cache = ContextCache(cache_db)
-        invalidate_greeting(user_id, cache)
+
+async def _cleanup_deleted_entry_state(user_id: str, filepath: Path) -> None:
+    paths = get_user_paths(user_id)
+    entry_id = str(filepath)
+
+    try:
+        get_receipt_store(user_id).delete_by_entry(entry_id)
     except Exception as exc:
-        logger.warning("post_create.greeting_invalidate_failed", error=str(exc), user=user_id)
+        logger.warning("journal.delete_receipt_failed", error=str(exc), user=user_id, entry=entry_id)
+
+    try:
+        from journal.embeddings import EmbeddingManager
+
+        chroma_dir = paths.get("chroma_dir")
+        if chroma_dir:
+            manager = EmbeddingManager(
+                chroma_dir,
+                collection_name=f"journal_{safe_user_id(user_id)}",
+            )
+            manager.remove_entry(entry_id)
+    except Exception as exc:
+        logger.warning("journal.delete_embedding_failed", error=str(exc), user=user_id, entry=entry_id)
+
+    try:
+        from journal.fts import JournalFTSIndex
+
+        JournalFTSIndex(paths["journal_dir"]).delete(entry_id)
+    except Exception as exc:
+        logger.warning("journal.delete_fts_failed", error=str(exc), user=user_id, entry=entry_id)
+
+    deleted_thread_ids: list[str] = []
+    try:
+        deleted_thread_ids = await get_thread_store(user_id).remove_entry(entry_id)
+    except Exception as exc:
+        logger.warning("journal.delete_threads_failed", error=str(exc), user=user_id, entry=entry_id)
+
+    if deleted_thread_ids:
+        try:
+            inbox_state_store = get_thread_inbox_state_store(user_id)
+            for thread_id in deleted_thread_ids:
+                inbox_state_store.clear_state(thread_id)
+        except Exception as exc:
+            logger.warning(
+                "journal.delete_thread_state_failed",
+                error=str(exc),
+                user=user_id,
+                entry=entry_id,
+            )
+
+    try:
+        from memory.models import FactSource
+
+        get_memory_store(user_id).delete_by_source(FactSource.JOURNAL, entry_id)
+    except Exception as exc:
+        logger.warning("journal.delete_memory_failed", error=str(exc), user=user_id, entry=entry_id)
+
+    _invalidate_greeting_cache(user_id, paths)
 
 
 def _schedule_post_create_hooks(user_id: str, filepath: Path, content: str, metadata: dict):
@@ -449,8 +512,5 @@ async def delete_entry(
 ):
     storage = _get_storage(user["id"])
     resolved = _validate_journal_path(filepath, storage)
-    try:
-        get_receipt_store(user["id"]).delete_by_entry(str(resolved))
-    except Exception:
-        pass
     storage.delete(resolved)
+    await _cleanup_deleted_entry_state(user["id"], resolved)
