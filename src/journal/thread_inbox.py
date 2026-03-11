@@ -19,6 +19,8 @@ VALID_INBOX_STATES = {
     "dormant",
 }
 
+_UNSET = object()
+
 
 def _now() -> str:
     return datetime.now().isoformat()
@@ -62,12 +64,16 @@ class ThreadInboxStateStore:
         thread_id: str,
         *,
         inbox_state: str,
-        linked_goal_path: str | None = None,
-        linked_dossier_id: str | None = None,
+        linked_goal_path: str | None | object = _UNSET,
+        linked_dossier_id: str | None | object = _UNSET,
         last_action: str = "",
     ) -> dict:
         if inbox_state not in VALID_INBOX_STATES:
             raise ValueError(f"Invalid inbox state: {inbox_state}")
+        goal_path_provided = linked_goal_path is not _UNSET
+        dossier_id_provided = linked_dossier_id is not _UNSET
+        goal_path_value = None if linked_goal_path is _UNSET else linked_goal_path
+        dossier_id_value = None if linked_dossier_id is _UNSET else linked_dossier_id
         with wal_connect(self.db_path) as conn:
             conn.execute(
                 """
@@ -76,18 +82,33 @@ class ThreadInboxStateStore:
                 ) VALUES (?, ?, ?, ?, ?, ?)
                 ON CONFLICT(thread_id) DO UPDATE SET
                     inbox_state = excluded.inbox_state,
-                    linked_goal_path = COALESCE(excluded.linked_goal_path, thread_inbox_state.linked_goal_path),
-                    linked_dossier_id = COALESCE(excluded.linked_dossier_id, thread_inbox_state.linked_dossier_id),
+                    linked_goal_path = CASE
+                        WHEN ? THEN excluded.linked_goal_path
+                        ELSE thread_inbox_state.linked_goal_path
+                    END,
+                    linked_dossier_id = CASE
+                        WHEN ? THEN excluded.linked_dossier_id
+                        ELSE thread_inbox_state.linked_dossier_id
+                    END,
                     last_action = excluded.last_action,
                     updated_at = excluded.updated_at
                 """,
-                (thread_id, inbox_state, linked_goal_path, linked_dossier_id, last_action, _now()),
+                (
+                    thread_id,
+                    inbox_state,
+                    goal_path_value,
+                    dossier_id_value,
+                    last_action,
+                    _now(),
+                    int(goal_path_provided),
+                    int(dossier_id_provided),
+                ),
             )
         return self.get_state(thread_id) or {
             "thread_id": thread_id,
             "inbox_state": inbox_state,
-            "linked_goal_path": linked_goal_path,
-            "linked_dossier_id": linked_dossier_id,
+            "linked_goal_path": goal_path_value,
+            "linked_dossier_id": dossier_id_value,
             "last_action": last_action,
             "updated_at": _now(),
         }
