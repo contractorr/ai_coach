@@ -97,6 +97,9 @@ def _auto_detect_provider(api_key: str | None = None) -> str:
         inferred = _detect_provider_from_key(api_key)
         if inferred:
             return inferred
+        raise LLMError(
+            "Could not infer provider from explicit API key. Pass provider=claude, openai, or gemini."
+        )
 
     for name in _AUTO_DETECT_ORDER:
         env_var = _PROVIDER_ENV_KEYS[name]

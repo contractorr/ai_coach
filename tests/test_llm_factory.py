@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from llm import LLMError, create_llm_provider
-from llm.factory import _auto_detect_provider
+from llm.factory import _auto_detect_provider, create_cheap_provider
 
 
 class TestAutoDetection:
@@ -38,6 +38,11 @@ class TestAutoDetection:
         monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
         with pytest.raises(LLMError, match="No LLM API key found"):
             _auto_detect_provider()
+
+    def test_explicit_unknown_key_does_not_fall_back_to_env(self, monkeypatch):
+        monkeypatch.setenv("OPENAI_API_KEY", "sk-env-test")
+        with pytest.raises(LLMError, match="Could not infer provider from explicit API key"):
+            _auto_detect_provider(api_key="custom-key-format")
 
 
 class TestCreateProvider:
@@ -78,6 +83,16 @@ class TestCreateProvider:
             provider="claude", client=mock_client, model="claude-opus-4-20250514"
         )
         assert provider.model == "claude-opus-4-20250514"
+
+    def test_auto_with_explicit_unknown_key_raises(self, monkeypatch):
+        monkeypatch.setenv("OPENAI_API_KEY", "sk-env-test")
+        with pytest.raises(LLMError, match="Could not infer provider from explicit API key"):
+            create_llm_provider(api_key="custom-key-format")
+
+    def test_create_cheap_provider_with_explicit_unknown_key_raises(self, monkeypatch):
+        monkeypatch.setenv("OPENAI_API_KEY", "sk-env-test")
+        with pytest.raises(LLMError, match="Could not infer provider from explicit API key"):
+            create_cheap_provider(api_key="custom-key-format")
 
     def test_default_models(self):
         mock_client = MagicMock()
