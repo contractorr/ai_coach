@@ -11,17 +11,16 @@ GREETING_TTL = 14400  # 4 hours
 GREETING_ERROR_TTL = 300  # 5 min fallback on LLM failure
 
 STATIC_FALLBACK = (
-    "Welcome back. I'm here to help you think through decisions, "
-    "track your goals, and stay on top of what matters in your field. "
-    "Ask me anything or capture a quick thought."
+    "What's on your mind? I can help you think through a decision, "
+    "check in on goals, or dig into something new."
 )
 
 GREETING_PROMPT_SYSTEM = (
-    "You are a concise personal career advisor. Write a personalized greeting "
-    "for the user in 3-5 sentences. Reference their current situation — stale goals, "
-    "recent recommendations, or notable intel — to show you're aware of their context. "
-    "Be warm but direct. Do NOT use bullet points or headers. Do NOT start with 'Hello' "
-    "or 'Hi' — jump straight into substance."
+    "You are the user's career coach. Write a short, personalized greeting — 1-3 sentences max. "
+    "Sound like a person, not a chatbot. Reference one specific thing from their context "
+    "(a stale goal, a recommendation, or notable intel) to show you're paying attention. "
+    "Be warm but direct. Do NOT use bullet points or headers. Do NOT start with 'Hello', "
+    "'Hi', or 'Welcome' — jump straight into substance. No filler, no fluff."
 )
 
 

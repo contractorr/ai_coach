@@ -9,8 +9,8 @@ from .storage import ProfileStorage, Skill, UserProfile
 
 logger = structlog.get_logger()
 
-INTERVIEW_SYSTEM = """You are a career coach conducting a profile interview. Ask one clear question at a time.
-Your job is to gather enough information to fill out a professional profile.
+INTERVIEW_SYSTEM = """You are a career coach conducting a quick profile interview. Ask one clear question at a time.
+Your job is to gather enough info to build a professional profile.
 
 You need to learn:
 1. Current role and career stage (junior/mid/senior/lead/exec)
@@ -22,7 +22,8 @@ You need to learn:
 7. Preferred learning style (visual/reading/hands-on/mixed)
 8. Weekly hours available for professional development
 
-Adapt your questions based on previous answers. Be conversational but efficient.
+Sound like a real person — casual, direct, no corporate tone. Keep questions short.
+Adapt based on previous answers. Don't repeat what they already told you.
 After gathering enough info (5-7 questions), output EXACTLY this JSON block:
 
 ```json
@@ -40,7 +41,7 @@ After gathering enough info (5-7 questions), output EXACTLY this JSON block:
 ```"""
 
 INTERVIEW_START = """Start the profile interview. Ask your first question to understand
-who this person is professionally. Be warm but concise."""
+who this person is professionally. Keep it casual and short — one question only."""
 
 
 class ProfileInterviewError(Exception):
