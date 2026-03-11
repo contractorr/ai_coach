@@ -272,7 +272,9 @@ class TestToolResultTruncation:
             )
 
         result = registry.execute("journal_list", {"limit": 50})
-        assert len(result) <= 4100  # TOOL_RESULT_MAX_CHARS + truncation msg
+        assert len(result) <= registry.TOOL_RESULT_MAX_CHARS
+        parsed = json.loads(result)
+        assert parsed["truncated"] is True
 
 
 class TestEntitySearchTool:

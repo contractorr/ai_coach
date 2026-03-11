@@ -47,6 +47,26 @@ class ToolRegistry:
         self.components = components or {}
         self._tools: dict[str, ToolEntry] = {}
 
+    def _serialize_result(self, result: object) -> str:
+        text = json.dumps(result, default=str)
+        if len(text) <= self.TOOL_RESULT_MAX_CHARS:
+            return text
+
+        preview = text
+        while True:
+            truncated = json.dumps(
+                {
+                    "truncated": True,
+                    "original_length": len(text),
+                    "result_preview": preview,
+                }
+            )
+            if len(truncated) <= self.TOOL_RESULT_MAX_CHARS or not preview:
+                return truncated
+
+            overflow = len(truncated) - self.TOOL_RESULT_MAX_CHARS
+            preview = preview[: max(0, len(preview) - max(overflow, 1))]
+
     def register(
         self,
         *,
@@ -106,10 +126,7 @@ class ToolRegistry:
 
         try:
             result = entry.handler(arguments)
-            text = json.dumps(result, default=str)
-            if len(text) > self.TOOL_RESULT_MAX_CHARS:
-                text = text[: self.TOOL_RESULT_MAX_CHARS] + "... (truncated)"
-            return text
+            return self._serialize_result(result)
         except Exception as exc:
             logger.error("tool_execution_failed", tool=name, error=str(exc), exc_info=True)
             return json.dumps({"error": f"{name}: {exc}"})
