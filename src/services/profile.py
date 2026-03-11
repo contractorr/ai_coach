@@ -1,6 +1,7 @@
 """Shared profile read/update orchestration for delivery surfaces."""
 
 from profile.storage import Skill
+from pydantic import ValidationError
 from typing import Any
 
 from shared_types import CareerStage
@@ -59,13 +60,24 @@ def update_profile_fields(storage, updates: dict[str, Any], embed_callback=None)
 
     normalized_updates = {}
     for field, value in updates.items():
-        normalized_value = normalize_profile_value(field, value)
         if not hasattr(profile, field):
             raise ValueError(f"Unknown field: {field}")
-        setattr(profile, field, normalized_value)
+        normalized_value = normalize_profile_value(field, value)
         normalized_updates[field] = normalized_value
 
-    storage.save(profile)
+    merged_profile_data = profile.model_dump()
+    merged_profile_data.update(normalized_updates)
+    try:
+        validated_profile = type(profile).model_validate(merged_profile_data)
+    except ValidationError as exc:
+        first_error = exc.errors()[0]
+        field_path = ".".join(str(part) for part in first_error.get("loc", ()))
+        message = first_error.get("msg", "Invalid value")
+        if field_path:
+            raise ValueError(f"Invalid value for {field_path}: {message}") from exc
+        raise ValueError(message) from exc
+
+    storage.save(validated_profile)
     if embed_callback is not None:
-        embed_callback(profile)
-    return profile, list(normalized_updates.keys())
+        embed_callback(validated_profile)
+    return validated_profile, list(normalized_updates.keys())

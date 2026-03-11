@@ -69,6 +69,18 @@ def test_profile_tool_uses_bootstrap_profile_store(mock_components, tmp_path):
     assert mock_get.call_count == 2
 
 
+def test_profile_tool_reports_invalid_updates(mock_components, tmp_path):
+    from coach_mcp.tools.profile import _profile_update_field
+
+    storage = ProfileStorage(tmp_path / "custom-profile.yaml")
+
+    with patch("coach_mcp.tools.profile.get_profile_storage", return_value=storage):
+        result = _profile_update_field({"field": "weekly_hours_available", "value": "a lot"})
+
+    assert result["success"] is False
+    assert "weekly_hours_available" in result["error"]
+
+
 def test_memory_tool_uses_bootstrap_memory_store(mock_components, tmp_path):
     from coach_mcp.tools.memory import _delete_fact, _list_facts
 

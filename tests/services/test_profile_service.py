@@ -70,3 +70,28 @@ def test_update_profile_fields_rejects_empty_or_unknown_updates(tmp_path):
         assert str(exc) == "Unknown field: unknown_field"
     else:
         raise AssertionError("Expected ValueError for unknown field")
+
+
+def test_update_profile_fields_rejects_invalid_scalar_values(tmp_path):
+    storage = ProfileStorage(tmp_path / "profile.yaml")
+
+    try:
+        update_profile_fields(storage, {"weekly_hours_available": "a lot"})
+    except ValueError as exc:
+        assert "weekly_hours_available" in str(exc)
+    else:
+        raise AssertionError("Expected ValueError for invalid scalar field")
+
+
+def test_update_profile_fields_rejects_invalid_skill_payloads(tmp_path):
+    storage = ProfileStorage(tmp_path / "profile.yaml")
+
+    try:
+        update_profile_fields(
+            storage,
+            {"skills": [{"name": "Python", "proficiency": "expert"}]},
+        )
+    except ValueError as exc:
+        assert "proficiency" in str(exc)
+    else:
+        raise AssertionError("Expected ValueError for invalid skill payload")
