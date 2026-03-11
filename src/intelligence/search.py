@@ -503,6 +503,7 @@ class IntelSearch:
             cursor = conn.execute("""
                 SELECT id, source, title, url, summary, content, tags
                 FROM intel_items
+                WHERE duplicate_of IS NULL
             """)
             rows = cursor.fetchall()
 

@@ -276,3 +276,29 @@ class TestSemanticDedup:
         urls = {r["url"] for r in recent}
         assert "https://a.com/1" in urls
         assert "https://a.com/2" not in urls
+
+
+def test_sync_embeddings_excludes_semantic_duplicates(temp_dirs):
+    from intelligence.scraper import IntelItem, IntelStorage
+    from intelligence.search import IntelSearch
+
+    storage = IntelStorage(temp_dirs["intel_db"])
+    original_id = storage.save(
+        IntelItem(source="test", title="Original", url="https://a.com/1", summary="s1")
+    )
+    duplicate_id = storage.save(
+        IntelItem(source="test", title="Duplicate", url="https://a.com/2", summary="s2")
+    )
+
+    assert original_id and duplicate_id
+    storage.mark_duplicate(duplicate_id, original_id)
+
+    mock_embeddings = MagicMock()
+    mock_embeddings.sync_from_storage.return_value = (1, 0)
+
+    search = IntelSearch(storage, embedding_manager=mock_embeddings)
+    result = search.sync_embeddings()
+
+    assert result == (1, 0)
+    synced_items = mock_embeddings.sync_from_storage.call_args.args[0]
+    assert [item["id"] for item in synced_items] == [str(original_id)]
