@@ -712,7 +712,7 @@ class RecommendationEngine:
 
         # Contrarianism check on #1 pick only
         # COST NOTE: 1 additional LLM call per top-picks generation
-        top_rec = candidates[0]  # highest-scored rec
+        top_rec = self._resolve_top_pick_candidate(top_picks_text, candidates)
         try:
             contrarian_result = self._run_top_pick_contrarian(top_rec, profile_ctx)
             if contrarian_result:
@@ -721,6 +721,27 @@ class RecommendationEngine:
             logger.warning("top_pick_contrarian_failed", error=str(e))
 
         return top_picks_text
+
+    @staticmethod
+    def _resolve_top_pick_candidate(
+        top_picks_text: str, candidates: list[Recommendation]
+    ) -> Recommendation:
+        match = re.search(
+            r"^###\s*TOP\s*1:\s*\[(?P<category>[^\]]+)\]\s*(?P<title>.+?)\s*$",
+            top_picks_text,
+            re.IGNORECASE | re.MULTILINE,
+        )
+        if not match:
+            return candidates[0]
+
+        parsed_category = " ".join(match.group("category").split()).lower()
+        parsed_title = " ".join(match.group("title").split()).lower()
+        for candidate in candidates:
+            candidate_category = " ".join(str(candidate.category).split()).lower()
+            candidate_title = " ".join(candidate.title.split()).lower()
+            if candidate_category == parsed_category and candidate_title == parsed_title:
+                return candidate
+        return candidates[0]
 
     def _run_top_pick_contrarian(self, rec: Recommendation, profile_ctx: str) -> str | None:
         """Run contrarianism check on the top pick."""
