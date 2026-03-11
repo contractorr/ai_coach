@@ -73,7 +73,10 @@ def _build_profile(data: dict) -> UserProfile:
     skills = []
     for s in data.get("skills", []):
         if isinstance(s, dict) and "name" in s:
-            prof = max(1, min(5, int(s.get("proficiency", 3))))
+            try:
+                prof = max(1, min(5, int(s.get("proficiency", 3))))
+            except (TypeError, ValueError):
+                prof = 3
             skills.append(Skill(name=s["name"], proficiency=prof))
 
     stage = data.get("career_stage", "mid")
@@ -105,12 +108,12 @@ def _build_profile(data: dict) -> UserProfile:
 
     return UserProfile(
         skills=skills,
-        interests=data.get("interests", []),
+        interests=_as_list(data.get("interests")),
         career_stage=stage,
         current_role=data.get("current_role", ""),
         aspirations=data.get("aspirations", ""),
         location=data.get("location", ""),
-        languages_frameworks=data.get("languages_frameworks", []),
+        languages_frameworks=_as_list(data.get("languages_frameworks")),
         learning_style=style,
         weekly_hours_available=hours,
         goals_short_term=data.get("goals_short_term", ""),

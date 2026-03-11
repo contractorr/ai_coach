@@ -88,9 +88,21 @@ class TestBuildProfile:
         p = _build_profile({"skills": [{"name": "X", "proficiency": -1}]})
         assert p.skills[0].proficiency == 1
 
+    def test_invalid_proficiency_defaults_midpoint(self):
+        p = _build_profile({"skills": [{"name": "X", "proficiency": "high"}]})
+        assert p.skills[0].proficiency == 3
+
     def test_comma_separated_list_fields_normalized(self):
         p = _build_profile({"industries_watching": "fintech, healthtech, edtech"})
         assert p.industries_watching == ["fintech", "healthtech", "edtech"]
+
+    def test_interests_string_normalized(self):
+        p = _build_profile({"interests": "ML, infra"})
+        assert p.interests == ["ML", "infra"]
+
+    def test_languages_frameworks_string_normalized(self):
+        p = _build_profile({"languages_frameworks": "Python, FastAPI"})
+        assert p.languages_frameworks == ["Python", "FastAPI"]
 
     def test_non_dict_constraints_empty(self):
         p = _build_profile({"constraints": "none"})
