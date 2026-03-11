@@ -117,24 +117,25 @@ class JournalSearch:
         limit: int = 20,
     ) -> list[dict]:
         """In-memory keyword scan (legacy fallback)."""
-        entries = self.storage.list_entries(entry_type=entry_type, limit=limit * 2)
         matches = []
 
         terms = [t.lower() for t in keyword.lower().split() if t]
 
-        for entry in entries:
+        for path in sorted(self.storage.journal_dir.glob("*.md"), reverse=True):
             try:
-                post = frontmatter.load(entry["path"])
-                content_lower = post.content.lower()
+                post = frontmatter.load(path)
+                if entry_type and post.get("type") != entry_type:
+                    continue
+                content_lower = (post.content or "").lower()
                 count = sum(content_lower.count(t) for t in terms)
                 if count > 0:
                     matches.append(
                         {
-                            "path": entry["path"],
-                            "title": entry["title"],
-                            "type": entry["type"],
-                            "created": entry["created"],
-                            "tags": entry["tags"],
+                            "path": path,
+                            "title": post.get("title", path.stem),
+                            "type": post.get("type"),
+                            "created": post.get("created"),
+                            "tags": post.get("tags", []),
                             "content": post.content,
                             "relevance": count,
                         }

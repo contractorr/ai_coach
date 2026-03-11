@@ -1,5 +1,7 @@
 """Tests for journal search operations."""
 
+import frontmatter
+
 
 class TestJournalSearch:
     """Test JournalSearch semantic and keyword search."""
@@ -62,6 +64,26 @@ class TestJournalSearch:
         results = search.keyword_search("xyznonexistent123")
 
         assert len(results) == 0
+
+    def test_keyword_search_fallback_scans_older_entries(self, temp_dirs):
+        from journal.search import JournalSearch
+        from journal.storage import JournalStorage
+
+        storage = JournalStorage(temp_dirs["journal_dir"])
+        for i in range(20):
+            storage.create(content=f"boring filler {i}", title=f"New {i}")
+
+        old_match = temp_dirs["journal_dir"] / "2020-01-01_daily_old-match.md"
+        post = frontmatter.Post("rareterm appears here")
+        post["title"] = "Old Match"
+        post["type"] = "daily"
+        post["created"] = "2020-01-01T00:00:00"
+        old_match.write_text(frontmatter.dumps(post), encoding="utf-8")
+
+        search = JournalSearch(storage=storage, embeddings=None)
+        results = search.keyword_search("rareterm", limit=5)
+
+        assert [result["title"] for result in results] == ["Old Match"]
 
     def test_get_context_for_query(self, populated_journal, temp_dirs):
         """Test getting formatted context for RAG."""
