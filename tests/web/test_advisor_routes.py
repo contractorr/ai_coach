@@ -1,5 +1,6 @@
 """Tests for advisor API routes (ask, streaming, conversations)."""
 
+import time
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -262,6 +263,76 @@ def test_ask_stream_includes_council_metadata(client, auth_headers):
     answer_event = next(event for event in events if event["type"] == "answer")
     assert answer_event["council_used"] is True
     assert answer_event["council_providers"] == ["claude", "openai"]
+
+
+def test_ask_stream_failure_cleans_up_new_conversation(client, auth_headers):
+    class _BrokenEngine:
+        def ask_result(self, *args, **kwargs):
+            raise RuntimeError("stream failed")
+
+    with patch(_ENGINE_PATCH, return_value=_BrokenEngine()):
+        res = client.post(
+            "/api/advisor/ask/stream",
+            headers=auth_headers,
+            json={"question": "Stream failure"},
+        )
+
+    assert res.status_code == 200
+    assert "stream failed" in res.text
+    assert client.get("/api/advisor/conversations", headers=auth_headers).json() == []
+
+
+def test_ask_stream_disconnect_still_persists_assistant_turn(client, auth_headers):
+    class _SlowEngine:
+        def ask_result(
+            self,
+            question,
+            advice_type="general",
+            conversation_history=None,
+            attachment_ids=None,
+            event_callback=None,
+        ):
+            if event_callback:
+                event_callback({"type": "tool_start", "tool": "journal_search"})
+            time.sleep(0.1)
+            return SimpleNamespace(
+                answer=f"Slow advice for: {question}",
+                council_used=False,
+                council_member_count=0,
+                council_providers=[],
+                council_failed_providers=[],
+                council_partial=False,
+            )
+
+    with patch(_ENGINE_PATCH, return_value=_SlowEngine()):
+        with client.stream(
+            "POST",
+            "/api/advisor/ask/stream",
+            headers=auth_headers,
+            json={"question": "Disconnect me"},
+        ) as response:
+            assert response.status_code == 200
+            first_data_line = next(response.iter_lines())
+            assert "tool_start" in first_data_line
+
+    conversation_id = None
+    expected_messages = ["Disconnect me", "Slow advice for: Disconnect me"]
+    for _ in range(20):
+        conversations = client.get("/api/advisor/conversations", headers=auth_headers).json()
+        if conversations:
+            conversation_id = conversations[0]["id"]
+            detail = client.get(
+                f"/api/advisor/conversations/{conversation_id}",
+                headers=auth_headers,
+            ).json()
+            if [message["content"] for message in detail["messages"]] == expected_messages:
+                break
+        time.sleep(0.05)
+
+    assert conversation_id is not None
+    detail = client.get(f"/api/advisor/conversations/{conversation_id}", headers=auth_headers)
+    assert detail.status_code == 200
+    assert [message["content"] for message in detail.json()["messages"]] == expected_messages
 
 
 def test_conversations_crud(client, auth_headers):

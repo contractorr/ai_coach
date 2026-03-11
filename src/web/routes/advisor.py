@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+from contextlib import suppress
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
@@ -352,10 +353,11 @@ async def ask_advisor_stream(
 ):
     """SSE streaming version of /ask — emits tool_start/tool_done/answer events."""
     user_id = user["id"]
+    created_conversation = body.conversation_id is None
 
     try:
         attachments = _resolve_attachment_records(user_id, body.attachment_ids)
-        conv_id, history, _user_message_id = start_conversation_turn(
+        conv_id, history, user_message_id = start_conversation_turn(
             user_id=user_id,
             conversation_id=body.conversation_id,
             question=body.question,
@@ -370,12 +372,19 @@ async def ask_advisor_stream(
 
     queue: asyncio.Queue[dict | None] = asyncio.Queue()
     answer_sent = False
+    stream_closed = False
+    event_loop = asyncio.get_running_loop()
+
+    def _queue_event(event: dict | None) -> None:
+        if stream_closed:
+            return
+        event_loop.call_soon_threadsafe(queue.put_nowait, event)
 
     def _event_callback(event: dict):
         nonlocal answer_sent
         if event.get("type") == "answer":
             answer_sent = True
-        queue.put_nowait(event)
+        _queue_event(event)
 
     async def _run_engine():
         try:
@@ -405,7 +414,7 @@ async def ask_advisor_stream(
                 model=result.get("model"),
             )
             if not answer_sent:
-                queue.put_nowait(
+                _queue_event(
                     {
                         "type": "answer",
                         "content": result["answer"],
@@ -419,11 +428,19 @@ async def ask_advisor_stream(
                     }
                 )
         except Exception as exc:
-            queue.put_nowait({"type": "error", "detail": str(exc)})
+            try:
+                if user_message_id is not None:
+                    delete_message(user_message_id, conv_id)
+                if created_conversation:
+                    delete_conversation(conv_id, user_id)
+            except Exception:
+                pass
+            _queue_event({"type": "error", "detail": str(exc)})
         finally:
-            queue.put_nowait(None)
+            _queue_event(None)
 
     async def _sse_generator():
+        nonlocal stream_closed
         task = asyncio.create_task(_run_engine())
         try:
             while True:
@@ -435,7 +452,10 @@ async def ask_advisor_stream(
                     event.setdefault("advice_type", body.advice_type)
                 yield f"data: {json.dumps(event)}\n\n"
         finally:
-            task.cancel()
+            stream_closed = True
+            if task.done():
+                with suppress(asyncio.CancelledError, Exception):
+                    await task
 
     return StreamingResponse(_sse_generator(), media_type="text/event-stream")
 
