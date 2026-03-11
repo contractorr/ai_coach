@@ -1,13 +1,13 @@
 """Tests for DeepResearchAgent."""
 
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from intelligence.scraper import IntelStorage
 from journal.embeddings import EmbeddingManager
 from journal.storage import JournalStorage
-from research.agent import DeepResearchAgent
+from research.agent import AsyncDeepResearchAgent, DeepResearchAgent
 from research.web_search import SearchResult
 
 
@@ -183,3 +183,101 @@ class TestDeepResearchAgent:
 
         agent.close()
         search_client.close.assert_called_once()
+
+    def test_scheduled_dossier_run_continues_after_failure(self, agent_factory):
+        """A failed dossier should not abort the rest of the scheduled batch."""
+        dossiers = MagicMock()
+        dossiers.get_active_dossiers.return_value = [
+            {"dossier_id": "dos-1", "topic": "Topic One"},
+            {"dossier_id": "dos-2", "topic": "Topic Two"},
+        ]
+        agent = agent_factory(dossiers=dossiers)
+        agent._run_dossier = MagicMock(
+            side_effect=[
+                RuntimeError("append failed"),
+                {
+                    "topic": "Topic Two",
+                    "title": "Research Update: Topic Two",
+                    "dossier_id": "dos-2",
+                    "filepath": "/tmp/topic-two.md",
+                    "success": True,
+                },
+            ]
+        )
+
+        results = agent.run()
+
+        assert results == [
+            {
+                "topic": "Topic One",
+                "title": "Research Update: Topic One",
+                "dossier_id": "dos-1",
+                "filepath": None,
+                "success": False,
+                "error": "append failed",
+            },
+            {
+                "topic": "Topic Two",
+                "title": "Research Update: Topic Two",
+                "dossier_id": "dos-2",
+                "filepath": "/tmp/topic-two.md",
+                "success": True,
+            },
+        ]
+        assert agent._run_dossier.call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_async_scheduled_dossier_run_continues_after_failure(temp_dirs):
+    journal = JournalStorage(temp_dirs["journal_dir"])
+    intel = IntelStorage(temp_dirs["intel_db"])
+    embeddings = MagicMock(spec=EmbeddingManager)
+    dossiers = MagicMock()
+    dossiers.get_active_dossiers.return_value = [
+        {"dossier_id": "dos-1", "topic": "Topic One"},
+        {"dossier_id": "dos-2", "topic": "Topic Two"},
+    ]
+    search_client = MagicMock()
+    search_client.close = AsyncMock()
+    agent = AsyncDeepResearchAgent(
+        journal_storage=journal,
+        intel_storage=intel,
+        embeddings=embeddings,
+        search_client=search_client,
+        synthesizer=MagicMock(),
+        dossiers=dossiers,
+    )
+
+    async def _run_dossier_async(dossier, run_source):
+        if dossier["dossier_id"] == "dos-1":
+            raise RuntimeError("append failed")
+        return {
+            "topic": dossier["topic"],
+            "title": f"Research Update: {dossier['topic']}",
+            "dossier_id": dossier["dossier_id"],
+            "filepath": "/tmp/topic-two.md",
+            "success": True,
+        }
+
+    agent._run_dossier_async = AsyncMock(side_effect=_run_dossier_async)
+
+    results = await agent.run()
+
+    assert results == [
+        {
+            "topic": "Topic One",
+            "title": "Research Update: Topic One",
+            "dossier_id": "dos-1",
+            "filepath": None,
+            "success": False,
+            "error": "append failed",
+        },
+        {
+            "topic": "Topic Two",
+            "title": "Research Update: Topic Two",
+            "dossier_id": "dos-2",
+            "filepath": "/tmp/topic-two.md",
+            "success": True,
+        },
+    ]
+    assert agent._run_dossier_async.await_count == 2
