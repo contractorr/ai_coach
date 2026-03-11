@@ -26,7 +26,7 @@ from storage_paths import get_user_paths as resolve_user_paths
 from storage_paths import safe_user_id as _safe_user_id
 from web.auth import get_current_user
 from web.rate_limit import check_shared_key_rate_limit
-from web.user_store import get_user_secrets
+from web.user_store import get_onboarding_responses, get_user_secrets
 
 logger = structlog.get_logger()
 
@@ -452,7 +452,9 @@ def get_settings_mask_for_user(user_id: str) -> dict:
     elif personal_keys:
         key_hint = _hint(next(iter(personal_keys.values())))
     council_enabled = _parse_bool_secret(secrets.get("llm_council_enabled"), default=True)
-    has_profile = get_profile_storage(user_id).load() is not None
+    has_profile = get_profile_storage(user_id).load() is not None or bool(
+        get_onboarding_responses(user_id)
+    )
 
     return {
         "has_profile": has_profile,
