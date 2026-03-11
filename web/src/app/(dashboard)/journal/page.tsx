@@ -272,7 +272,7 @@ export default function JournalPage() {
         <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
           <SheetTrigger asChild>
             <Button>
-              <Plus className="mr-2 h-4 w-4" /> New Entry
+              <Plus className="h-4 w-4" /> New Entry
             </Button>
           </SheetTrigger>
           <SheetContent className="w-full sm:max-w-lg md:max-w-xl overflow-y-auto">

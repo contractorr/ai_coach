@@ -267,7 +267,7 @@ export default function RadarPage() {
               <Link href="/intel">Open advanced radar</Link>
             </Button>
             <Button onClick={handleScrape} disabled={refreshing}>
-              {refreshing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+              {refreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
               {refreshing ? "Scanning..." : "Scan now"}
             </Button>
           </>
