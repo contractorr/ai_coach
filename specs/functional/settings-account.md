@@ -46,9 +46,11 @@ Users can permanently delete their account and all associated data via a single 
 
 ### Re-onboarding After Deletion
 
-- When a deleted user logs back in, `get_or_create_user()` auto-creates a new DB row.
+- When a deleted user logs back in, `get_or_create_user()` auto-creates a new DB row with `onboarded=false`.
 - The dashboard onboarding gate (`DashboardShell.tsx`) checks `has_profile` from `GET /api/settings`.
-- If `has_profile` is false (profile.yaml was deleted), the user is redirected to `/onboarding` regardless of API key / shared key status.
+- `has_profile` is backed by the `users.onboarded` DB column — not filesystem state.
+- If `has_profile` is false, the user is redirected to `/onboarding` regardless of API key / shared key status.
+- On onboarding completion, `mark_onboarded()` sets the flag to true.
 
 ### User Flow Addition
 

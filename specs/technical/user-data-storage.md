@@ -57,10 +57,20 @@ paths = get_user_paths(user_id)
 ## Account Deletion
 
 `DELETE /api/user/me` performs:
-1. DB cleanup: cascading deletes across `user_secrets`, `onboarding_responses`, etc.
+1. DB cleanup: cascading deletes across `user_secrets`, `onboarding_responses`, etc. — removes the entire `users` row.
 2. Filesystem cleanup: `shutil.rmtree(get_coach_home() / "users" / safe_user_id(user_id))`
 
-Both steps are required for `has_profile` to correctly return `false` on re-login.
+On re-login, `get_or_create_user()` inserts a fresh row with `onboarded=false`, triggering the onboarding gate.
+
+## Onboarding Gate
+
+The `has_profile` field in `GET /api/settings` is backed by the `users.onboarded` DB column (not filesystem state).
+
+- `users.onboarded` defaults to `true` for existing rows (migration) and `false` for new inserts.
+- `mark_onboarded(user_id)` is called at onboarding completion (`web/routes/onboarding.py`).
+- The frontend gate in `DashboardShell.tsx` redirects to `/onboarding` when `has_profile` is false.
+
+**Why not filesystem?** `get_user_paths()` eagerly creates the data directory via `mkdir(parents=True)`, so directory existence is always true. And `profile.yaml` predates most users — only created by the profile interviewer, not the standard onboarding flow.
 
 ## Key Files
 
@@ -71,4 +81,6 @@ Both steps are required for `has_profile` to correctly return `false` on re-logi
 | Web dependency injection | `src/web/deps.py` |
 | User DB operations | `src/user_state_store.py` |
 | Account deletion route | `src/web/routes/user.py` |
+| Onboarding gate (frontend) | `web/src/components/DashboardShell.tsx` |
+| Onboarding completion | `src/web/routes/onboarding.py` |
 | Encrypted secrets (legacy) | `src/crypto_utils.py`, `src/web/crypto.py` |
