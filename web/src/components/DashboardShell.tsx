@@ -36,16 +36,15 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
     return () => { cancelled = true; };
   }, [token]);
 
-  // Onboarding gate: redirect to /onboarding only if user has no API key.
-  // Missing profile is a nudge (handled elsewhere), not a hard block.
+  // Onboarding gate: redirect if no API key or no profile (e.g. after account deletion).
   useEffect(() => {
     if (!token || skipGate) return;
     let cancelled = false;
-    apiFetch<{ llm_api_key_set: boolean; using_shared_key: boolean }>("/api/settings", {}, token)
+    apiFetch<{ llm_api_key_set: boolean; using_shared_key: boolean; has_profile: boolean }>("/api/settings", {}, token)
       .then((settings) => {
         if (cancelled) return;
         const hasAnyKey = settings.llm_api_key_set || settings.using_shared_key;
-        if (!hasAnyKey) {
+        if (!hasAnyKey || !settings.has_profile) {
           router.replace("/onboarding");
         } else {
           setGateChecked(true);

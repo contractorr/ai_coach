@@ -54,6 +54,7 @@ class SettingsResponse(BaseModel):
     llm_provider_keys: list[LLMProviderKeyStatus] = Field(default_factory=list)
     llm_api_key_set: bool = False
     llm_api_key_hint: Optional[str] = None
+    has_profile: bool = False
     using_shared_key: bool = False
     has_own_key: bool = False
     tavily_api_key_set: bool = False

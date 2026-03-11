@@ -452,8 +452,10 @@ def get_settings_mask_for_user(user_id: str) -> dict:
     elif personal_keys:
         key_hint = _hint(next(iter(personal_keys.values())))
     council_enabled = _parse_bool_secret(secrets.get("llm_council_enabled"), default=True)
+    has_profile = get_profile_storage(user_id).load() is not None
 
     return {
+        "has_profile": has_profile,
         "llm_provider": display_provider,
         "llm_model": secrets.get("llm_model") or config.llm.model,
         "llm_council_enabled": council_enabled,

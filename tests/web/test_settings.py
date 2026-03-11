@@ -26,6 +26,8 @@ def test_get_settings(client, auth_headers, secret_key):
         assert data["llm_council_enabled"] is True
         assert data["llm_council_ready"] is False
         assert len(data["llm_provider_keys"]) == 3
+        assert "has_profile" in data
+        assert data["has_profile"] is False
 
 
 def test_put_settings(client, auth_headers, secret_key, users_db):
