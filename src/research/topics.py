@@ -97,7 +97,9 @@ class TopicSelector:
         goals = self.storage.list_entries(entry_type="goal", limit=20)
 
         for entry in goals:
-            post = self.storage.read(entry["path"])
+            post = self._safe_read_entry(entry)
+            if post is None:
+                continue
             content = post.content.lower()
 
             # Look for research-related phrases
@@ -144,7 +146,9 @@ class TopicSelector:
                 except (ValueError, TypeError):
                     continue
 
-            post = self.storage.read(entry["path"])
+            post = self._safe_read_entry(entry)
+            if post is None:
+                continue
             words = self._extract_keywords(post.content, stopwords)
             word_counter.update(words)
 
@@ -259,10 +263,24 @@ class TopicSelector:
                     entry_date = datetime.fromisoformat(created.replace("Z", "+00:00"))
                     if entry_date.replace(tzinfo=None) >= cutoff:
                         # Extract topic from metadata or title
-                        post = self.storage.read(entry["path"])
+                        post = self._safe_read_entry(entry)
+                        if post is None:
+                            continue
                         topic = post.get("topic") or entry["title"].replace("Research: ", "")
                         topics.append(topic)
                 except (ValueError, TypeError):
                     continue
 
         return topics
+
+    def _safe_read_entry(self, entry: dict):
+        try:
+            return self.storage.read(entry["path"])
+        except (OSError, ValueError) as exc:
+            logger.warning(
+                "topic_selector_entry_read_failed",
+                path=str(entry.get("path")),
+                title=entry.get("title"),
+                error=str(exc),
+            )
+            return None

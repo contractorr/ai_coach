@@ -1,6 +1,7 @@
 """Tests for TopicSelector."""
 
 from datetime import datetime, timedelta
+from unittest.mock import patch
 
 import pytest
 
@@ -123,3 +124,90 @@ class TestTopicSelector:
         stopwords = selector._get_stopwords()
         for theme in themes:
             assert theme["topic"].lower() not in stopwords
+
+    def test_extract_goal_topics_skips_unreadable_entries(self, temp_dirs):
+        storage = JournalStorage(temp_dirs["journal_dir"])
+        storage.create(
+            content="I want to research about distributed systems.",
+            entry_type="goal",
+            title="Broken goal",
+        )
+        storage.create(
+            content="I want to research about developer tooling.",
+            entry_type="goal",
+            title="Healthy goal",
+        )
+        selector = TopicSelector(storage)
+        goals = storage.list_entries(entry_type="goal", limit=20)
+        broken_path = next(entry["path"] for entry in goals if entry["title"] == "Broken goal")
+        original_read = storage.read
+
+        def _read(path):
+            if path == broken_path:
+                raise ValueError("bad frontmatter")
+            return original_read(path)
+
+        with patch.object(storage, "read", side_effect=_read):
+            topics = selector._extract_goal_topics()
+
+        topic_names = [t["topic"].lower() for t in topics]
+        assert any("developer tooling" in topic for topic in topic_names)
+
+    def test_cluster_journal_themes_skips_unreadable_entries(self, temp_dirs):
+        storage = JournalStorage(temp_dirs["journal_dir"])
+        for i in range(4):
+            storage.create(
+                content="I reviewed kubernetes operations and kubernetes networking.",
+                entry_type="daily",
+                title=f"Daily {i}",
+                tags=["kubernetes"],
+            )
+
+        selector = TopicSelector(storage, min_mentions=3)
+        entries = storage.list_entries(limit=100)
+        broken_path = entries[0]["path"]
+        original_read = storage.read
+
+        def _read(path):
+            if path == broken_path:
+                raise OSError("missing file")
+            return original_read(path)
+
+        with patch.object(storage, "read", side_effect=_read):
+            themes = selector._cluster_journal_themes()
+
+        topic_names = [t["topic"].lower() for t in themes]
+        assert "kubernetes" in topic_names
+
+    def test_get_recent_research_topics_skips_unreadable_entries(self, temp_dirs):
+        storage = JournalStorage(temp_dirs["journal_dir"])
+        storage.create(
+            content="Research on Docker containerization",
+            entry_type="research",
+            title="Research: Docker",
+            tags=["research", "auto"],
+            metadata={"topic": "Docker"},
+        )
+        storage.create(
+            content="Research on Kubernetes upgrades",
+            entry_type="research",
+            title="Research: Kubernetes",
+            tags=["research", "auto"],
+            metadata={"topic": "Kubernetes"},
+        )
+
+        selector = TopicSelector(storage, skip_researched_days=60)
+        entries = storage.list_entries(entry_type="research", limit=50)
+        broken_path = entries[0]["path"]
+        original_read = storage.read
+
+        def _read(path):
+            if path == broken_path:
+                raise ValueError("bad frontmatter")
+            return original_read(path)
+
+        with patch.object(storage, "read", side_effect=_read):
+            topics = selector.get_recent_research_topics()
+
+        assert len(topics) == 1
+        assert topics[0] in {"Docker", "Kubernetes"}
