@@ -50,15 +50,23 @@ class ReportStore:
             raise ValueError(f"Path escapes library directory: {path}")
         return resolved
 
-    def _filename(self, title: str) -> Path:
+    def _filename(self, title: str, counter: int = 0) -> Path:
         date_str = datetime.now().strftime("%Y-%m-%d")
         base = f"{date_str}_{_slug(title)}"
-        candidate = self._validate_path(self.library_dir / f"{base}.md")
-        counter = 1
-        while candidate.exists():
-            candidate = self._validate_path(self.library_dir / f"{base}_{counter}.md")
-            counter += 1
-        return candidate
+        suffix = "" if counter == 0 else f"_{counter}"
+        return self._validate_path(self.library_dir / f"{base}{suffix}.md")
+
+    def _write_new_post(self, title: str, post: frontmatter.Post) -> Path:
+        payload = frontmatter.dumps(post)
+        counter = 0
+        while True:
+            path = self._filename(title, counter)
+            try:
+                with path.open("x", encoding="utf-8") as handle:
+                    handle.write(payload)
+                return path
+            except FileExistsError:
+                counter += 1
 
     def _attachment_filename(self, report_id: str, suffix: str) -> Path:
         suffix = suffix if suffix.startswith(".") else f".{suffix}"
@@ -145,8 +153,7 @@ class ReportStore:
         post["created"] = now
         post["updated"] = now
         post["last_generated_at"] = now
-        path = self._filename(title)
-        path.write_text(frontmatter.dumps(post), encoding="utf-8")
+        path = self._write_new_post(title, post)
         return self._post_to_record(path, post)
 
     def create_uploaded_pdf(
@@ -193,8 +200,7 @@ class ReportStore:
             extracted_path.write_text(extracted_text, encoding="utf-8")
             post["extracted_text_path"] = str(extracted_path.relative_to(self.library_dir))
 
-        path = self._filename(title)
-        path.write_text(frontmatter.dumps(post), encoding="utf-8")
+        path = self._write_new_post(title, post)
         return self._post_to_record(path, post)
 
     def list_reports(

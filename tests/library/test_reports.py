@@ -1,3 +1,7 @@
+from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
+from threading import Barrier
+
 import frontmatter
 
 from library.reports import ReportStore
@@ -54,3 +58,28 @@ def test_get_attachment_path_returns_none_for_escaped_metadata_path(tmp_path):
     path.write_text(frontmatter.dumps(post), encoding="utf-8")
 
     assert store.get_attachment_path(record["id"]) is None
+
+
+def test_create_avoids_same_title_overwrite_under_concurrent_writes(tmp_path, monkeypatch):
+    store = ReportStore(tmp_path / "library")
+    barrier = Barrier(2)
+    original_write_text = Path.write_text
+
+    def racing_write_text(self, data, *args, **kwargs):
+        if self.parent == store.library_dir and self.suffix == ".md":
+            barrier.wait(timeout=5)
+        return original_write_text(self, data, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "write_text", racing_write_text)
+
+    def create_report():
+        return store.create(title="Resume", prompt="p" * 10, report_type="memo", content="Body")
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        left = executor.submit(create_report)
+        right = executor.submit(create_report)
+        records = [left.result(), right.result()]
+
+    assert len({record["id"] for record in records}) == 2
+    assert len({record["path"] for record in records}) == 2
+    assert len(list(store.library_dir.glob("*.md"))) == 2
