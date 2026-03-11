@@ -81,7 +81,32 @@ def test_list_project_issues_filters_non_github_items():
 
     assert payload["count"] == 1
     assert payload["issues"][0]["title"] == "Fix auth bug"
-    intel_storage.get_recent.assert_called_once_with(days=30, limit=10)
+    intel_storage.get_recent.assert_called_once_with(days=30, limit=40)
+
+
+def test_list_project_issues_applies_limit_after_github_filtering():
+    intel_storage = MagicMock()
+    intel_storage.get_recent.return_value = [
+        {"title": "RSS 1", "url": "https://example.com/1", "summary": "ignore", "source": "rss"},
+        {"title": "RSS 2", "url": "https://example.com/2", "summary": "ignore", "source": "rss"},
+        {
+            "title": "Fix auth bug",
+            "url": "https://github.com/acme/app/issues/1",
+            "summary": "python bug fix",
+            "source": "github_issues",
+        },
+        {
+            "title": "Improve tests",
+            "url": "https://github.com/acme/app/issues/2",
+            "summary": "testing cleanup",
+            "source": "github_issues",
+        },
+    ]
+
+    payload = list_project_issues(intel_storage, days=30, limit=2)
+
+    assert payload["count"] == 2
+    assert [issue["title"] for issue in payload["issues"]] == ["Fix auth bug", "Improve tests"]
 
 
 def test_build_project_ideas_context_uses_profile_and_journal_search(tmp_path):

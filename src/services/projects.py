@@ -5,6 +5,7 @@ from typing import Any
 DEFAULT_PROJECTS_QUERY = "frustration problem idea project build wish"
 DEFAULT_PROJECTS_QUERY_GENERATE = "frustration problem idea project build wish annoying"
 DEFAULT_SUMMARY_LIMIT = 300
+PROJECT_ISSUE_FETCH_MULTIPLIER = 4
 
 
 def _normalize_tags(tags: Any) -> list[str]:
@@ -86,8 +87,9 @@ def list_project_issues(
     include_scraped_at: bool = False,
 ) -> dict[str, Any]:
     """List tracked GitHub issues from intel storage."""
-    items = intel_storage.get_recent(days=days, limit=limit)
-    issues = [item for item in items if item.get("source") == "github_issues"]
+    fetch_limit = max(limit * PROJECT_ISSUE_FETCH_MULTIPLIER, limit)
+    items = intel_storage.get_recent(days=days, limit=fetch_limit)
+    issues = [item for item in items if item.get("source") == "github_issues"][:limit]
     serialized = [
         serialize_project_issue(
             issue, summary_limit=summary_limit, include_scraped_at=include_scraped_at
