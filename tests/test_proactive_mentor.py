@@ -2,7 +2,7 @@
 
 import json
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -239,6 +239,34 @@ class TestEventScoring:
         }
         score = score_event(event)
         assert score >= 7.0  # urgent CFP boost
+
+    def test_score_accepts_timezone_aware_deadlines(self):
+        from advisor.events import score_event
+
+        event = {
+            "tags": "event,cfp-open",
+            "content": json.dumps(
+                {
+                    "cfp_deadline": (datetime.now(timezone.utc) + timedelta(days=7)).isoformat(),
+                    "event_date": (datetime.now(timezone.utc) + timedelta(days=30)).isoformat(),
+                }
+            ),
+        }
+        score = score_event(event)
+        assert score >= 7.0
+
+    def test_score_accepts_z_suffix_event_dates(self):
+        from advisor.events import score_event
+
+        z_timestamp = (datetime.now(timezone.utc) + timedelta(days=20)).isoformat().replace(
+            "+00:00", "Z"
+        )
+        event = {
+            "tags": "event",
+            "content": json.dumps({"event_date": z_timestamp}),
+        }
+        score = score_event(event)
+        assert 0 <= score <= 10
 
     def test_get_upcoming_events(self, tmp_path):
         from advisor.events import get_upcoming_events

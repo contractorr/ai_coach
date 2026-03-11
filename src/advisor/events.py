@@ -1,7 +1,7 @@
 """Event recommendation logic — score and rank events by profile match."""
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 
 import structlog
 
@@ -14,6 +14,13 @@ def parse_event_metadata(content: str) -> dict:
         return json.loads(content) if content else {}
     except (json.JSONDecodeError, TypeError):
         return {}
+
+
+def _parse_event_datetime(raw_value: str) -> datetime:
+    dt = datetime.fromisoformat(raw_value.replace("Z", "+00:00"))
+    if dt.tzinfo is not None:
+        dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
+    return dt
 
 
 def score_event(event: dict, profile=None) -> float:
@@ -56,7 +63,7 @@ def score_event(event: dict, profile=None) -> float:
     cfp_deadline = metadata.get("cfp_deadline", "")
     if cfp_deadline:
         try:
-            deadline = datetime.fromisoformat(cfp_deadline)
+            deadline = _parse_event_datetime(cfp_deadline)
             days_until = (deadline - datetime.now()).days
             if 0 < days_until <= 14:
                 score += 2.0  # urgent
@@ -69,7 +76,7 @@ def score_event(event: dict, profile=None) -> float:
     event_date = metadata.get("event_date", "")
     if event_date:
         try:
-            edate = datetime.fromisoformat(event_date)
+            edate = _parse_event_datetime(event_date)
             days_until = (edate - datetime.now()).days
             if days_until < 0:
                 score -= 3.0  # past event
