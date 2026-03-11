@@ -8,6 +8,7 @@ from rich.console import Console
 
 from cli.config import get_paths, load_config
 from cli.utils import get_profile_path, get_rec_db_path
+from storage_paths import get_coach_home
 
 console = Console()
 
@@ -79,7 +80,7 @@ def init(samples: bool):
     console.print(f"[green]✓[/] recommendations: {rec_dir}")
 
     # Create default config if not exists
-    config_path = Path.home() / "coach" / "config.yaml"
+    config_path = get_coach_home() / "config.yaml"
     if not config_path.exists():
         try:
             config_path.parent.mkdir(parents=True, exist_ok=True)

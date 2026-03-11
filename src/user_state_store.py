@@ -11,10 +11,11 @@ import structlog
 
 from crypto_utils import decrypt_value, encrypt_value
 from db import wal_connect
+from storage_paths import get_coach_home
 
 logger = structlog.get_logger()
 
-_DEFAULT_DB_PATH = Path(os.environ.get("COACH_HOME", Path.home() / "coach")) / "users.db"
+_DEFAULT_DB_PATH = get_coach_home() / "users.db"
 
 
 def get_default_db_path() -> Path:

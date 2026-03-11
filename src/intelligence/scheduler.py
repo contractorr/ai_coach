@@ -15,6 +15,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 
 from observability import metrics
+from storage_paths import get_coach_home
 
 from .health import RSSFeedHealthTracker, ScraperHealthTracker
 from .scraper import IntelStorage
@@ -1324,7 +1325,7 @@ class IntelScheduler:
                 for p in stats["page_views"]:
                     lines.append(f"  {p['path']}: {p['count']}")
 
-            log_dir = Path(os.environ.get("COACH_HOME", Path.home() / "coach")) / "logs"
+            log_dir = get_coach_home() / "logs"
             log_dir.mkdir(parents=True, exist_ok=True)
             (log_dir / "weekly_summary.txt").write_text("\n".join(lines))
             logger.info("weekly_summary.written", path=str(log_dir / "weekly_summary.txt"))

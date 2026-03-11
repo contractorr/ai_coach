@@ -13,7 +13,7 @@ from storage_access import (
     create_thread_store,
     create_watchlist_store,
 )
-from storage_paths import get_single_user_paths
+from storage_paths import get_coach_home, get_single_user_paths
 
 logger = structlog.get_logger()
 
@@ -54,7 +54,7 @@ def _resolve_coach_home(components: dict) -> Path:
     if journal_dir:
         return Path(journal_dir).expanduser().parent
 
-    return Path.home() / "coach"
+    return get_coach_home()
 
 
 def get_storage_paths() -> dict:

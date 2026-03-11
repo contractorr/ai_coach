@@ -9,6 +9,7 @@ import structlog
 
 from llm import LLMError as BaseLLMError
 from llm import LLMRateLimitError, create_cheap_provider, create_llm_provider
+from storage_paths import get_coach_home
 
 from .action_brief import ActionBriefGenerator
 from .agentic import AgenticOrchestrator
@@ -97,7 +98,7 @@ class AdvisorEngine:
         # Attach context cache to RAG if not already set
         if not getattr(rag, "cache", None):
             try:
-                cache_path = Path("~/coach/context_cache.db").expanduser()
+                cache_path = get_coach_home() / "context_cache.db"
                 cache_path.parent.mkdir(parents=True, exist_ok=True)
                 rag.cache = ContextCache(cache_path)
             except Exception:

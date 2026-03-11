@@ -11,6 +11,8 @@ from typing import Any
 import structlog
 from cryptography.fernet import Fernet, InvalidToken
 
+from storage_paths import get_coach_home
+
 logger = structlog.get_logger()
 
 
@@ -45,7 +47,7 @@ def decrypt_value(fernet_key: str, token: str, key_name: str = "") -> str | None
 
 
 def _secrets_path() -> Path:
-    return Path.home() / "coach" / "secrets.enc"
+    return get_coach_home() / "secrets.enc"
 
 
 def load_secrets(secret_key: str) -> dict[str, Any]:

@@ -10,6 +10,7 @@ from rich.console import Console
 
 from cli.config import get_paths, load_config
 from cli.utils import get_rec_db_path
+from storage_paths import get_coach_home
 
 console = Console()
 
@@ -78,7 +79,7 @@ def backup(backup_dir: str):
             shutil.copytree(rec_dir, snapshot_dir / "recommendations")
 
         # Copy config
-        config_path = Path.home() / "coach" / "config.yaml"
+        config_path = get_coach_home() / "config.yaml"
         if config_path.exists():
             shutil.copy2(config_path, snapshot_dir / "config.yaml")
 

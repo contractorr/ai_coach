@@ -40,9 +40,15 @@ Users can permanently delete their account and all associated data via a single 
 - `DELETE /api/user/me` — authenticated endpoint, no request body required.
 - Before deletion, an `account_deleted` event is logged for audit purposes.
 - DB records are removed in FK-safe order: `user_secrets` → `onboarding_responses` → `engagement_events` → `usage_events` → `user_rss_feeds` → `users`.
-- Filesystem cleanup (`shutil.rmtree(~/coach/users/{safe_user_id}/)`) is best-effort; failure does not block the response.
+- Filesystem cleanup (`shutil.rmtree($COACH_HOME/users/{safe_user_id}/)`) is best-effort; failure does not block the response. Path resolved via `get_coach_home()` (respects `COACH_HOME` env var).
 - Returns `204 No Content` on success.
 - After deletion the JWT is invalid; subsequent requests with the same token receive `401`.
+
+### Re-onboarding After Deletion
+
+- When a deleted user logs back in, `get_or_create_user()` auto-creates a new DB row.
+- The dashboard onboarding gate (`DashboardShell.tsx`) checks `has_profile` from `GET /api/settings`.
+- If `has_profile` is false (profile.yaml was deleted), the user is redirected to `/onboarding` regardless of API key / shared key status.
 
 ### User Flow Addition
 
