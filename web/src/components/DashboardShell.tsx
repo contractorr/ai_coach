@@ -88,7 +88,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         </div>
       )}
       <main className={`h-full overflow-y-auto pt-12 lg:pl-60 ${showBanner ? "mt-8" : ""}`}>
-        {gateChecked ? children : null}
+        {(gateChecked || skipGate) ? children : null}
       </main>
     </div>
   );
