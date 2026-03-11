@@ -112,7 +112,13 @@ class ThreadDetector:
 
             # Add all similar unthreaded entries + the new entry
             for uid in unthreaded_entries:
-                await self._store.add_entry(thread.id, uid, similar_scores.get(uid, 0), entry_date)
+                historical_date = self._get_entry_date(uid, entry_date)
+                await self._store.add_entry(
+                    thread.id,
+                    uid,
+                    similar_scores.get(uid, 0),
+                    historical_date,
+                )
             await self._store.add_entry(thread.id, entry_id, 1.0, entry_date)
 
             logger.info(
@@ -198,6 +204,20 @@ class ThreadDetector:
         except Exception:
             pass
         return "Recurring topic"
+
+    def _get_entry_date(self, entry_id: str, fallback: datetime) -> datetime:
+        """Resolve the original created timestamp for an existing entry when available."""
+        try:
+            collection = self._embeddings.collection
+            result = collection.get(ids=[entry_id], include=["metadatas"])
+            if result["metadatas"] and result["metadatas"][0]:
+                created = result["metadatas"][0].get("created")
+                if created:
+                    dt = datetime.fromisoformat(str(created).replace("Z", "+00:00"))
+                    return dt.replace(tzinfo=None) if dt.tzinfo else dt
+        except Exception:
+            pass
+        return fallback
 
     async def reindex_all(self) -> dict:
         """Rebuild all threads from scratch. Process entries chronologically."""
