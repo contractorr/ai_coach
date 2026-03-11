@@ -5,6 +5,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from journal.embeddings import EmbeddingManager
 from journal.thread_store import ThreadStore
 from journal.threads import ThreadDetector
 
@@ -215,3 +216,29 @@ class TestReindex:
         await detector.reindex_all()
         active = await store.get_active_threads()
         assert len(active) == 0
+
+    @pytest.mark.asyncio
+    async def test_reindex_with_real_embedding_manager(self, temp_dirs, tmp_path):
+        embeddings = EmbeddingManager(temp_dirs["chroma_dir"])
+        embeddings.add_entry("e1", "career planning distributed systems", {"created": "2026-01-01T00:00:00"})
+        embeddings.add_entry(
+            "e2",
+            "career planning distributed systems next steps",
+            {"created": "2026-01-02T00:00:00"},
+        )
+        embeddings.add_entry(
+            "e3",
+            "career planning distributed systems reflection",
+            {"created": "2026-01-03T00:00:00"},
+        )
+
+        detector = ThreadDetector(
+            embeddings,
+            ThreadStore(tmp_path / "threads.db"),
+            {"similarity_threshold": 0.1},
+        )
+
+        stats = await detector.reindex_all()
+
+        assert stats["entries_processed"] == 3
+        assert stats["entries_threaded"] >= 2

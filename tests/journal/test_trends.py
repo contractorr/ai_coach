@@ -82,3 +82,22 @@ class TestTrendDetector:
         reps = TrendDetector._get_representative_entries(entries, 0, 5)
         assert len(reps) == 2
         assert all(e["cluster"] == 0 for e in reps)
+
+    def test_get_entries_with_timestamps_uses_real_embeddings(self, temp_dirs):
+        from journal.embeddings import EmbeddingManager
+        from journal.search import JournalSearch
+        from journal.storage import JournalStorage
+
+        storage = JournalStorage(temp_dirs["journal_dir"])
+        storage.create("career planning reflection 0", title="Career 0")
+        storage.create("career planning reflection 1", title="Career 1")
+
+        embeddings = EmbeddingManager(temp_dirs["chroma_dir"])
+        search = JournalSearch(storage, embeddings)
+        search.sync_embeddings()
+        detector = TrendDetector(search)
+
+        entries = detector._get_entries_with_timestamps(days=365)
+
+        assert len(entries) == 2
+        assert {entry["title"] for entry in entries} == {"Career 0", "Career 1"}

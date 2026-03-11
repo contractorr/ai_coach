@@ -116,18 +116,25 @@ class LocalCollection:
     def count(self) -> int:
         return len(self._records)
 
-    def get(self) -> dict:
-        ids = list(self._records.keys())
-        return {
-            "ids": ids,
-            "documents": [self._records[item_id]["document"] for item_id in ids],
-            "metadatas": [self._records[item_id].get("metadata", {}) for item_id in ids],
-        }
+    def get(self, *, ids: list[str] | None = None, include: list[str] | None = None) -> dict:
+        requested_ids = [str(item_id) for item_id in ids] if ids is not None else list(self._records.keys())
+        record_ids = [item_id for item_id in requested_ids if item_id in self._records]
+        include = include or ["documents", "metadatas"]
+
+        result = {"ids": record_ids}
+        if "documents" in include:
+            result["documents"] = [self._records[item_id]["document"] for item_id in record_ids]
+        if "metadatas" in include:
+            result["metadatas"] = [self._records[item_id].get("metadata", {}) for item_id in record_ids]
+        if "embeddings" in include:
+            result["embeddings"] = [self._records[item_id].get("vector", []) for item_id in record_ids]
+        return result
 
     def query(
         self,
         *,
-        query_texts: list[str],
+        query_texts: list[str] | None = None,
+        query_embeddings: list[list[float]] | None = None,
         n_results: int,
         where: dict | None = None,
         include: list[str] | None = None,
@@ -144,8 +151,11 @@ class LocalCollection:
             if self._matches_where(record.get("metadata", {}), where)
         ]
 
-        for query_text in query_texts:
-            query_vector = self.embedding_function([query_text])[0]
+        query_vectors = (
+            query_embeddings if query_embeddings is not None else self.embedding_function(query_texts or [])
+        )
+
+        for query_vector in query_vectors:
             ranked = sorted(
                 candidates,
                 key=lambda item: self._cosine_distance(query_vector, item[1].get("vector", [])),
