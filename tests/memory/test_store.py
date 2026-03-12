@@ -299,6 +299,32 @@ class TestGraphExpansion:
         assert len(results) >= 1
 
 
+class TestGetFactsForEntity:
+    def test_returns_matching_active_facts(self, store):
+        store.add(_fact(id="e1", text="User builds Django with Python"))
+        store.add(_fact(id="e2", text="User prefers Python over Ruby"))
+        results = store.get_facts_for_entity("python")
+        assert len(results) >= 1
+        assert all("Python" in f.text for f in results)
+
+    def test_excludes_superseded_facts(self, store):
+        store.add(_fact(id="e1", text="User uses Python for ML"))
+        store.update("e1", "User uses Rust for ML", "entry-2")
+        results = store.get_facts_for_entity("python")
+        assert all(f.id != "e1" for f in results)
+
+    def test_returns_empty_for_unknown_entity(self, store):
+        store.add(_fact(id="e1", text="User prefers Python"))
+        results = store.get_facts_for_entity("haskell")
+        assert results == []
+
+    def test_respects_limit(self, store):
+        for i in range(10):
+            store.add(_fact(id=f"e{i}", text=f"User uses Python for project {i}"))
+        results = store.get_facts_for_entity("python", limit=3)
+        assert len(results) <= 3
+
+
 class TestObservationSources:
     def test_link_and_get_observation_sources(self, store):
         store.add(_fact(id="obs1", category=FactCategory.PREFERENCE))

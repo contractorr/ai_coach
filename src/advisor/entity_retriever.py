@@ -17,12 +17,24 @@ class EntityRetriever:
         max_relationships_per_entity: int = 10,
         max_items_per_entity: int = 3,
         max_chars: int = 1600,
+        fact_store=None,
+        max_memory_facts_per_entity: int = 5,
     ) -> None:
         self.entity_store = entity_store
         self.max_entities = max_entities
         self.max_relationships_per_entity = max_relationships_per_entity
         self.max_items_per_entity = max_items_per_entity
         self.max_chars = max_chars
+        self.fact_store = fact_store
+        self.max_memory_facts_per_entity = max_memory_facts_per_entity
+        self._bridge = None
+        if fact_store is not None:
+            try:
+                from services.entity_bridge import EntityBridge
+
+                self._bridge = EntityBridge(entity_store, fact_store)
+            except Exception:
+                pass
 
     def retrieve(self, matched_entities: list[dict], query: str) -> str:
         del query
@@ -67,6 +79,26 @@ class EntityRetriever:
                     f"summary={self._attr((item.get('summary') or '')[:180])} />"
                 )
             block.append("</recent_items>")
+
+            # Memory facts enrichment
+            if self._bridge is not None:
+                facts = self._bridge.get_memory_facts_for_entity(
+                    entity, max_facts=self.max_memory_facts_per_entity
+                )
+                if facts:
+                    block.append("<memory_facts>")
+                    for fact in facts:
+                        cat = (
+                            fact.category.value
+                            if hasattr(fact.category, "value")
+                            else str(fact.category)
+                        )
+                        block.append(
+                            f"<fact confidence={self._attr(fact.confidence)} "
+                            f"category={self._attr(cat)}>{fact.text}</fact>"
+                        )
+                    block.append("</memory_facts>")
+
             block.append("</entity>")
             candidate = "\n".join(parts + block + ["</entity_context>"])
             if len(candidate) > self.max_chars:

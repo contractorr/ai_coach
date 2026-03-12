@@ -279,6 +279,95 @@ All endpoints use existing JWT auth and user isolation patterns.
 
 ---
 
+### EntityBridge (Phase 3)
+
+**File:** `src/services/entity_bridge.py`
+**Status:** Draft
+
+#### Behavior
+
+Bridges intel entities (LLM-extracted, `intel.db`) and memory entities (regex-based, `memory.db`) by normalized name matching. Enables multi-hop reasoning: user fact → shared entity → intel items.
+
+Constructor:
+```python
+EntityBridge(
+    entity_store: EntityStore,
+    fact_store: FactStore,
+)
+```
+
+#### Inputs / Outputs
+
+```python
+def get_memory_facts_for_entity(self, intel_entity: dict, max_facts: int = 5) -> list[StewardFact]
+    # Normalizes intel_entity["name"], queries fact_store.get_facts_for_entity()
+    # Persists cross_entity_link as side-effect (best-effort)
+    # Returns [] on any error
+```
+
+#### Invariants
+
+- Never raises exceptions — all errors caught and logged, returns `[]`.
+- Side-effect (cross_entity_links) is best-effort; failure doesn't affect return value.
+- Uses `normalize_entity_name()` from `intelligence.entity_store` for consistency.
+
+---
+
+### FactStore.get_facts_for_entity() (Phase 3)
+
+**File:** `src/memory/store.py`
+
+```python
+def get_facts_for_entity(self, normalized_name: str, limit: int = 5) -> list[StewardFact]
+    # 3-table join: steward_facts JOIN fact_entity_links JOIN fact_entities
+    # WHERE fact_entities.normalized = ? AND steward_facts.superseded_by IS NULL
+    # ORDER BY confidence DESC LIMIT ?
+```
+
+---
+
+### EntityStore Phase 3 additions
+
+**File:** `src/intelligence/entity_store.py`
+
+Schema version bumped from 5 → 6. New table:
+
+```sql
+CREATE TABLE IF NOT EXISTS cross_entity_links (
+    intel_entity_id INTEGER NOT NULL REFERENCES entities(id),
+    memory_normalized TEXT NOT NULL,
+    linked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (intel_entity_id, memory_normalized)
+)
+```
+
+New methods:
+```python
+def save_cross_entity_link(self, intel_entity_id: int, memory_normalized: str) -> None
+    # INSERT OR IGNORE
+
+def get_cross_entity_links(self, intel_entity_id: int) -> list[str]
+    # Returns list of memory_normalized strings
+```
+
+---
+
+### EntityRetriever Phase 3 additions
+
+**File:** `src/advisor/entity_retriever.py`
+
+Constructor gains optional `fact_store` and `max_memory_facts_per_entity` params. When `fact_store` is set, retrieves memory facts via `EntityBridge` for each matched entity and injects `<memory_facts>` XML block:
+
+```xml
+<memory_facts>
+  <fact confidence="0.85" category="skill">User is learning Rust</fact>
+</memory_facts>
+```
+
+Block is omitted entirely when no matching facts exist.
+
+---
+
 ## Cross-Cutting Concerns
 
 **Schema migration:** Bumping SCHEMA_VERSION from 3 to 4 must be backward-compatible. The new tables are additive — existing `intel_items` queries are unaffected. Migration runs on first `EntityStore.__init__()` via `ensure_schema_version()`.

@@ -498,6 +498,28 @@ class FactStore:
         )
         return facts[:limit]
 
+    def get_facts_for_entity(self, normalized_name: str, limit: int = 5) -> list[StewardFact]:
+        """Return active facts linked to a memory entity by normalized name.
+
+        Uses whitespace-collapsed matching to bridge different normalization schemes.
+        """
+        collapsed = " ".join(normalized_name.lower().split())
+        with wal_connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute(
+                """
+                SELECT f.* FROM steward_facts f
+                JOIN fact_entity_links l ON f.id = l.fact_id
+                JOIN fact_entities e ON l.entity_id = e.id
+                WHERE REPLACE(e.normalized, '  ', ' ') = ?
+                  AND f.superseded_by IS NULL
+                ORDER BY f.confidence DESC
+                LIMIT ?
+                """,
+                (collapsed, limit),
+            ).fetchall()
+            return [self._row_to_fact(r) for r in rows]
+
     def get_all_active(self) -> list[StewardFact]:
         """Return all non-superseded facts ordered by confidence desc."""
         with wal_connect(self.db_path) as conn:

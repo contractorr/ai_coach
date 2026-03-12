@@ -211,6 +211,22 @@ def _get_engine(user_id: str, use_tools: bool = False):
     if config.threads.enabled:
         thread_store = get_thread_store(user_id)
 
+    # Entity graph components (best-effort — fallback to no entities on failure)
+    entity_store = None
+    entity_retriever = None
+    query_analyzer = None
+    try:
+        from advisor.entity_retriever import EntityRetriever
+        from intelligence.entity_store import EntityStore
+
+        entity_store = EntityStore(paths["intel_db"])
+        entity_retriever = EntityRetriever(entity_store, fact_store=fact_store)
+        from advisor.query_analyzer import QueryAnalyzer
+
+        query_analyzer = QueryAnalyzer(entity_store=entity_store)
+    except Exception:
+        pass
+
     users_db = get_default_db_path()
     rag = RAGRetriever(
         journal_search=journal_search,
@@ -222,6 +238,9 @@ def _get_engine(user_id: str, use_tools: bool = False):
         memory_config=memory_config,
         thread_store=thread_store,
         library_index=_get_library_index(user_id),
+        entity_store=entity_store,
+        entity_retriever=entity_retriever,
+        query_analyzer=query_analyzer,
     )
 
     provider_name, api_key, source = resolve_llm_credentials_for_user(user_id)

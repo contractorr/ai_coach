@@ -8,7 +8,7 @@ from pathlib import Path
 
 from db import ensure_schema_version, wal_connect
 
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
 
 
 def normalize_entity_name(name: str) -> str:
@@ -82,6 +82,16 @@ class EntityStore:
                     status TEXT NOT NULL,
                     last_error TEXT,
                     processed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+                """
+            )
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS cross_entity_links (
+                    intel_entity_id INTEGER NOT NULL REFERENCES entities(id),
+                    memory_normalized TEXT NOT NULL,
+                    linked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (intel_entity_id, memory_normalized)
                 )
                 """
             )
@@ -372,3 +382,20 @@ class EntityStore:
                 (limit,),
             ).fetchall()
         return [int(row[0]) for row in rows]
+
+    def save_cross_entity_link(self, intel_entity_id: int, memory_normalized: str) -> None:
+        """Persist a link between an intel entity and a memory entity normalized name."""
+        with wal_connect(self.db_path) as conn:
+            conn.execute(
+                "INSERT OR IGNORE INTO cross_entity_links (intel_entity_id, memory_normalized) VALUES (?, ?)",
+                (intel_entity_id, memory_normalized),
+            )
+
+    def get_cross_entity_links(self, intel_entity_id: int) -> list[str]:
+        """Return memory normalized names linked to an intel entity."""
+        with wal_connect(self.db_path) as conn:
+            rows = conn.execute(
+                "SELECT memory_normalized FROM cross_entity_links WHERE intel_entity_id = ?",
+                (intel_entity_id,),
+            ).fetchall()
+        return [row[0] for row in rows]

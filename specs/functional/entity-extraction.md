@@ -27,6 +27,12 @@ All users who ask the advisor questions about companies, people, technologies, o
 2. The advisor can answer "what companies are in X space", "how is A related to B", "what has changed about company C recently" using entity graph context.
 3. Entity context appears naturally in advisor responses — no separate UI for the graph.
 
+### Cross-system entity enrichment (invisible to user)
+
+1. When the advisor retrieves entity context for a query, the system checks whether any matched intel entities share a normalized name with memory entities (personal facts about the user).
+2. If a match is found, the user's relevant memory facts are injected alongside the intel entity context — enabling multi-hop reasoning like: user fact ("I'm learning Rust") → shared entity ("rust") → intel items about the Rust ecosystem.
+3. This enrichment is best-effort and non-blocking. Failures never degrade the existing retrieval path.
+
 ### Radar enrichment (visible to user)
 
 1. Intelligence items in Radar show extracted entity tags (e.g., company names, technologies mentioned).
@@ -44,6 +50,9 @@ All users who ask the advisor questions about companies, people, technologies, o
 - [ ] Extraction failures for individual items do not block the rest of the batch.
 - [ ] Radar intel items display extracted entity names as tags.
 - [ ] Filtering Radar by an entity tag shows all items linked to that entity.
+- [ ] When memory is enabled, intel entities matched during retrieval are enriched with personal memory facts sharing the same normalized entity name.
+- [ ] Memory enrichment appears as `<memory_facts>` XML inside entity context — omitted entirely when no facts match.
+- [ ] Cross-entity links (intel entity ↔ memory entity) are persisted for future use.
 - [ ] Entity extraction is toggleable via config (`entity_extraction.enabled`, default `true`).
 - [ ] Batch size for extraction is configurable (`entity_extraction.batch_size`, default `10`).
 
@@ -58,6 +67,9 @@ All users who ask the advisor questions about companies, people, technologies, o
 | Very long article (>10k chars) | Truncate to first 2000 chars for extraction to stay within cheap LLM context |
 | Extraction backlog grows during high-volume scrape | Batch queue with configurable concurrency; oldest-first processing |
 | User disables entity extraction in config | No extraction runs; advisor falls back to existing keyword/semantic retrieval only |
+| Intel entity matches memory entity but fact_store is unavailable | No memory_facts block emitted, entity context returned normally |
+| Memory fact_store raises exception during lookup | EntityBridge returns empty list, entity context returned without memory_facts |
+| Multiple intel entities match the same memory entity | Each entity gets its own memory_facts block independently |
 
 ## Out of Scope
 
