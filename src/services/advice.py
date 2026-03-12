@@ -67,9 +67,9 @@ def finish_conversation_turn(
     log_event_fn: Callable[[str, str, dict], Any],
     usage: dict | None = None,
     model: str | None = None,
-) -> None:
-    """Persist the assistant turn and record request latency."""
-    add_message_fn(conv_id, "assistant", answer)
+) -> str | None:
+    """Persist the assistant turn and record request latency. Returns message id."""
+    msg_id = add_message_fn(conv_id, "assistant", answer)
     metadata: dict[str, Any] = {"latency_ms": latency_ms}
     if usage:
         from observability import compute_cost
@@ -83,6 +83,7 @@ def finish_conversation_turn(
     if model:
         metadata["model"] = model
     log_event_fn("chat_query", user_id, metadata)
+    return msg_id
 
 
 def _maybe_persist_trace(engine, trace_data_dir: Path | None) -> None:

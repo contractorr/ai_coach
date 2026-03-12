@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { ChatAttachmentBadges, ChatPdfAttachmentPicker } from "@/components/ChatPdfAttachments";
 import { MessageRenderer } from "@/components/MessageRenderer";
+import { MessageFeedback } from "@/components/MessageFeedback";
 import { Brain, Send, Plus, MessageSquare, Trash2 } from "lucide-react";
 import { useChatPdfAttachments } from "@/hooks/useChatPdfAttachments";
 import { useToken } from "@/hooks/useToken";
@@ -73,9 +74,9 @@ export default function AdvisorPage() {
         const conv = await apiFetch<{
           id: string;
           title: string;
-          messages: ChatMessage[];
+          messages: (ChatMessage & { id?: string })[];
         }>(`/api/advisor/conversations/${id}`, {}, token);
-        setMessages(conv.messages);
+        setMessages(conv.messages.map((m) => ({ ...m, id: m.id })));
         setConversationId(id);
         localStorage.setItem(CONV_KEY, id);
       } catch {
@@ -208,11 +209,26 @@ export default function AdvisorPage() {
             setMessages((prev) => [
               ...prev,
               {
+                id: (event.message_id as string) || undefined,
                 role: "assistant",
                 content: prefix + (event.content as string),
                 advice_type: event.advice_type as string,
               },
             ]);
+          } else if (type === "message_persisted") {
+            const mid = event.message_id as string;
+            if (mid) {
+              setMessages((prev) => {
+                const copy = [...prev];
+                for (let i = copy.length - 1; i >= 0; i--) {
+                  if (copy[i].role === "assistant" && !copy[i].id) {
+                    copy[i] = { ...copy[i], id: mid };
+                    break;
+                  }
+                }
+                return copy;
+              });
+            }
           } else if (type === "error") {
             toast.error(event.detail as string);
             setMessages((prev) => [
@@ -332,7 +348,14 @@ export default function AdvisorPage() {
               <CardContent>
                 {msg.role === "user" && <ChatAttachmentBadges attachments={msg.attachments} token={token} />}
                 {msg.role === "assistant" ? (
-                  <MessageRenderer content={msg.content} onAction={(text) => { setInput(text); setTimeout(() => textareaRef.current?.focus(), 100); }} />
+                  <>
+                    <MessageRenderer content={msg.content} onAction={(text) => { setInput(text); setTimeout(() => textareaRef.current?.focus(), 100); }} />
+                    {msg.id && token && (
+                      <div className="mt-2 flex justify-end">
+                        <MessageFeedback messageId={msg.id} token={token} />
+                      </div>
+                    )}
+                  </>
                 ) : (
                   <div className="text-sm">{msg.content}</div>
                 )}

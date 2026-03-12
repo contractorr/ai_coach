@@ -8,6 +8,7 @@ export interface ChatAttachment {
 }
 
 export interface ChatMessage {
+  id?: string;
   role: "user" | "assistant";
   content: string;
   advice_type?: string;

@@ -41,6 +41,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { apiFetch } from "@/lib/api";
+import { logEngagement } from "@/lib/engagement";
 import type { CompanyMovement, HiringSignal, RegulatoryAlert } from "@/types/briefing";
 
 interface IntelItem {
@@ -659,6 +660,9 @@ export default function IntelPage() {
     try {
       const nextSaved = !item.follow_up?.saved;
       await upsertFollowUp(item, nextSaved, item.follow_up?.note || "");
+      if (token) {
+        logEngagement(token, nextSaved ? "saved" : "dismissed", "intel", item.url.slice(0, 200));
+      }
       toast.success(nextSaved ? "Saved for follow-up" : "Removed from saved items");
     } catch (e) {
       toast.error((e as Error).message);
@@ -956,6 +960,9 @@ export default function IntelPage() {
                             target="_blank"
                             rel="noopener noreferrer"
                             className="hover:underline"
+                            onClick={() => {
+                              if (token) logEngagement(token, "opened", "intel", item.url.slice(0, 200));
+                            }}
                           >
                             {item.title}
                             <ExternalLink className="ml-1 inline h-3 w-3" />

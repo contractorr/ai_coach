@@ -88,6 +88,7 @@ def get_conversation(conv_id: str, user_id: str, db_path=None) -> dict | None:
         attachments_by_message = _load_attachments(conn, [message["id"] for message in msgs])
         conv["messages"] = [
             {
+                "id": message["id"],
                 "role": message["role"],
                 "content": message["content"],
                 "created_at": message["created_at"],
@@ -175,6 +176,7 @@ def get_messages(conv_id: str, limit: int = 20, db_path=None) -> list[dict]:
         attachments_by_message = _load_attachments(conn, [row["id"] for row in rows])
         return [
             {
+                "id": row["id"],
                 "role": row["role"],
                 "content": row["content"],
                 "created_at": row["created_at"],

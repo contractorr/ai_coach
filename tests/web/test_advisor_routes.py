@@ -151,7 +151,10 @@ def test_ask_creates_conversation(client, auth_headers):
 
     res2 = client.get(f"/api/advisor/conversations/{conv_id}", headers=auth_headers)
     assert res2.status_code == 200
-    assert len(res2.json()["messages"]) == 2
+    messages = res2.json()["messages"]
+    assert len(messages) == 2
+    # message_id exposed for both user and assistant messages
+    assert all(msg["id"] for msg in messages)
 
 
 def test_ask_with_existing_conversation(client, auth_headers):
@@ -263,6 +266,73 @@ def test_ask_stream_includes_council_metadata(client, auth_headers):
     answer_event = next(event for event in events if event["type"] == "answer")
     assert answer_event["council_used"] is True
     assert answer_event["council_providers"] == ["claude", "openai"]
+
+
+def test_ask_stream_emits_message_id(client, auth_headers):
+    """Non-agentic path: answer event includes message_id directly."""
+    with patch(_ENGINE_PATCH, side_effect=_mock_get_engine):
+        res = client.post(
+            "/api/advisor/ask/stream",
+            headers=auth_headers,
+            json={"question": "Give me the id"},
+        )
+    assert res.status_code == 200
+    events = []
+    for line in res.text.strip().split("\n"):
+        line = line.strip()
+        if line.startswith("data: "):
+            import json
+
+            events.append(json.loads(line[6:]))
+
+    answer_event = next(event for event in events if event["type"] == "answer")
+    assert answer_event.get("message_id"), "answer event should contain message_id"
+
+
+def test_ask_stream_emits_message_persisted_for_agentic(client, auth_headers):
+    """Agentic path: answer sent before persist -> message_persisted event follows."""
+
+    class _AgenticEngine:
+        def ask_result(
+            self,
+            question,
+            advice_type="general",
+            conversation_history=None,
+            attachment_ids=None,
+            event_callback=None,
+        ):
+            # Simulate agentic: fire answer event BEFORE returning
+            if event_callback:
+                event_callback({"type": "answer", "content": f"Agentic: {question}"})
+            return SimpleNamespace(
+                answer=f"Agentic: {question}",
+                council_used=False,
+                council_member_count=0,
+                council_providers=[],
+                council_failed_providers=[],
+                council_partial=False,
+            )
+
+    with patch(_ENGINE_PATCH, return_value=_AgenticEngine()):
+        res = client.post(
+            "/api/advisor/ask/stream",
+            headers=auth_headers,
+            json={"question": "Agentic test"},
+        )
+    assert res.status_code == 200
+    events = []
+    for line in res.text.strip().split("\n"):
+        line = line.strip()
+        if line.startswith("data: "):
+            import json
+
+            events.append(json.loads(line[6:]))
+
+    types = [e["type"] for e in events]
+    assert "answer" in types
+    assert "message_persisted" in types
+    persisted = next(e for e in events if e["type"] == "message_persisted")
+    assert persisted.get("message_id"), "message_persisted should contain message_id"
 
 
 def test_ask_stream_failure_cleans_up_new_conversation(client, auth_headers):

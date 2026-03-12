@@ -36,6 +36,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { apiFetch } from "@/lib/api";
+import { logEngagement } from "@/lib/engagement";
 
 /** Strip markdown syntax for plain-text card previews. */
 function stripMarkdown(text: string): string {
@@ -171,6 +172,7 @@ export default function JournalPage() {
         token
       );
       setSelected(entry);
+      logEngagement(token, "opened", "journal", path);
     } catch (e) {
       toast.error((e as Error).message);
     }

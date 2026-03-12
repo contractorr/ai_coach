@@ -203,6 +203,7 @@ class ConversationAttachment(BaseModel):
 
 
 class ConversationMessage(BaseModel):
+    id: str | None = None
     role: str
     content: str
     created_at: str

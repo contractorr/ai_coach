@@ -403,7 +403,7 @@ async def ask_advisor_stream(
                     trace_data_dir=Path(paths["data_dir"]),
                 ),
             )
-            finish_conversation_turn(
+            msg_id = finish_conversation_turn(
                 conv_id=conv_id,
                 user_id=user_id,
                 answer=result["answer"],
@@ -420,6 +420,7 @@ async def ask_advisor_stream(
                         "content": result["answer"],
                         "conversation_id": conv_id,
                         "advice_type": body.advice_type,
+                        "message_id": msg_id,
                         "council_used": result.get("council_used", False),
                         "council_member_count": result.get("council_member_count", 0),
                         "council_providers": result.get("council_providers", []),
@@ -427,6 +428,8 @@ async def ask_advisor_stream(
                         "council_partial": result.get("council_partial", False),
                     }
                 )
+            else:
+                _queue_event({"type": "message_persisted", "message_id": msg_id})
         except Exception as exc:
             try:
                 if user_message_id is not None:

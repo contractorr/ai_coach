@@ -18,6 +18,7 @@ import { useChatPdfAttachments } from "@/hooks/useChatPdfAttachments";
 import { useHomeStats } from "@/hooks/useHomeStats";
 import { useToken } from "@/hooks/useToken";
 import { apiFetch, apiFetchSSE } from "@/lib/api";
+import { logEngagement } from "@/lib/engagement";
 import { TOOL_LABELS } from "@/lib/constants";
 import type { ChatMessage } from "@/types/chat";
 import type { GreetingResponse, ReturnBrief } from "@/types/greeting";
@@ -449,7 +450,14 @@ export default function HomePage() {
                             ))}
                           </div>
                         ) : null}
-                        <Button size="sm" variant="outline" asChild>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          asChild
+                          onClick={() => {
+                            if (token) logEngagement(token, "acted_on", "suggestion", item.title.slice(0, 200));
+                          }}
+                        >
                           <Link href={sourceWorkspace(item)}>Open</Link>
                         </Button>
                       </CardContent>

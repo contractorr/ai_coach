@@ -37,6 +37,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { apiFetch } from "@/lib/api";
+import { logEngagement } from "@/lib/engagement";
 import type {
   BriefingRecommendation,
   TrackedRecommendationAction,
@@ -319,6 +320,7 @@ export default function GoalsPage() {
         },
         token
       );
+      logEngagement(token, "acted_on", "recommendation", recId);
       toast.success(goal ? `Added to ${goal.title}` : "Added to weekly actions");
       refreshExecutionViews();
     } catch (e) {
@@ -376,6 +378,7 @@ export default function GoalsPage() {
         },
         token
       );
+      logEngagement(token, rating >= 3 ? "feedback_useful" : "feedback_irrelevant", "recommendation", rec.id);
       updateRecommendationEverywhere(updated);
       setFeedbackRatings((prev) => ({ ...prev, [rec.id]: updated.user_rating ?? rating }));
       setFeedbackDrafts((prev) => ({ ...prev, [rec.id]: updated.feedback_comment ?? "" }));
