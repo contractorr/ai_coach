@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 
 import structlog
 
 from intelligence.entity_store import EntityStore
 from llm.base import LLMProvider
+from services.temporal import TemporalFilter, parse_temporal_expr, strip_temporal
 
 logger = structlog.get_logger()
 
@@ -29,6 +30,8 @@ class QueryAnalysis:
     mode: RetrievalMode
     matched_entities: list[dict]
     complexity_score: int
+    temporal_filter: TemporalFilter | None = field(default=None)
+    cleaned_query: str = ""
 
 
 class QueryAnalyzer:
@@ -39,17 +42,21 @@ class QueryAnalyzer:
         self.entity_store = entity_store
 
     def analyze(self, query: str) -> QueryAnalysis:
+        # Detect temporal intent first
+        temporal_filter = parse_temporal_expr(query)
+        search_query = strip_temporal(query, temporal_filter) if temporal_filter else query
+
         matched_entities = []
         if self.entity_store:
             try:
-                matched_entities = self.entity_store.search_entities(query, limit=5)
+                matched_entities = self.entity_store.search_entities(search_query, limit=5)
             except Exception as exc:
                 logger.warning("query_analysis_entity_lookup_failed", error=str(exc))
 
-        score = self._complexity_score(query)
+        score = self._complexity_score(search_query)
         is_complex = score >= 2
         if score == 1 and self.llm is not None:
-            is_complex = self._llm_says_complex(query)
+            is_complex = self._llm_says_complex(search_query)
 
         has_entities = bool(matched_entities)
         if is_complex and has_entities:
@@ -61,7 +68,13 @@ class QueryAnalyzer:
         else:
             mode = RetrievalMode.SIMPLE
 
-        return QueryAnalysis(mode=mode, matched_entities=matched_entities, complexity_score=score)
+        return QueryAnalysis(
+            mode=mode,
+            matched_entities=matched_entities,
+            complexity_score=score,
+            temporal_filter=temporal_filter,
+            cleaned_query=search_query,
+        )
 
     def _complexity_score(self, query: str) -> int:
         lower = query.lower()

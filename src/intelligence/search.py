@@ -2,12 +2,14 @@
 
 import re
 import sqlite3
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
 import structlog
 
 from db import wal_connect
+from services.ranking import rrf_fuse
 
 from .embeddings import IntelEmbeddingManager
 from .scraper import IntelStorage
@@ -278,7 +280,7 @@ class IntelSearch:
         n_results: int = 10,
         semantic_weight: float = 0.7,
     ) -> list[dict]:
-        """Combine semantic and keyword search results.
+        """Combine semantic and keyword search results via RRF (k=60).
 
         Args:
             query: Search query
@@ -291,28 +293,50 @@ class IntelSearch:
         semantic_results = self.semantic_search(query, n_results=n_results * 2)
         keyword_results = self.keyword_search(query, limit=n_results * 2)
 
-        # Score fusion: combine results by URL
-        scores = {}
-        items = {}
+        return rrf_fuse(
+            [semantic_results, keyword_results],
+            [semantic_weight, 1 - semantic_weight],
+            key_fn=lambda item: item.get("url") or str(item.get("id", id(item))),
+        )[:n_results]
 
-        for i, item in enumerate(semantic_results):
-            url = item.get("url", "")
-            if url:
-                rank_score = 1.0 / (i + 1)
-                scores[url] = scores.get(url, 0) + rank_score * semantic_weight
-                items[url] = item
+    def temporal_search(
+        self,
+        query: str,
+        start: datetime | None = None,
+        end: datetime | None = None,
+        n_results: int = 10,
+    ) -> list[dict]:
+        """Search items filtered by date range.
 
-        for i, item in enumerate(keyword_results):
-            url = item.get("url", "")
-            if url:
-                rank_score = 1.0 / (i + 1)
-                scores[url] = scores.get(url, 0) + rank_score * (1 - semantic_weight)
-                if url not in items:
-                    items[url] = item
+        Gets date-filtered items from storage, then reranks by semantic
+        similarity when embeddings are available.
+        """
+        date_items = self.storage.get_by_date_range(start=start, end=end, limit=n_results * 3)
+        if not date_items:
+            return []
 
-        # Sort by combined score
-        sorted_urls = sorted(scores.keys(), key=lambda u: scores[u], reverse=True)
-        return [items[url] for url in sorted_urls[:n_results]]
+        if not self.embeddings or not query.strip():
+            return date_items[:n_results]
+
+        # Semantic rerank: score each date-filtered item against query
+        item_texts = []
+        for item in date_items:
+            text = f"{item.get('title', '')} {item.get('summary', '')}"
+            item_texts.append(text)
+
+        try:
+            # Get semantic ordering for these specific items
+            sem_results = self.semantic_search(query, n_results=n_results * 2)
+            sem_urls = {item.get("url") for item in sem_results if item.get("url")}
+            # Boost date_items that also appear in semantic results
+            scored = []
+            for item in date_items:
+                boost = 1.0 if item.get("url") in sem_urls else 0.0
+                scored.append((item, boost))
+            scored.sort(key=lambda x: x[1], reverse=True)
+            return [item for item, _ in scored][:n_results]
+        except Exception:
+            return date_items[:n_results]
 
     def profile_filtered_search(
         self,

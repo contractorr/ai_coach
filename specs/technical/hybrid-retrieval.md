@@ -354,6 +354,195 @@ Cite specific relationships when relevant.
 
 ---
 
+### RRF Utility
+
+**File:** `src/services/ranking.py`
+**Status:** Draft
+
+#### Behavior
+
+Shared Reciprocal Rank Fusion implementation replacing three ad-hoc copies.
+
+```python
+def rrf_fuse(
+    result_lists: list[list[dict]],
+    weights: list[float],
+    key_fn: Callable[[dict], str],
+    k: int = 60,
+) -> list[dict]:
+```
+
+For each result list `i`, each item at position `rank`:
+`score[key_fn(item)] += weights[i] * 1.0 / (k + rank + 1)`
+
+Returns items sorted by descending score. When duplicate keys appear, the first occurrence's dict is kept.
+
+#### Invariants
+
+- `len(result_lists) == len(weights)` (asserted)
+- `k >= 0` (smoothing constant; default 60 per standard RRF)
+- Empty result lists contribute no scores
+- Items with empty string keys are assigned unique keys via `str(id(item))`
+
+---
+
+### Temporal Expression Parser
+
+**File:** `src/services/temporal.py`
+**Status:** Draft
+
+#### Behavior
+
+Regex-based temporal expression detection and parsing. Zero LLM calls.
+
+```python
+@dataclass
+class TemporalFilter:
+    start: datetime | None
+    end: datetime | None
+    original_expr: str
+
+def parse_temporal_expr(query: str) -> TemporalFilter | None:
+def strip_temporal(query: str, temporal_filter: TemporalFilter) -> str:
+```
+
+Supported patterns (case-insensitive):
+- `"last N days/weeks/months/years"` → `start = now - N*period`
+- `"last week"` → `start = now - 7d`
+- `"last month"` → `start = now - 30d`
+- `"past N days/weeks/months"` → same as "last N ..."
+- `"yesterday"` → `start = yesterday 00:00, end = yesterday 23:59`
+- `"today"` → `start = today 00:00`
+- `"this week"` → `start = Monday of current week`
+- `"this month"` → `start = 1st of current month`
+- `"since <month>"` → `start = 1st of named month in current/previous year`
+- `"in <year>"` → `start = Jan 1 of year, end = Dec 31 of year`
+- `"recently"` / `"recent"` → `start = now - 7d`
+- `"before <date>"` → `end = parsed date`
+- `"after <date>"` → `start = parsed date`
+
+`strip_temporal()` removes the matched expression from the query and strips extra whitespace.
+
+#### Error Handling
+
+| Trigger | Action |
+|---------|--------|
+| No temporal expression detected | Return None |
+| Ambiguous/unparseable date | Return None |
+| Multiple temporal expressions | Use first match |
+
+---
+
+### Token Counter
+
+**File:** `src/services/tokens.py`
+**Status:** Draft
+
+```python
+def count_tokens(text: str) -> int:
+```
+
+Uses tiktoken `cl100k_base` encoding. Encoding instance cached at module level. Falls back to `len(text) // 4` if tiktoken unavailable.
+
+---
+
+### Cross-Encoder Reranker
+
+**File:** `src/services/reranker.py`
+**Status:** Draft
+
+```python
+class CrossEncoderReranker:
+    MODEL = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+
+    def __init__(self) -> None:
+        self.available: bool  # True if sentence-transformers installed
+
+    def rerank(self, query: str, passages: list[str], top_k: int = 10) -> list[int]:
+        # Returns sorted indices into passages list
+```
+
+#### Invariants
+
+- `__init__` never raises. Sets `self.available = False` on ImportError.
+- `rerank()` returns `list(range(len(passages)))` unchanged when `not self.available`.
+- Empty passages → empty result.
+
+---
+
+### Temporal Search Extensions
+
+**Journal:** `src/journal/search.py` — new `temporal_search()` method:
+```python
+def temporal_search(
+    self,
+    query: str,
+    start: datetime | None = None,
+    end: datetime | None = None,
+    n_results: int = 5,
+) -> list[dict]:
+```
+Runs `hybrid_search(query, n_results=n_results*3)` then post-filters by `created` date.
+
+**Intel storage:** `src/intelligence/scraper.py` — new `get_by_date_range()`:
+```python
+def get_by_date_range(
+    self,
+    start: datetime | None = None,
+    end: datetime | None = None,
+    limit: int = 50,
+) -> list[dict]:
+```
+SQL: `WHERE COALESCE(published, scraped_at) BETWEEN ? AND ?`
+
+**Intel search:** `src/intelligence/search.py` — new `temporal_search()`:
+```python
+def temporal_search(
+    self,
+    query: str,
+    start: datetime | None = None,
+    end: datetime | None = None,
+    n_results: int = 10,
+) -> list[dict]:
+```
+Gets date-filtered items from storage, then runs semantic reranking on subset.
+
+---
+
+### QueryAnalyzer Extensions
+
+**File:** `src/advisor/query_analyzer.py`
+
+New field on `QueryAnalysis`:
+```python
+temporal_filter: TemporalFilter | None = None
+```
+
+In `analyze()`, call `parse_temporal_expr(query)` before complexity scoring. If temporal filter detected, set on result and use `strip_temporal()` for subsequent analysis.
+
+---
+
+### RAGRetriever Token Budget Refactor
+
+**File:** `src/advisor/rag.py`
+
+New constructor params:
+```python
+max_context_tokens: int | None = None  # default: derive from max_context_chars // 4
+reranker: CrossEncoderReranker | None = None
+```
+
+`_get_text_context_for_budget` changes:
+- Accept `total_tokens` instead of `total_chars`
+- Pass `max_tokens` to journal/intel context methods
+- Internal budget tracking uses `count_tokens()` instead of `len()`
+
+`get_enhanced_context` changes:
+- If `analysis.temporal_filter` is set, use `journal.temporal_search()` / `intel_search.temporal_search()` with start/end
+- If `self.reranker` and `self.reranker.available`, apply reranking as final pass
+
+---
+
 ## Cross-Cutting Concerns
 
 **Backward compatibility:** All new components are optional. When not configured, the entire retrieval path falls back to current behavior. No existing tests should break.
@@ -410,3 +599,34 @@ Cite specific relationships when relevant.
 - `intel_entity_search` returns entities with relationships
 - `intel_entity_search` not registered when entity_store missing
 - Mock: IntelSearch, EntityStore
+
+**RRF Utility (Phase 2):**
+- Two overlapping lists with equal weights → items in both lists score higher
+- Disjoint lists → interleaved by individual scores
+- Custom k parameter changes ranking spread
+- Empty result lists handled gracefully
+
+**Temporal Parser (Phase 2):**
+- "last 3 days" → start = now - 3d, end = None
+- "since January" → start = Jan 1, end = None
+- "yesterday" → start/end = yesterday bounds
+- "recently" → start = now - 7d
+- No temporal expression → returns None
+- strip_temporal removes matched expression from query
+
+**Temporal Search (Phase 2):**
+- Journal temporal_search returns only entries within date range
+- Intel temporal_search filters by COALESCE(published, scraped_at)
+- Items with NULL published fall back to scraped_at
+- QueryAnalyzer sets temporal_filter on QueryAnalysis
+- RAGRetriever routes to temporal search methods when filter present
+
+**Token Budgets (Phase 2):**
+- count_tokens returns accurate token count via tiktoken
+- RAGRetriever respects token budget, not char budget
+- Backward compat: max_context_chars still accepted (divided by 4)
+
+**Reranker (Phase 2):**
+- CrossEncoderReranker.available=False when sentence-transformers missing
+- rerank() returns identity ordering when not available
+- RAGRetriever skips reranking when reranker is None or unavailable

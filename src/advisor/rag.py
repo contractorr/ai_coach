@@ -1,10 +1,12 @@
 """RAG retrieval combining journal and intelligence sources."""
 
+from __future__ import annotations
+
 import asyncio
 import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 import structlog
 
@@ -15,6 +17,10 @@ from db import wal_connect
 from intelligence.entity_store import EntityStore
 from intelligence.search import IntelSearch
 from journal.search import JournalSearch
+from services.tokens import count_tokens
+
+if TYPE_CHECKING:
+    from services.reranker import CrossEncoderReranker
 
 logger = structlog.get_logger()
 
@@ -42,6 +48,7 @@ class RAGRetriever:
         intel_db_path: Optional[Path] = None,
         intel_search: Optional[IntelSearch] = None,
         max_context_chars: int = 8000,
+        max_context_tokens: int | None = None,
         journal_weight: float = 0.7,
         profile_path: Optional[str] = None,
         users_db_path: Optional[Path] = None,
@@ -55,11 +62,15 @@ class RAGRetriever:
         query_analyzer: QueryAnalyzer | None = None,
         query_decomposer: QueryDecomposer | None = None,
         entity_retriever: EntityRetriever | None = None,
+        reranker: CrossEncoderReranker | None = None,
     ):
         self.journal = journal_search
         self.intel_db_path = Path(intel_db_path).expanduser() if intel_db_path else None
         self.intel_search = intel_search
         self.max_context_chars = max_context_chars
+        self.max_context_tokens = (
+            max_context_tokens if max_context_tokens is not None else max_context_chars // 4
+        )
         self.journal_weight = journal_weight
         self._profile_path = profile_path or "~/coach/profile.yaml"
         self._users_db_path = users_db_path
@@ -73,6 +84,7 @@ class RAGRetriever:
         self.query_analyzer = query_analyzer
         self.query_decomposer = query_decomposer
         self.entity_retriever = entity_retriever
+        self.reranker = reranker
 
     def get_profile_context(self, structured: bool = False) -> str:
         """Load user profile summary for LLM context injection.
@@ -358,13 +370,25 @@ class RAGRetriever:
             if not merged:
                 return ""
 
-            return self._format_memory_block(merged, thread_boosts=thread_boosts)
+            # Fetch observations separately
+            observations = []
+            try:
+                observations = self._fact_store.get_all_active_observations()
+            except Exception:
+                pass
+
+            return self._format_memory_block(
+                merged, thread_boosts=thread_boosts, observations=observations
+            )
         except Exception as e:
             logger.debug("memory_context_failed", error=str(e))
             return ""
 
     def _format_memory_block(
-        self, facts: list, thread_boosts: dict[str, float] | None = None
+        self,
+        facts: list,
+        thread_boosts: dict[str, float] | None = None,
+        observations: list | None = None,
     ) -> str:
         """Format facts into grouped system prompt block."""
         from memory.models import FactCategory
@@ -378,13 +402,23 @@ class RAGRetriever:
             FactCategory.GOAL_CONTEXT: "Goal Context",
         }
 
-        # Group by category
+        lines = ["<user_memory>"]
+
+        # Observations section first
+        if observations:
+            lines.append("## Observations")
+            for obs in sorted(observations, key=lambda x: x.confidence, reverse=True):
+                lines.append(f"* {obs.text}")
+            lines.append("")
+
+        # Group raw facts by category (exclude observations from raw listing)
         grouped: dict[str, list] = {}
         for f in facts:
+            if f.category == FactCategory.OBSERVATION:
+                continue
             label = category_labels.get(f.category, str(f.category))
             grouped.setdefault(label, []).append(f)
 
-        lines = ["<user_memory>"]
         display_order = [
             "Current Context",
             "Goal Context",
@@ -397,7 +431,6 @@ class RAGRetriever:
             if section not in grouped:
                 continue
             lines.append(f"## {section}")
-            # Sort by confidence desc within section
             for f in sorted(
                 grouped[section],
                 key=lambda x: self._effective_fact_confidence(x, thread_boosts or {}),
@@ -773,6 +806,10 @@ class RAGRetriever:
             return self.compute_dynamic_weight(query=query)
         return self.journal_weight
 
+    def _tokens_to_chars(self, tokens: int) -> int:
+        """Convert a token budget to an approximate char budget (4 chars/token)."""
+        return tokens * 4
+
     def _get_text_context_for_budget(
         self,
         query: str,
@@ -784,6 +821,100 @@ class RAGRetriever:
         intel_chars = total_chars - journal_chars
         journal_ctx = self.get_journal_context(query, max_chars=journal_chars)
         intel_ctx = self.get_intel_context(query, max_chars=intel_chars)
+        return self._truncate_to_token_budget(journal_ctx, intel_ctx, weight)
+
+    def _get_temporal_context(
+        self,
+        query: str,
+        analysis: QueryAnalysis,
+        total_chars: int,
+    ) -> tuple[str, str]:
+        """Retrieve context using temporal filtering on both journal and intel."""
+        tf = analysis.temporal_filter
+        search_query = analysis.cleaned_query or query
+        weight = self._resolve_journal_weight(search_query)
+        journal_chars = int(total_chars * weight)
+        intel_chars = total_chars - journal_chars
+
+        # Journal temporal search
+        journal_results = self.journal.temporal_search(
+            search_query, start=tf.start, end=tf.end, n_results=5
+        )
+        if journal_results:
+            # Format journal results the same way get_context_for_query does
+            parts = []
+            total = 0
+            for r in journal_results:
+                entry_text = (
+                    f"\n--- Entry: {r['title']} ({r['type']}) ---\n"
+                    f"Date: {r['created']}\n"
+                    f"Tags: {', '.join(r['tags']) if r['tags'] else 'none'}\n\n"
+                    f"{r['content']}\n"
+                )
+                if total + len(entry_text) > journal_chars:
+                    remaining = journal_chars - total
+                    if remaining > 200:
+                        parts.append(entry_text[:remaining] + "...[truncated]")
+                    break
+                parts.append(entry_text)
+                total += len(entry_text)
+            journal_ctx = "\n".join(parts) if parts else "No relevant journal entries found."
+        else:
+            journal_ctx = "No relevant journal entries found."
+
+        # Intel temporal search
+        if self.intel_search:
+            intel_results = self.intel_search.temporal_search(
+                search_query, start=tf.start, end=tf.end, n_results=5
+            )
+            if intel_results:
+                parts = []
+                total = 0
+                for item in intel_results:
+                    source = item.get("source", "unknown")
+                    title = item.get("title", "Untitled")
+                    summary = item.get("summary", "")[:200]
+                    url = item.get("url", "")
+                    entry = f"- [{source}] {title}"
+                    if summary:
+                        entry += f": {summary}"
+                    if url:
+                        entry += f" ({url})"
+                    if total + len(entry) > intel_chars:
+                        break
+                    parts.append(entry)
+                    total += len(entry)
+                intel_ctx = "\n".join(parts) if parts else "No relevant intelligence found."
+            else:
+                intel_ctx = "No relevant intelligence found."
+        else:
+            intel_ctx = self.get_intel_context(search_query, max_chars=intel_chars)
+
+        return self._truncate_to_token_budget(journal_ctx, intel_ctx, weight)
+
+    def _truncate_to_token_budget(
+        self, journal_ctx: str, intel_ctx: str, weight: float
+    ) -> tuple[str, str]:
+        """Ensure combined context fits within max_context_tokens."""
+        total_tokens = count_tokens(journal_ctx) + count_tokens(intel_ctx)
+        if total_tokens <= self.max_context_tokens:
+            return journal_ctx, intel_ctx
+
+        # Proportionally truncate the larger context
+        journal_budget = int(self.max_context_tokens * weight)
+        intel_budget = self.max_context_tokens - journal_budget
+
+        journal_tokens = count_tokens(journal_ctx)
+        if journal_tokens > journal_budget:
+            # Rough truncation: cut chars proportionally
+            ratio = journal_budget / max(journal_tokens, 1)
+            journal_ctx = journal_ctx[: int(len(journal_ctx) * ratio)]
+
+        intel_tokens = count_tokens(intel_ctx)
+        if intel_tokens > intel_budget:
+            ratio = intel_budget / max(intel_tokens, 1)
+            intel_ctx = intel_ctx[: int(len(intel_ctx) * ratio)]
+
         return journal_ctx, intel_ctx
 
     def get_combined_context(
@@ -852,7 +983,10 @@ class RAGRetriever:
         else:
             text_budget = self.max_context_chars
 
-        if (
+        # Temporal routing — orthogonal to mode dispatch
+        if analysis.temporal_filter:
+            journal_ctx, intel_ctx = self._get_temporal_context(query, analysis, text_budget)
+        elif (
             analysis.mode in {RetrievalMode.DECOMPOSED, RetrievalMode.COMBINED}
             and self.query_decomposer
         ):
@@ -862,12 +996,28 @@ class RAGRetriever:
         else:
             journal_ctx, intel_ctx = self._get_text_context_for_budget(query, text_budget)
 
+        # Optional cross-encoder reranking on final context
+        if self.reranker and getattr(self.reranker, "available", False):
+            journal_ctx, intel_ctx = self._apply_reranker(query, journal_ctx, intel_ctx)
+
         return AskContext(
             journal=journal_ctx,
             intel=intel_ctx,
             profile="",
             entity_context=entity_context,
         )
+
+    def _apply_reranker(self, query: str, journal_ctx: str, intel_ctx: str) -> tuple[str, str]:
+        """Rerank context passages using cross-encoder."""
+        try:
+            # Rerank intel passages (each line is a passage)
+            intel_lines = [line for line in intel_ctx.split("\n") if line.strip()]
+            if len(intel_lines) > 1:
+                indices = self.reranker.rerank(query, intel_lines, top_k=len(intel_lines))
+                intel_ctx = "\n".join(intel_lines[i] for i in indices)
+        except Exception as exc:
+            logger.debug("reranker_apply_failed", error=str(exc))
+        return journal_ctx, intel_ctx
 
     async def _decomposed_retrieval(
         self,

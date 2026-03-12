@@ -95,6 +95,9 @@ class IntelStorage:
             conn.execute("""
                 CREATE INDEX IF NOT EXISTS idx_intel_hash ON intel_items(content_hash)
             """)
+            conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_intel_published ON intel_items(published)
+            """)
             # Add columns if not exists (for existing DBs)
             for col, typedef in [
                 ("content_hash", "TEXT"),
@@ -269,6 +272,34 @@ class IntelStorage:
                    WHERE scraped_at >= ? AND duplicate_of IS NULL
                    ORDER BY scraped_at DESC LIMIT ?""",
                 (since.isoformat(), limit),
+            )
+            return [self._row_to_dict(row) for row in cursor.fetchall()]
+
+    def get_by_date_range(
+        self,
+        start: datetime | None = None,
+        end: datetime | None = None,
+        limit: int = 50,
+    ) -> list[dict]:
+        """Get intel items within a date range using COALESCE(published, scraped_at)."""
+        clauses = ["duplicate_of IS NULL"]
+        params: list[object] = []
+        if start:
+            clauses.append("COALESCE(published, scraped_at) >= ?")
+            params.append(start.isoformat())
+        if end:
+            clauses.append("COALESCE(published, scraped_at) <= ?")
+            params.append(end.isoformat())
+        where = " AND ".join(clauses)
+        params.append(limit)
+        with wal_connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.execute(
+                f"""SELECT * FROM intel_items
+                    WHERE {where}
+                    ORDER BY COALESCE(published, scraped_at) DESC
+                    LIMIT ?""",
+                tuple(params),
             )
             return [self._row_to_dict(row) for row in cursor.fetchall()]
 

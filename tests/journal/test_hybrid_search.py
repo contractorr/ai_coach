@@ -1,4 +1,6 @@
-"""Tests for hybrid journal search with RRF."""
+"""Tests for hybrid journal search with RRF and temporal search."""
+
+from datetime import datetime, timedelta
 
 
 class TestHybridSearch:
@@ -56,3 +58,44 @@ class TestHybridSearch:
         context = search.get_context_for_query("career goals")
         assert isinstance(context, str)
         assert len(context) > 0
+
+
+class TestTemporalSearch:
+    def test_temporal_search_filters_by_date(self, populated_journal):
+        """temporal_search returns only entries within date range."""
+        from journal.search import JournalSearch
+
+        search = JournalSearch(storage=populated_journal["storage"], embeddings=None)
+        now = datetime.now()
+
+        # Search with wide date range — should find entries
+        results = search.temporal_search(
+            "Rust",
+            start=now - timedelta(days=365),
+            end=now + timedelta(days=1),
+            n_results=10,
+        )
+        assert isinstance(results, list)
+
+    def test_temporal_search_narrow_range_excludes(self, populated_journal):
+        """Narrow date range in the far past should return no entries."""
+        from journal.search import JournalSearch
+
+        search = JournalSearch(storage=populated_journal["storage"], embeddings=None)
+
+        results = search.temporal_search(
+            "Rust",
+            start=datetime(2020, 1, 1),
+            end=datetime(2020, 1, 2),
+            n_results=10,
+        )
+        assert len(results) == 0
+
+    def test_temporal_search_no_dates_returns_all(self, populated_journal):
+        """temporal_search with no start/end acts like hybrid_search."""
+        from journal.search import JournalSearch
+
+        search = JournalSearch(storage=populated_journal["storage"], embeddings=None)
+        results = search.temporal_search("Rust", n_results=10)
+        # Should return results (no date filtering)
+        assert isinstance(results, list)

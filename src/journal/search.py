@@ -1,9 +1,12 @@
 """Semantic search across journal entries."""
 
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
 import frontmatter
+
+from services.ranking import rrf_fuse
 
 from .embeddings import EmbeddingManager
 from .fts import JournalFTSIndex
@@ -153,28 +156,52 @@ class JournalSearch:
         semantic_weight: float = 0.7,
         entry_type: Optional[str] = None,
     ) -> list[dict]:
-        """Combine semantic + keyword search with reciprocal rank fusion."""
+        """Combine semantic + keyword search with reciprocal rank fusion (k=60)."""
         semantic_results = self.semantic_search(
             query, n_results=n_results * 2, entry_type=entry_type
         )
         keyword_results = self.keyword_search(query, entry_type=entry_type, limit=n_results * 2)
 
-        scores: dict[str, float] = {}
-        items: dict[str, dict] = {}
+        return rrf_fuse(
+            [semantic_results, keyword_results],
+            [semantic_weight, 1 - semantic_weight],
+            key_fn=lambda item: str(item["path"]),
+        )[:n_results]
 
-        for i, item in enumerate(semantic_results):
-            key = str(item["path"])
-            scores[key] = scores.get(key, 0) + (1.0 / (i + 1)) * semantic_weight
-            items[key] = item
+    def temporal_search(
+        self,
+        query: str,
+        start: Optional[datetime] = None,
+        end: Optional[datetime] = None,
+        n_results: int = 5,
+    ) -> list[dict]:
+        """Hybrid search filtered by entry created date.
 
-        for i, item in enumerate(keyword_results):
-            key = str(item["path"])
-            scores[key] = scores.get(key, 0) + (1.0 / (i + 1)) * (1 - semantic_weight)
-            if key not in items:
-                items[key] = item
-
-        sorted_keys = sorted(scores, key=lambda k: scores[k], reverse=True)
-        return [items[k] for k in sorted_keys[:n_results]]
+        Runs hybrid_search with a larger pool then post-filters by date range.
+        """
+        pool = self.hybrid_search(query, n_results=n_results * 3)
+        filtered = []
+        for item in pool:
+            created = item.get("created")
+            if not created:
+                continue
+            if isinstance(created, str):
+                try:
+                    created = datetime.fromisoformat(created.replace("Z", "+00:00")).replace(
+                        tzinfo=None
+                    )
+                except (ValueError, TypeError):
+                    continue
+            elif hasattr(created, "replace"):
+                created = created.replace(tzinfo=None)
+            else:
+                continue
+            if start and created < start:
+                continue
+            if end and created > end:
+                continue
+            filtered.append(item)
+        return filtered[:n_results]
 
     def get_context_for_query(
         self,
