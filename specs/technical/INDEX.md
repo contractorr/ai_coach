@@ -45,5 +45,7 @@ This index summarizes each file in `specs/technical/` after the v2 simplificatio
 | `suggestions-engine.md` | Unified suggestion endpoint with why_now | `web/routes/suggestions.py`, `web/briefing_data.py` | Assemble, annotate, return merged list |
 | `trending-radar.md` | NLP + LLM cross-source topic trends | `intelligence/trending_radar.py` | Extract phrases, score, persist snapshots |
 | `usage-cost-estimation.md` | Per-user LLM cost estimation | Settings route, usage events | Estimate costs by model |
+| `configurable-embeddings.md` | Pluggable embedding factory mirroring LLM auto-detection | `src/embeddings/`, `src/chroma_utils.py`, `src/memory/store.py` | Auto-detect, instantiate, fallback to hash |
+| `x-list-scraper.md` | X API v2 List tweets scraper | `src/intelligence/sources/x_list.py`, `src/shared_types.py`, scheduler | Fetch, map, dedup tweets |
 | `TEMPLATE.md` | Template for future technical docs | Module paths, interfaces, product mapping | Describe module, boundaries, consumers |
 | `web.md` | Frontend route map plus web-surface persistence invariants | Sidebar, dashboard pages, FastAPI app, canonical user-state store | Navigate five workspaces, chat with attachments, complete onboarding |

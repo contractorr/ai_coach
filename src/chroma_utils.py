@@ -5,7 +5,6 @@ from __future__ import annotations
 import hashlib
 import json
 import math
-import os
 import re
 from collections import Counter
 from pathlib import Path
@@ -47,17 +46,18 @@ class SimpleHashEmbeddingFunction:
         return "simple-hash-fallback"
 
 
-def build_embedding_function() -> SimpleHashEmbeddingFunction | None:
+def build_embedding_function(config: dict | None = None):
     """Return the configured embedding function.
 
-    Native ONNX-backed embeddings can be explicitly enabled with
-    `COACH_USE_ONNX_EMBEDDINGS=1`, but the default is a deterministic local
-    fallback because ONNX runtime is not reliable in all Windows test/runtime
-    environments.
+    Delegates to the pluggable embedding factory which auto-detects the best
+    available provider (Gemini → OpenAI → hash fallback).
     """
-    if os.getenv("COACH_USE_ONNX_EMBEDDINGS") == "1":
-        return None
-    return SimpleHashEmbeddingFunction()
+    try:
+        from embeddings import create_embedding_function
+
+        return create_embedding_function(config=config)
+    except Exception:
+        return SimpleHashEmbeddingFunction()
 
 
 class LocalCollection:

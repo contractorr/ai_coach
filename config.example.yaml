@@ -11,6 +11,14 @@ llm:
   max_tokens: 16000
   cheap_max_tokens: 4000
 
+embeddings:
+  provider: auto          # auto | gemini | openai | hash
+  # model: gemini-embedding-2-preview   # or text-embedding-3-small for openai
+  # dimensions: 768                     # 768 for gemini, 1536 for openai
+  # NOTE: after switching providers, run `coach db rebuild --collection all`
+  # Similarity thresholds (0.78-0.92) were tuned for hash fallback — may need
+  # adjustment with real embedding models.
+
 paths:
   journal_dir: ~/coach/journal
   chroma_dir: ~/coach/chroma
@@ -73,6 +81,11 @@ sources:
     categories: [artificial-intelligence, developer-tools, saas]
     days_back: 7
     max_items: 20
+  x_list:
+    enabled: false  # requires X API v2 bearer token
+    # bearer_token: ${X_BEARER_TOKEN}
+    # list_id: "1234567890"    # your X List ID
+    # max_tweets: 100
   enabled:
     - hn_top
     - rss_feeds

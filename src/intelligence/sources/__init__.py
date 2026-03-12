@@ -20,6 +20,7 @@ from .indeed_hiring_lab import IndeedHiringLabScraper
 from .producthunt import ProductHuntScraper
 from .reddit import RedditScraper
 from .rss import RSSFeedScraper
+from .x_list import XListScraper
 from .yc_jobs import YCJobsScraper
 
 __all__ = [
@@ -42,4 +43,5 @@ __all__ = [
     "IndeedHiringLabScraper",
     "GoogleTrendsScraper",
     "CrunchbaseScraper",
+    "XListScraper",
 ]

@@ -82,7 +82,7 @@ class FactStore:
 
     @property
     def _chroma(self):
-        """Lazy-init ChromaDB collection."""
+        """Lazy-init ChromaDB collection with shared embedding function."""
         if self._collection is None and self._chroma_dir:
             try:
                 import chromadb
@@ -93,10 +93,23 @@ class FactStore:
                     path=str(self._chroma_dir),
                     settings=Settings(anonymized_telemetry=False),
                 )
-                self._collection = client.get_or_create_collection(
-                    name="steward_facts",
-                    metadata={"hnsw:space": "cosine"},
-                )
+
+                # Use shared embedding provider for consistency
+                embedding_fn = None
+                try:
+                    from embeddings import create_embedding_function
+
+                    embedding_fn = create_embedding_function()
+                except Exception:
+                    pass  # ChromaDB will use its built-in default
+
+                kwargs = {
+                    "name": "steward_facts",
+                    "metadata": {"hnsw:space": "cosine"},
+                }
+                if embedding_fn is not None:
+                    kwargs["embedding_function"] = embedding_fn
+                self._collection = client.get_or_create_collection(**kwargs)
             except Exception as e:
                 logger.warning("chroma_init_failed", error=str(e))
         return self._collection

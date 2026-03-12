@@ -45,4 +45,6 @@ This index summarizes each file in `specs/functional/` after the v2 simplificati
 | `suggestions-engine.md` | Unified suggestion endpoint merging all subsystems | Suggestions route, briefing data, WhyNowReasoner | Review prioritized next steps with timing context |
 | `trending-radar.md` | Cross-source topic trend detection | Trending radar, intel items, NLP/LLM modes | Surface emerging topics from intelligence feeds |
 | `usage-cost-estimation.md` | Per-user LLM cost estimation on settings page | Settings page, usage events | View cost breakdown by model |
+| `configurable-embeddings.md` | Pluggable embedding provider (Gemini/OpenAI/hash) | Embedding factory, journal/intel/memory search | Auto-detect provider, configure model, rebuild after switch |
+| `x-list-scraper.md` | X/Twitter List intelligence source | Intel scraper, Radar feed, config | Configure list, fetch tweets, review in Radar |
 | `TEMPLATE.md` | Template for future functional docs | Functional spec structure, workspace placement | Define problem, map workspace, list flows |

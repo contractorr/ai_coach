@@ -54,6 +54,7 @@ class IntelSource(StrEnum):
     INDEED_HIRING_LAB = "indeed_hiring_lab"
     GOOGLE_TRENDS = "google_trends"
     CRUNCHBASE = "crunchbase"
+    X_LIST = "x_list"
 
 
 class EntryType(StrEnum):

@@ -38,6 +38,7 @@ from .sources import (
     ProductHuntScraper,
     RedditScraper,
     RSSFeedScraper,
+    XListScraper,
     YCJobsScraper,
 )
 
@@ -475,6 +476,21 @@ class IntelScheduler:
                     max_items=cb_config.get("max_items", 20),
                 )
             )
+
+        # X/Twitter List
+        x_list_config = self.config.get("x_list", {})
+        if "x_list" in enabled or x_list_config.get("enabled", False):
+            bearer = x_list_config.get("bearer_token") or os.environ.get("X_BEARER_TOKEN")
+            list_id = x_list_config.get("list_id")
+            if bearer and list_id:
+                self._scrapers.append(
+                    XListScraper(
+                        self.storage,
+                        bearer_token=bearer,
+                        list_id=list_id,
+                        max_tweets=x_list_config.get("max_tweets", 100),
+                    )
+                )
 
         # Store + attach shared embedding manager for semantic dedup + goal matching
         self.intel_embedding_mgr = intel_embedding_mgr
