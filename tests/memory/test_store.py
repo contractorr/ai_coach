@@ -299,6 +299,68 @@ class TestGraphExpansion:
         assert len(results) >= 1
 
 
+class TestObservationSources:
+    def test_link_and_get_observation_sources(self, store):
+        store.add(_fact(id="obs1", category=FactCategory.PREFERENCE))
+        store.add(_fact(id="f1"))
+        store.add(_fact(id="f2"))
+
+        store.link_observation_sources("obs1", ["f1", "f2"])
+        source_ids = store.get_observation_source_ids("obs1")
+        assert sorted(source_ids) == ["f1", "f2"]
+
+    def test_get_observations_for_fact(self, store):
+        from memory.models import FactSource
+
+        obs = StewardFact(
+            id="obs1",
+            text="User is a Python expert",
+            category=FactCategory.OBSERVATION,
+            source_type=FactSource.CONSOLIDATION,
+            source_id="python",
+            confidence=0.85,
+        )
+        store.add(obs)
+        store.add(_fact(id="f1"))
+        store.link_observation_sources("obs1", ["f1"])
+
+        observations = store.get_observations_for_fact("f1")
+        assert len(observations) == 1
+        assert observations[0].id == "obs1"
+
+    def test_get_all_active_observations(self, store):
+        from memory.models import FactSource
+
+        obs = StewardFact(
+            id="obs1",
+            text="User is a Python expert",
+            category=FactCategory.OBSERVATION,
+            source_type=FactSource.CONSOLIDATION,
+            source_id="python",
+        )
+        store.add(obs)
+        store.add(_fact(id="f1"))
+
+        observations = store.get_all_active_observations()
+        assert len(observations) == 1
+        assert observations[0].category == FactCategory.OBSERVATION
+
+    def test_delete_cleans_observation_sources(self, store):
+        store.add(_fact(id="f1"))
+        store.add(_fact(id="obs1", category=FactCategory.PREFERENCE))
+        store.link_observation_sources("obs1", ["f1"])
+
+        store.delete("f1", reason="test")
+
+        from db import wal_connect
+
+        with wal_connect(store.db_path) as conn:
+            rows = conn.execute(
+                "SELECT * FROM observation_sources WHERE fact_id = ?", ("f1",)
+            ).fetchall()
+        assert len(rows) == 0
+
+
 class TestReset:
     def test_reset(self, store):
         store.add(_fact(id="a"))
@@ -317,3 +379,15 @@ class TestReset:
             links = conn.execute("SELECT COUNT(*) FROM fact_entity_links").fetchone()[0]
         assert entities == 0
         assert links == 0
+
+    def test_reset_clears_observation_sources(self, store):
+        store.add(_fact(id="f1"))
+        store.add(_fact(id="obs1"))
+        store.link_observation_sources("obs1", ["f1"])
+        store.reset()
+
+        from db import wal_connect
+
+        with wal_connect(store.db_path) as conn:
+            count = conn.execute("SELECT COUNT(*) FROM observation_sources").fetchone()[0]
+        assert count == 0

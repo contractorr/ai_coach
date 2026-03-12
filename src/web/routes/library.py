@@ -193,7 +193,15 @@ def _process_document_memory(user_id: str, report: dict, extracted_text: str) ->
 
         from memory.pipeline import MemoryPipeline
 
-        pipeline = MemoryPipeline(get_memory_store(user_id))
+        store = get_memory_store(user_id)
+        consolidator = None
+        try:
+            from memory.consolidator import ObservationConsolidator
+
+            consolidator = ObservationConsolidator(store)
+        except Exception:
+            pass
+        pipeline = MemoryPipeline(store, consolidator=consolidator)
         pipeline.reextract_document(
             report["id"],
             extracted_text,

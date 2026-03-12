@@ -179,6 +179,10 @@ memory:
   max_facts_per_entry: 5
   max_context_facts: 25
   high_confidence_threshold: 0.9
+  consolidation:
+    enabled: true
+    min_facts_per_group: 2
+    run_cron: "0 3 * * *"
 
 # --- Threads: journal recurrence detection ---
 threads:

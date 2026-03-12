@@ -35,13 +35,13 @@ def mock_components():
 
 
 def test_load_tools_returns_20(mock_components):
-    """Server should register exactly 46 tools."""
+    """Server should register exactly 47 tools."""
     from coach_mcp.server import _load_tools
 
     registry = _load_tools()
     tools = registry.get_mcp_definitions()
-    assert len(tools) == 46
-    assert len(registry.get_definitions()) == 46
+    assert len(tools) == 47
+    assert len(registry.get_definitions()) == 47
 
 
 def test_load_tools_names(mock_components):
@@ -95,6 +95,7 @@ def test_load_tools_names(mock_components):
         "memory_search_facts",
         "memory_delete_fact",
         "memory_get_stats",
+        "memory_list_observations",
         "threads_list",
         "threads_get_entries",
         "threads_reindex",
@@ -126,9 +127,18 @@ def test_recommendation_tools_publish_string_rec_ids(mock_components):
 
     tools = {tool.name: tool for tool in _load_tools().get_mcp_definitions()}
 
-    assert tools["recommendations_action_create"].inputSchema["properties"]["rec_id"]["type"] == "string"
-    assert tools["recommendations_action_update"].inputSchema["properties"]["rec_id"]["type"] == "string"
-    assert tools["recommendations_update_status"].inputSchema["properties"]["rec_id"]["type"] == "string"
+    assert (
+        tools["recommendations_action_create"].inputSchema["properties"]["rec_id"]["type"]
+        == "string"
+    )
+    assert (
+        tools["recommendations_action_update"].inputSchema["properties"]["rec_id"]["type"]
+        == "string"
+    )
+    assert (
+        tools["recommendations_update_status"].inputSchema["properties"]["rec_id"]["type"]
+        == "string"
+    )
     assert tools["recommendations_rate"].inputSchema["properties"]["rec_id"]["type"] == "string"
 
 
@@ -176,4 +186,4 @@ async def test_list_tools_async(mock_components):
     from coach_mcp.server import list_tools
 
     tools = await list_tools()
-    assert len(tools) == 46
+    assert len(tools) == 47

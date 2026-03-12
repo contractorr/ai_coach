@@ -191,7 +191,19 @@ def memory_backfill(dry_run: bool):
 
     from memory.pipeline import MemoryPipeline
 
-    pipeline = MemoryPipeline(store)
+    consolidator = None
+    consolidation_cfg = config.get("memory", {}).get("consolidation", {})
+    if consolidation_cfg.get("enabled", True):
+        try:
+            from memory.consolidator import ObservationConsolidator
+
+            consolidator = ObservationConsolidator(
+                store,
+                min_facts_per_group=consolidation_cfg.get("min_facts_per_group", 2),
+            )
+        except Exception:
+            pass
+    pipeline = MemoryPipeline(store, consolidator=consolidator)
     stats = pipeline.backfill(full_entries)
     console.print(f"Processed: {stats['entries_processed']}")
     console.print(f"Extracted: {stats['facts_extracted']}")

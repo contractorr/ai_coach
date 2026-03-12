@@ -215,6 +215,73 @@ class TestBackfill:
         assert stats["entries_processed"] == 0
 
 
+class TestConsolidatorHook:
+    def test_consolidation_triggered_after_add(self, store, provider):
+        """Pipeline with consolidator calls consolidate_affected after storing facts."""
+        from unittest.mock import MagicMock as Mock
+
+        consolidator = Mock()
+        consolidator.consolidate_affected.return_value = []
+
+        extractor = FactExtractor(provider=provider)
+        resolver = ConflictResolver(store, provider=provider)
+        pipeline = MemoryPipeline(store, extractor, resolver, consolidator=consolidator)
+
+        provider.generate.return_value = json.dumps(
+            [{"text": "User prefers Python", "category": "preference", "confidence": 0.85}]
+        )
+        pipeline.process_journal_entry("entry-1", "I really prefer Python for backend work.")
+
+        consolidator.consolidate_affected.assert_called_once()
+        args = consolidator.consolidate_affected.call_args[0][0]
+        assert len(args) == 1  # one stored fact ID
+
+    def test_consolidation_not_triggered_without_consolidator(self, pipeline, store, provider):
+        """Pipeline without consolidator works normally (no crash)."""
+        assert pipeline.consolidator is None
+        updates = pipeline.process_journal_entry("entry-1", "I prefer Python for backend work.")
+        assert len(updates) == 1
+
+    def test_consolidation_failure_does_not_block_pipeline(self, store, provider):
+        from unittest.mock import MagicMock as Mock
+
+        consolidator = Mock()
+        consolidator.consolidate_affected.side_effect = RuntimeError("LLM down")
+
+        extractor = FactExtractor(provider=provider)
+        resolver = ConflictResolver(store, provider=provider)
+        pipeline = MemoryPipeline(store, extractor, resolver, consolidator=consolidator)
+
+        updates = pipeline.process_journal_entry(
+            "entry-1", "I prefer Python for backend work over anything else."
+        )
+        # Pipeline should complete despite consolidation failure
+        assert len(updates) == 1
+        assert store.get_all_active()
+
+    def test_backfill_calls_consolidate_all(self, store, provider):
+        from unittest.mock import MagicMock as Mock
+
+        consolidator = Mock()
+        consolidator.consolidate_all.return_value = []
+
+        extractor = FactExtractor(provider=provider)
+        resolver = ConflictResolver(store, provider=provider)
+        pipeline = MemoryPipeline(store, extractor, resolver, consolidator=consolidator)
+
+        entries = [
+            {
+                "path": "e1",
+                "content": "First entry about Python " * 5,
+                "created": "2025-01-01",
+                "type": "daily",
+                "tags": [],
+            },
+        ]
+        pipeline.backfill(entries)
+        consolidator.consolidate_all.assert_called_once()
+
+
 class TestReextract:
     def test_reextract_deletes_old_first(self, pipeline, store, provider):
         # First extraction

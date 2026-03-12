@@ -12,6 +12,7 @@ class FactCategory(str, Enum):
     PATTERN = "pattern"
     CONTEXT = "context"
     GOAL_CONTEXT = "goal_context"
+    OBSERVATION = "observation"
 
 
 class FactSource(str, Enum):
@@ -21,6 +22,7 @@ class FactSource(str, Enum):
     GOAL = "goal"
     DOCUMENT = "document"
     ASSUMPTION = "assumption"
+    CONSOLIDATION = "consolidation"
 
 
 @dataclass

@@ -18,10 +18,12 @@ class MemoryPipeline:
         store: FactStore,
         extractor: FactExtractor | None = None,
         resolver: ConflictResolver | None = None,
+        consolidator=None,
     ):
         self.store = store
         self.extractor = extractor or FactExtractor()
         self.resolver = resolver or ConflictResolver(store)
+        self.consolidator = consolidator
 
     def process_journal_entry(
         self, entry_id: str, entry_text: str, entry_metadata: dict | None = None
@@ -33,6 +35,7 @@ class MemoryPipeline:
 
         updates = self.resolver.resolve(candidates)
         self._execute(updates, candidates)
+        self._maybe_consolidate(updates, candidates)
 
         logger.info(
             "memory.journal_processed",
@@ -52,6 +55,7 @@ class MemoryPipeline:
 
         updates = self.resolver.resolve(candidates)
         self._execute(updates, candidates)
+        self._maybe_consolidate(updates, candidates)
 
         logger.info(
             "memory.feedback_processed",
@@ -71,6 +75,7 @@ class MemoryPipeline:
 
         updates = self.resolver.resolve(candidates)
         self._execute(updates, candidates)
+        self._maybe_consolidate(updates, candidates)
 
         logger.info(
             "memory.goal_processed",
@@ -94,6 +99,7 @@ class MemoryPipeline:
 
         updates = self.resolver.resolve(candidates)
         self._execute(updates, candidates)
+        self._maybe_consolidate(updates, candidates)
 
         logger.info(
             "memory.document_processed",
@@ -134,6 +140,13 @@ class MemoryPipeline:
 
             stats["entries_processed"] += 1
 
+        if self.consolidator:
+            try:
+                observations = self.consolidator.consolidate_all()
+                stats["observations_created"] = len(observations)
+            except Exception as e:
+                logger.warning("backfill_consolidation_failed", error=str(e))
+
         logger.info("memory.backfill_complete", **stats)
         return stats
 
@@ -150,6 +163,21 @@ class MemoryPipeline:
         """Re-extract facts from a single uploaded document."""
         self.store.delete_by_source(FactSource.DOCUMENT, document_id)
         return self.process_document(document_id, document_text, document_metadata)
+
+    def _maybe_consolidate(self, updates: list[FactUpdate], candidates: list) -> None:
+        """Trigger incremental observation consolidation for newly stored facts."""
+        if not self.consolidator:
+            return
+        stored_ids = [
+            c.id
+            for u, c in zip(updates, candidates, strict=False)
+            if u.action in ("ADD", "UPDATE") and c and c.id
+        ]
+        if stored_ids:
+            try:
+                self.consolidator.consolidate_affected(stored_ids)
+            except Exception as e:
+                logger.warning("consolidation_failed", error=str(e))
 
     def _execute(self, updates: list[FactUpdate], candidates: list) -> int:
         """Execute resolved actions. Returns count of facts stored."""

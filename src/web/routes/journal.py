@@ -201,7 +201,21 @@ async def _run_post_create_hooks(
             from memory.pipeline import MemoryPipeline
 
             fact_store = get_memory_store(user_id)
-            pipeline = MemoryPipeline(fact_store)
+            consolidator = None
+            consolidation_cfg = getattr(config.memory, "consolidation", None)
+            if consolidation_cfg is None or getattr(consolidation_cfg, "enabled", True):
+                try:
+                    from memory.consolidator import ObservationConsolidator
+
+                    min_facts = 2
+                    if consolidation_cfg:
+                        min_facts = getattr(consolidation_cfg, "min_facts_per_group", 2)
+                    consolidator = ObservationConsolidator(
+                        fact_store, min_facts_per_group=min_facts
+                    )
+                except Exception:
+                    pass
+            pipeline = MemoryPipeline(fact_store, consolidator=consolidator)
             pipeline.process_journal_entry(entry_id, content, metadata)
             memory_facts = [
                 {

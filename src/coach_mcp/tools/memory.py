@@ -82,6 +82,27 @@ def _get_stats(args: dict) -> dict:
     return store.get_stats()
 
 
+def _list_observations(args: dict) -> dict:
+    """List synthesized observations from memory consolidation."""
+    store = _get_store()
+    observations = store.get_all_active_observations()
+    limit = args.get("limit", 20)
+    results = []
+    for obs in observations[:limit]:
+        source_ids = store.get_observation_source_ids(obs.id)
+        results.append(
+            {
+                "id": obs.id,
+                "text": obs.text,
+                "confidence": obs.confidence,
+                "group_key": obs.source_id,
+                "supporting_facts": source_ids,
+                "updated_at": obs.updated_at.isoformat(),
+            }
+        )
+    return {"observations": results, "count": len(observations)}
+
+
 TOOLS = [
     (
         "memory_list_facts",
@@ -155,5 +176,21 @@ TOOLS = [
             "required": [],
         },
         _get_stats,
+    ),
+    (
+        "memory_list_observations",
+        {
+            "description": "List synthesized observations — higher-level insights consolidated from individual memory facts. Each observation summarizes a pattern across multiple related facts.",
+            "type": "object",
+            "properties": {
+                "limit": {
+                    "type": "integer",
+                    "description": "Max observations to return",
+                    "default": 20,
+                },
+            },
+            "required": [],
+        },
+        _list_observations,
     ),
 ]

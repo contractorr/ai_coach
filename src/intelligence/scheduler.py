@@ -1150,6 +1150,7 @@ class IntelScheduler:
 
         self._schedule_extended_jobs()
         self._schedule_entity_extraction_job()
+        self._schedule_memory_consolidation_job()
 
         # Add signal detection + autonomous actions if agent enabled
         agent_config = self.full_config.get("agent", {})
@@ -1347,6 +1348,54 @@ class IntelScheduler:
             logger.info("weekly_summary.written", path=str(log_dir / "weekly_summary.txt"))
         except Exception as e:
             logger.error("weekly_summary.failed", error=str(e))
+
+    def run_memory_consolidation(self):
+        """Run full observation consolidation over all memory facts."""
+        memory_config = self.full_config.get("memory", {})
+        consolidation_config = memory_config.get("consolidation", {})
+        if not consolidation_config.get("enabled", True):
+            return {"status": "disabled"}
+
+        try:
+            from memory.consolidator import ObservationConsolidator
+            from memory.store import FactStore
+
+            paths_config = self.full_config.get("paths", {})
+            coach_home = get_coach_home()
+            db_path = Path(
+                paths_config.get("memory_db", str(coach_home / "memory.db"))
+            ).expanduser()
+            if not db_path.exists():
+                return {"status": "no_db"}
+
+            store = FactStore(db_path, chroma_dir=None)
+            consolidator = ObservationConsolidator(
+                store,
+                min_facts_per_group=consolidation_config.get("min_facts_per_group", 2),
+            )
+            observations = consolidator.consolidate_all()
+            logger.info("memory_consolidation.complete", observations=len(observations))
+            return {"observations": len(observations)}
+        except Exception as e:
+            logger.error("memory_consolidation.failed", error=str(e))
+            return {"error": str(e)}
+
+    def _schedule_memory_consolidation_job(self) -> None:
+        memory_config = self.full_config.get("memory", {})
+        consolidation_config = memory_config.get("consolidation", {})
+        if not consolidation_config.get("enabled", True):
+            return
+
+        cron = consolidation_config.get("run_cron", "0 3 * * *")
+        self.scheduler.add_job(
+            self.run_memory_consolidation,
+            trigger=_parse_cron(cron),
+            id="memory_consolidation",
+            replace_existing=True,
+            coalesce=True,
+            max_instances=1,
+        )
+        logger.info("memory_consolidation.scheduled", cron=cron)
 
     def run_trending_radar(self):
         """Refresh cross-source trending topics snapshot."""

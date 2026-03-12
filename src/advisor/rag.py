@@ -900,22 +900,28 @@ class RAGRetriever:
         if total_tokens <= self.max_context_tokens:
             return journal_ctx, intel_ctx
 
-        # Proportionally truncate the larger context
         journal_budget = int(self.max_context_tokens * weight)
         intel_budget = self.max_context_tokens - journal_budget
 
-        journal_tokens = count_tokens(journal_ctx)
-        if journal_tokens > journal_budget:
-            # Rough truncation: cut chars proportionally
-            ratio = journal_budget / max(journal_tokens, 1)
-            journal_ctx = journal_ctx[: int(len(journal_ctx) * ratio)]
-
-        intel_tokens = count_tokens(intel_ctx)
-        if intel_tokens > intel_budget:
-            ratio = intel_budget / max(intel_tokens, 1)
-            intel_ctx = intel_ctx[: int(len(intel_ctx) * ratio)]
-
+        journal_ctx = self._truncate_lines_to_tokens(journal_ctx, journal_budget)
+        intel_ctx = self._truncate_lines_to_tokens(intel_ctx, intel_budget)
         return journal_ctx, intel_ctx
+
+    @staticmethod
+    def _truncate_lines_to_tokens(text: str, token_budget: int) -> str:
+        """Truncate text at line boundaries to fit within a token budget."""
+        if count_tokens(text) <= token_budget:
+            return text
+        lines = text.split("\n")
+        kept: list[str] = []
+        tokens_used = 0
+        for line in lines:
+            line_tokens = count_tokens(line)
+            if tokens_used + line_tokens > token_budget:
+                break
+            kept.append(line)
+            tokens_used += line_tokens
+        return "\n".join(kept) if kept else ""
 
     def get_combined_context(
         self,

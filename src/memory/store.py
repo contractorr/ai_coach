@@ -15,7 +15,7 @@ from .models import FactCategory, FactSource, StewardFact
 
 logger = structlog.get_logger()
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 DEFAULT_REINFORCEMENT = 0.05
 DEFAULT_CONTRADICTION_DECAY = 0.15
 _SEARCH_STOPWORDS = {
@@ -111,6 +111,22 @@ class FactStore:
             conn.execute("""
                 CREATE INDEX IF NOT EXISTS idx_fact_entity_links_entity
                 ON fact_entity_links(entity_id)
+            """)
+            # Observation consolidation junction table (v3)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS observation_sources (
+                    observation_id TEXT NOT NULL REFERENCES steward_facts(id),
+                    fact_id TEXT NOT NULL REFERENCES steward_facts(id),
+                    PRIMARY KEY (observation_id, fact_id)
+                )
+            """)
+            conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_obs_sources_obs
+                ON observation_sources(observation_id)
+            """)
+            conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_obs_sources_fact
+                ON observation_sources(fact_id)
             """)
             ensure_schema_version(conn, SCHEMA_VERSION)
 
@@ -298,10 +314,19 @@ class FactStore:
         reason: str = "manual",
         decay_amount: float = DEFAULT_CONTRADICTION_DECAY,
     ) -> None:
-        """Soft-delete: set superseded_by. Remove from ChromaDB."""
+        """Soft-delete: set superseded_by. Remove from ChromaDB. Orphan-clean observations."""
         fact = self.get(fact_id)
         next_confidence = max(0.0, (fact.confidence if fact else 0.0) - decay_amount)
         now = datetime.now()
+
+        # Collect affected observation IDs before removing links
+        affected_obs_ids: list[str] = []
+        with wal_connect(self.db_path) as conn:
+            rows = conn.execute(
+                "SELECT observation_id FROM observation_sources WHERE fact_id = ?",
+                (fact_id,),
+            ).fetchall()
+            affected_obs_ids = [r[0] for r in rows]
 
         with wal_connect(self.db_path) as conn:
             conn.execute(
@@ -313,6 +338,8 @@ class FactStore:
                 (next_confidence, now.isoformat(), f"DELETED:{reason}", fact_id),
             )
             conn.execute("DELETE FROM fact_entity_links WHERE fact_id = ?", (fact_id,))
+            # Clean observation_sources rows for this fact
+            conn.execute("DELETE FROM observation_sources WHERE fact_id = ?", (fact_id,))
 
         coll = self._chroma
         if coll:
@@ -320,6 +347,45 @@ class FactStore:
                 coll.delete(ids=[fact_id])
             except Exception:
                 pass
+
+        # Orphan cleanup: soft-delete observations with zero remaining active sources
+        self._cleanup_orphaned_observations(affected_obs_ids)
+
+    def _cleanup_orphaned_observations(self, obs_ids: list[str]) -> None:
+        """Soft-delete observations that have zero remaining active source facts.
+
+        Uses direct SQL to avoid recursive delete() → _cleanup_orphaned_observations cycles.
+        """
+        now = datetime.now()
+        for obs_id in obs_ids:
+            obs = self.get(obs_id)
+            if not obs or obs.superseded_by is not None:
+                continue
+            with wal_connect(self.db_path) as conn:
+                remaining = conn.execute(
+                    """
+                    SELECT COUNT(*) FROM observation_sources os
+                    JOIN steward_facts f ON os.fact_id = f.id
+                    WHERE os.observation_id = ? AND f.superseded_by IS NULL
+                    """,
+                    (obs_id,),
+                ).fetchone()[0]
+            if remaining == 0:
+                with wal_connect(self.db_path) as conn:
+                    conn.execute(
+                        "UPDATE steward_facts SET superseded_by = ?, updated_at = ? WHERE id = ? AND superseded_by IS NULL",
+                        ("DELETED:orphaned_observation", now.isoformat(), obs_id),
+                    )
+                    conn.execute("DELETE FROM fact_entity_links WHERE fact_id = ?", (obs_id,))
+                    conn.execute(
+                        "DELETE FROM observation_sources WHERE observation_id = ?", (obs_id,)
+                    )
+                coll = self._chroma
+                if coll:
+                    try:
+                        coll.delete(ids=[obs_id])
+                    except Exception:
+                        pass
 
     def get(self, fact_id: str) -> StewardFact | None:
         """Get a single fact by ID."""
@@ -466,6 +532,45 @@ class FactStore:
             rows = conn.execute(sql, (cat,)).fetchall()
             return [self._row_to_fact(r) for r in rows]
 
+    def link_observation_sources(self, observation_id: str, fact_ids: list[str]) -> None:
+        """Bulk insert links between an observation and its source facts."""
+        if not fact_ids:
+            return
+        with wal_connect(self.db_path) as conn:
+            conn.executemany(
+                "INSERT OR IGNORE INTO observation_sources (observation_id, fact_id) VALUES (?, ?)",
+                [(observation_id, fid) for fid in fact_ids],
+            )
+
+    def get_observation_source_ids(self, observation_id: str) -> list[str]:
+        """Return active fact IDs backing an observation."""
+        with wal_connect(self.db_path) as conn:
+            rows = conn.execute(
+                """SELECT os.fact_id FROM observation_sources os
+                   JOIN steward_facts f ON os.fact_id = f.id
+                   WHERE os.observation_id = ? AND f.superseded_by IS NULL""",
+                (observation_id,),
+            ).fetchall()
+            return [r[0] for r in rows]
+
+    def get_observations_for_fact(self, fact_id: str) -> list[StewardFact]:
+        """Return active observations that cite a given fact."""
+        with wal_connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute(
+                """
+                SELECT f.* FROM steward_facts f
+                JOIN observation_sources os ON f.id = os.observation_id
+                WHERE os.fact_id = ? AND f.superseded_by IS NULL
+                """,
+                (fact_id,),
+            ).fetchall()
+            return [self._row_to_fact(r) for r in rows]
+
+    def get_all_active_observations(self) -> list[StewardFact]:
+        """Return all active observations (category=observation, not superseded)."""
+        return self.get_by_category(FactCategory.OBSERVATION, active_only=True)
+
     def get_history(self, fact_id: str) -> list[StewardFact]:
         """Return the full supersession chain for a fact."""
         chain = []
@@ -524,6 +629,7 @@ class FactStore:
         """Delete ALL facts. Returns count deleted."""
         with wal_connect(self.db_path) as conn:
             count = conn.execute("SELECT COUNT(*) FROM steward_facts").fetchone()[0]
+            conn.execute("DELETE FROM observation_sources")
             conn.execute("DELETE FROM fact_entity_links")
             conn.execute("DELETE FROM fact_entities")
             conn.execute("DELETE FROM steward_facts")

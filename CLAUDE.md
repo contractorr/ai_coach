@@ -59,7 +59,7 @@ RAG-based personal AI advisor. Journal entries + external intelligence scrapers 
 - **library/** — Content library management
 - **services/** — Shared service layer
 - **web/** — FastAPI backend: JWT auth (python-jose), Fernet-encrypted secret storage, per-user data isolation at `~/coach/users/{safe_user_id}/`. Global intel DB stays shared. 23 route modules. `get_or_create_user()` auto-registers on first request
-- **coach_mcp/** — 46 MCP tools across 12 modules (journal, goals, intel, recommendations, research, reflect, profile, projects, insights, brief, memory, threads)
+- **coach_mcp/** — 47 MCP tools across 12 modules (journal, goals, intel, recommendations, research, reflect, profile, projects, insights, brief, memory, threads)
 
 ### Advisor deep dive
 
