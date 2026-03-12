@@ -244,3 +244,20 @@ class TestAbstract:
         obs = results[0]
         assert obs.text == "User is a Python developer."
         assert obs.abstract is None
+
+
+class TestCurlyBracesInFactText:
+    def test_synthesize_with_curly_braces_in_text(self, store, provider):
+        """Facts containing {curly braces} should not cause KeyError in prompt templating."""
+        store.add(_fact("f1", "User prefers Python {dict} comprehensions"))
+        store.add(_fact("f2", "User uses Python {**kwargs} spreading pattern"))
+        consolidator = ObservationConsolidator(store, provider=provider, min_facts_per_group=2)
+
+        results = consolidator.consolidate_all()
+
+        assert len(results) >= 1
+        provider.generate.assert_called_once()
+        # Verify braces appear in the prompt that was sent
+        call_content = provider.generate.call_args[1]["messages"][0]["content"]
+        assert "{dict}" in call_content
+        assert "{**kwargs}" in call_content

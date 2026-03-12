@@ -635,3 +635,67 @@ class TestAbstract:
         assert call_args[1]["documents"] == ["Python preference backend development"]
 
         store._collection = None  # cleanup
+
+
+class TestApplyTimeDecay:
+    def test_decays_stale_facts(self, store):
+        from datetime import datetime, timedelta
+
+        f = _fact(id="td1", confidence=0.8)
+        store.add(f)
+        # Backdate updated_at to 60 days ago
+        old_date = (datetime.now() - timedelta(days=60)).isoformat()
+        from db import wal_connect
+
+        with wal_connect(store.db_path) as conn:
+            conn.execute("UPDATE steward_facts SET updated_at = ? WHERE id = ?", (old_date, "td1"))
+
+        count = store.apply_time_decay(stale_days=30, amount=0.1, floor=0.4)
+        assert count == 1
+        fact = store.get("td1")
+        assert fact.confidence == pytest.approx(0.7)
+
+    def test_respects_floor(self, store):
+        from datetime import datetime, timedelta
+
+        f = _fact(id="td2", confidence=0.45)
+        store.add(f)
+        old_date = (datetime.now() - timedelta(days=60)).isoformat()
+        from db import wal_connect
+
+        with wal_connect(store.db_path) as conn:
+            conn.execute("UPDATE steward_facts SET updated_at = ? WHERE id = ?", (old_date, "td2"))
+
+        store.apply_time_decay(stale_days=30, amount=0.1, floor=0.4)
+        fact = store.get("td2")
+        assert fact.confidence == pytest.approx(0.4)
+
+    def test_skips_recent_facts(self, store):
+        f = _fact(id="td3", confidence=0.8)
+        store.add(f)
+        count = store.apply_time_decay(stale_days=30, amount=0.1)
+        assert count == 0
+        fact = store.get("td3")
+        assert fact.confidence == pytest.approx(0.8)
+
+    def test_skips_superseded(self, store):
+        from datetime import datetime, timedelta
+
+        store.add(_fact(id="td4", confidence=0.8))
+        store.update("td4", "Updated text", "entry-2")
+        old_date = (datetime.now() - timedelta(days=60)).isoformat()
+        from db import wal_connect
+
+        with wal_connect(store.db_path) as conn:
+            conn.execute("UPDATE steward_facts SET updated_at = ? WHERE id = ?", (old_date, "td4"))
+
+        count = store.apply_time_decay(stale_days=30, amount=0.1)
+        # td4 is superseded, should not be decayed; only new fact is recent
+        assert count == 0
+
+
+class TestDeleteNonexistent:
+    def test_delete_nonexistent_is_noop(self, store):
+        """delete() on a non-existent ID should not raise."""
+        store.delete("nonexistent_id", reason="test")
+        # Should complete without error

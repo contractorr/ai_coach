@@ -19,7 +19,7 @@ Output a JSON object with two fields:
 2. "abstract" — A keyword-dense phrase (under 40 words) optimized for semantic search. Include key entities, skills, tools, and relationships. No articles or filler words.
 
 Example output:
-{{"observation": "User has transitioned from Java to Kotlin for Android development while maintaining Java for backend services.", "abstract": "Java Kotlin Android development transition backend services mobile native"}}
+{"observation": "User has transitioned from Java to Kotlin for Android development while maintaining Java for backend services.", "abstract": "Java Kotlin Android development transition backend services mobile native"}
 
 Output ONLY the JSON object. No preamble."""
 
@@ -118,14 +118,16 @@ class ObservationConsolidator:
             if existing_source_ids == fact_ids:
                 return existing_obs  # no change, skip LLM call
 
-        # Build prompt
+        # Build prompt — use .replace() to avoid KeyError on curly braces in fact text
         fact_list = "\n".join(f"{i + 1}. {f.text}" for i, f in enumerate(facts))
-        prompt = _SYNTHESIS_PROMPT.format(entity_name=entity_key, fact_list=fact_list)
+        prompt = _SYNTHESIS_PROMPT.replace("{entity_name}", entity_key).replace(
+            "{fact_list}", fact_list
+        )
 
         try:
             response = self.provider.generate(
                 messages=[{"role": "user", "content": prompt}],
-                max_tokens=300,
+                max_tokens=400,
             ).strip()
         except Exception as e:
             logger.warning(

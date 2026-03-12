@@ -4,11 +4,7 @@ from __future__ import annotations
 
 from typing import Iterable
 
-import structlog
-
 from .base import EmbeddingFunction
-
-logger = structlog.get_logger()
 
 _BATCH_LIMIT = 100  # Gemini API max texts per request
 
@@ -29,6 +25,8 @@ class GeminiEmbeddingFunction(EmbeddingFunction):
         from google import genai
 
         key = api_key or os.environ.get("GOOGLE_API_KEY", "")
+        if not key:
+            raise ValueError("GOOGLE_API_KEY is required for GeminiEmbeddingFunction")
         self._client = genai.Client(api_key=key)
         self._model = model
         self.dimensions = dimensions

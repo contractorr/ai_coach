@@ -121,6 +121,7 @@ TOOLS = [
                         "pattern",
                         "context",
                         "goal_context",
+                        "observation",
                     ],
                 },
                 "limit": {

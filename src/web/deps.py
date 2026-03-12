@@ -232,7 +232,9 @@ def get_library_index(user_id: str):
     from library.index import LibraryIndex
 
     paths = get_user_paths(user_id)
-    embeddings = LibraryEmbeddingManager(paths["chroma_dir"])
+    config = get_config()
+    config_dict = config.to_dict() if hasattr(config, "to_dict") else None
+    embeddings = LibraryEmbeddingManager(paths["chroma_dir"], config=config_dict)
     return LibraryIndex(Path(paths["data_dir"]) / "library", embedding_manager=embeddings)
 
 
@@ -293,7 +295,7 @@ def _detect_provider_from_key(api_key: str | None) -> str | None:
         return "claude"
     if api_key.startswith("sk-"):
         return "openai"
-    if api_key.startswith("AI"):
+    if api_key.startswith("AIza"):
         return "gemini"
     return None
 

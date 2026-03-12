@@ -140,6 +140,6 @@ def parse_temporal_expr(query: str, now: datetime | None = None) -> TemporalFilt
 
 
 def strip_temporal(query: str, temporal_filter: TemporalFilter) -> str:
-    """Remove the matched temporal expression from the query."""
-    cleaned = query.replace(temporal_filter.original_expr, "")
+    """Remove the matched temporal expression from the query (first occurrence only)."""
+    cleaned = query.replace(temporal_filter.original_expr, "", 1)
     return re.sub(r"\s{2,}", " ", cleaned).strip()

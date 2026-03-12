@@ -979,12 +979,13 @@ class RAGRetriever:
         ):
             entity_budget = int(self.max_context_chars * 0.2)
             try:
-                entity_context = self.entity_retriever.retrieve(analysis.matched_entities, query)
+                entity_context = self.entity_retriever.retrieve(
+                    analysis.matched_entities, query, max_chars=entity_budget
+                )
             except Exception as exc:
                 logger.warning("entity_context_failed", error=str(exc))
                 entity_context = ""
         if entity_context:
-            entity_context = entity_context[:entity_budget]
             text_budget = self.max_context_chars - len(entity_context)
         else:
             text_budget = self.max_context_chars
@@ -1034,9 +1035,10 @@ class RAGRetriever:
         if len(sub_questions) == 1:
             return self._get_text_context_for_budget(sub_questions[0], total_chars)
 
+        sub_budget = total_chars // max(len(sub_questions), 1)
         results = await asyncio.gather(
             *[
-                asyncio.to_thread(self._get_text_context_for_budget, sub_query, total_chars)
+                asyncio.to_thread(self._get_text_context_for_budget, sub_query, sub_budget)
                 for sub_query in sub_questions
             ],
             return_exceptions=True,
@@ -1114,7 +1116,9 @@ class RAGRetriever:
 
         thread = threading.Thread(target=runner)
         thread.start()
-        thread.join()
+        thread.join(timeout=30)
+        if thread.is_alive():
+            raise TimeoutError("Async operation timed out")
         if "value" in error:
             raise error["value"]
         return result["value"]
@@ -1173,9 +1177,9 @@ class RAGRetriever:
         # For weekly review, use recency-based retrieval
         entries = self.journal.storage.list_entries(limit=20)
 
-        from datetime import datetime, timedelta
+        from datetime import datetime, timedelta, timezone
 
-        cutoff = datetime.now() - timedelta(days=days)
+        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
 
         recent = []
         total_chars = 0
@@ -1185,7 +1189,9 @@ class RAGRetriever:
                 created = entry.get("created")
                 if created:
                     entry_date = datetime.fromisoformat(created.replace("Z", "+00:00"))
-                    if entry_date.replace(tzinfo=None) < cutoff:
+                    if entry_date.tzinfo is None:
+                        entry_date = entry_date.replace(tzinfo=timezone.utc)
+                    if entry_date < cutoff:
                         continue
 
                 post = self.journal.storage.read(entry["path"])

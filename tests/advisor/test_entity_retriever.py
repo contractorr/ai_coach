@@ -106,4 +106,5 @@ def test_budget_overflow_still_works_with_fact_store():
     rendered = retriever.retrieve(entities, "query")
 
     # Should not crash — budget cap truncates gracefully
-    assert len(rendered) <= 400  # some slack for closing tags
+    # max_chars=200, allow ~50 chars slack for closing tags
+    assert len(rendered) <= 250

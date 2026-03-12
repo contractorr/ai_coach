@@ -4,11 +4,7 @@ from __future__ import annotations
 
 from typing import Iterable
 
-import structlog
-
 from .base import EmbeddingFunction
-
-logger = structlog.get_logger()
 
 _BATCH_LIMIT = 2048  # OpenAI practical max texts per request
 
@@ -29,6 +25,8 @@ class OpenAIEmbeddingFunction(EmbeddingFunction):
         from openai import OpenAI
 
         key = api_key or os.environ.get("OPENAI_API_KEY", "")
+        if not key:
+            raise ValueError("OPENAI_API_KEY is required for OpenAIEmbeddingFunction")
         self._client = OpenAI(api_key=key)
         self._model = model
         self.dimensions = dimensions

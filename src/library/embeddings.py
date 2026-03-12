@@ -9,23 +9,24 @@ from chroma_utils import LocalCollection, build_embedding_function
 
 logger = structlog.get_logger()
 
-DEFAULT_EMBEDDING_MODEL = "all-MiniLM-L6-v2"
-
 
 class LibraryEmbeddingManager:
     """Manages vector embeddings for library documents."""
 
-    def __init__(self, chroma_dir: str | Path, collection_name: str = "library"):
+    def __init__(
+        self, chroma_dir: str | Path, collection_name: str = "library", config: dict | None = None
+    ):
         self.chroma_dir = Path(chroma_dir).expanduser()
         self.chroma_dir.mkdir(parents=True, exist_ok=True)
         self.collection_name = collection_name
-        self.embedding_function = build_embedding_function()
+        self.embedding_function = build_embedding_function(config=config)
 
+        model_name = getattr(self.embedding_function, "name", lambda: "unknown")()
         self.collection = LocalCollection(
             base_dir=self.chroma_dir,
             name=collection_name,
             embedding_function=self.embedding_function,
-            metadata={"hnsw:space": "cosine", "embedding_model": DEFAULT_EMBEDDING_MODEL},
+            metadata={"hnsw:space": "cosine", "embedding_model": model_name},
         )
 
     def add_item(
@@ -110,8 +111,8 @@ class LibraryEmbeddingManager:
 
         added = 0
         for item in items:
-            self.add_item(item["id"], item["content"], item.get("metadata"))
             if item["id"] not in existing:
+                self.add_item(item["id"], item["content"], item.get("metadata"))
                 added += 1
 
         removed = 0

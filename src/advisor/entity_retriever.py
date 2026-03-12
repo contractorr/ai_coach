@@ -36,8 +36,10 @@ class EntityRetriever:
             except Exception:
                 pass
 
-    def retrieve(self, matched_entities: list[dict], query: str) -> str:
-        del query
+    def retrieve(
+        self, matched_entities: list[dict], _query: str = "", max_chars: int | None = None
+    ) -> str:
+        effective_max = max_chars if max_chars is not None else self.max_chars
         if not matched_entities:
             return ""
 
@@ -101,7 +103,7 @@ class EntityRetriever:
 
             block.append("</entity>")
             candidate = "\n".join(parts + block + ["</entity_context>"])
-            if len(candidate) > self.max_chars:
+            if len(candidate) > effective_max:
                 break
             parts.extend(block)
         parts.append("</entity_context>")

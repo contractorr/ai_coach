@@ -325,10 +325,12 @@ class FactStore:
     ) -> None:
         """Soft-delete: set superseded_by. Remove from ChromaDB. Orphan-clean observations."""
         fact = self.get(fact_id)
-        next_confidence = max(0.0, (fact.confidence if fact else 0.0) - decay_amount)
+        if not fact:
+            return  # nothing to delete
+        next_confidence = max(0.0, fact.confidence - decay_amount)
         now = datetime.now()
 
-        # Collect affected observation IDs before removing links
+        # Single transaction: read affected obs, soft-delete, clean links
         affected_obs_ids: list[str] = []
         with wal_connect(self.db_path) as conn:
             rows = conn.execute(
@@ -336,8 +338,6 @@ class FactStore:
                 (fact_id,),
             ).fetchall()
             affected_obs_ids = [r[0] for r in rows]
-
-        with wal_connect(self.db_path) as conn:
             conn.execute(
                 """
                 UPDATE steward_facts
@@ -347,7 +347,6 @@ class FactStore:
                 (next_confidence, now.isoformat(), f"DELETED:{reason}", fact_id),
             )
             conn.execute("DELETE FROM fact_entity_links WHERE fact_id = ?", (fact_id,))
-            # Clean observation_sources rows for this fact
             conn.execute("DELETE FROM observation_sources WHERE fact_id = ?", (fact_id,))
 
         coll = self._chroma
@@ -614,18 +613,37 @@ class FactStore:
         return self.get_by_category(FactCategory.OBSERVATION, active_only=True)
 
     def get_history(self, fact_id: str) -> list[StewardFact]:
-        """Return the full supersession chain for a fact."""
-        chain = []
-        current_id = fact_id
+        """Return the full supersession chain for a fact (oldest first).
 
-        # Walk backwards through supersession chain
-        seen = set()
+        Works from any point in the chain — walks forward to find the newest,
+        then walks backward to collect the full chain.
+        """
+        # Step 1: walk forward via superseded_by to find the chain tail (newest)
+        tail_id = fact_id
+        seen_forward: set[str] = {tail_id}
+        with wal_connect(self.db_path) as conn:
+            while True:
+                row = conn.execute(
+                    "SELECT superseded_by FROM steward_facts WHERE id = ?",
+                    (tail_id,),
+                ).fetchone()
+                if not row or not row[0] or row[0].startswith("DELETED:"):
+                    break
+                next_id = row[0]
+                if next_id in seen_forward:
+                    break
+                seen_forward.add(next_id)
+                tail_id = next_id
+
+        # Step 2: walk backward from tail — find who was superseded by each ID
+        chain: list[StewardFact] = []
+        current_id: str | None = tail_id
+        seen: set[str] = set()
         while current_id and current_id not in seen:
             seen.add(current_id)
             fact = self.get(current_id)
             if fact:
                 chain.append(fact)
-            # Check if any fact was superseded_by this one
             with wal_connect(self.db_path) as conn:
                 row = conn.execute(
                     "SELECT id FROM steward_facts WHERE superseded_by = ?",
@@ -712,20 +730,20 @@ class FactStore:
             return
 
         with wal_connect(self.db_path) as conn:
-            for original, normalized in entities:
-                conn.execute(
-                    "INSERT OR IGNORE INTO fact_entities (name, normalized) VALUES (?, ?)",
-                    (original, normalized),
-                )
-                row = conn.execute(
-                    "SELECT id FROM fact_entities WHERE normalized = ?",
-                    (normalized,),
-                ).fetchone()
-                if row:
-                    conn.execute(
-                        "INSERT OR IGNORE INTO fact_entity_links (entity_id, fact_id) VALUES (?, ?)",
-                        (row[0], fact.id),
-                    )
+            conn.executemany(
+                "INSERT OR IGNORE INTO fact_entities (name, normalized) VALUES (?, ?)",
+                entities,
+            )
+            normalized_names = [n for _, n in entities]
+            placeholders = ",".join("?" for _ in normalized_names)
+            rows = conn.execute(
+                f"SELECT id, normalized FROM fact_entities WHERE normalized IN ({placeholders})",
+                normalized_names,
+            ).fetchall()
+            conn.executemany(
+                "INSERT OR IGNORE INTO fact_entity_links (entity_id, fact_id) VALUES (?, ?)",
+                [(row[0], fact.id) for row in rows],
+            )
 
     def _get_entity_neighbors(
         self, seed_ids: set[str], exclude_ids: set[str]

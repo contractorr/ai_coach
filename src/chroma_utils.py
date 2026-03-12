@@ -6,6 +6,7 @@ import hashlib
 import json
 import logging
 import math
+import os
 import re
 from collections import Counter
 from collections.abc import Callable
@@ -58,7 +59,11 @@ def build_embedding_function(config: dict | None = None):
     """
     try:
         from embeddings import create_embedding_function
+    except ImportError as e:
+        logger.info("embeddings_package_unavailable_fallback_to_hash: %s", e)
+        return SimpleHashEmbeddingFunction()
 
+    try:
         return create_embedding_function(config=config)
     except Exception as e:
         logger.warning("embedding_factory_failed_fallback_to_hash: %s", e)
@@ -92,7 +97,9 @@ class LocalCollection:
         return data
 
     def _save(self) -> None:
-        self.path.write_text(json.dumps(self._records), encoding="utf-8")
+        tmp = self.path.with_suffix(".tmp")
+        tmp.write_text(json.dumps(self._records), encoding="utf-8")
+        os.replace(tmp, self.path)
 
     def upsert(
         self,
@@ -204,7 +211,11 @@ class LocalCollection:
         if not left or not right:
             return 1.0
         dot = sum(a * b for a, b in zip(left, right, strict=False))
-        return 1.0 - dot
+        norm_l = math.sqrt(sum(a * a for a in left))
+        norm_r = math.sqrt(sum(b * b for b in right))
+        if norm_l == 0 or norm_r == 0:
+            return 1.0
+        return 1.0 - (dot / (norm_l * norm_r))
 
     def delete_collection(self) -> None:
         self._records = {}

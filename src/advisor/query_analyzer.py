@@ -83,7 +83,12 @@ class QueryAnalyzer:
             score += 2
         if any(term in lower for term in CONJUNCTION_TERMS):
             score += 1
-        if len(re.findall(r"\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b", query)) >= 2:
+        # Match capitalized words that are not sentence-initial
+        cap_words = re.findall(r"\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b", query)
+        # Exclude the first word (sentence-initial capitalization)
+        first_word = query.strip().split()[0] if query.strip() else ""
+        named = [w for w in cap_words if w != first_word]
+        if len(named) >= 2:
             score += 1
         if len(query.split()) > 20:
             score += 1

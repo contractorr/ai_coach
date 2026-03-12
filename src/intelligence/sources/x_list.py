@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 from datetime import datetime
 
 import httpx
@@ -51,7 +50,7 @@ class XListScraper(BaseScraper):
             response = await self.client.get(
                 f"{API_BASE}/lists/{self.list_id}/tweets",
                 params={
-                    "tweet.fields": "text,created_at,author_id,public_metrics",
+                    "tweet.fields": "text,created_at,author_id",
                     "expansions": "author_id",
                     "user.fields": "username",
                     "max_results": str(self.max_tweets),
@@ -106,13 +105,12 @@ class XListScraper(BaseScraper):
                 logger.warning("x_list.list_not_found", list_id=self.list_id)
                 return []
             if e.response.status_code == 429:
-                retry_after = int(e.response.headers.get("Retry-After", "900"))
-                logger.warning("x_list.rate_limited", retry_after=retry_after)
-                await asyncio.sleep(min(retry_after, 900))
-                return []
+                logger.warning("x_list.rate_limited")
+                raise  # let @http_retry handle backoff
             raise
         except httpx.RequestError as e:
             logger.error("x_list.request_failed", error=str(e))
+            raise  # let @http_retry handle backoff
 
         logger.info("x_list.scraped", count=len(items), list_id=self.list_id)
         return items

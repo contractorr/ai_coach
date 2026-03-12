@@ -18,7 +18,7 @@ logger = structlog.get_logger()
 
 
 def _to_fts5_query(query: str) -> str:
-    tokens = re.findall(r"[\w]+", query.lower())
+    tokens = re.findall(r"[\w][\w\-]*[\w]|[\w]", query.lower())
     if not tokens:
         return ""
     return " ".join(f"{token}*" for token in tokens)
@@ -82,9 +82,9 @@ class LibraryIndex:
                 """
             )
 
-    # MiniLM-L6-v2 accepts ~256 word-piece tokens; keep first ~1500 chars
-    # to stay within that window while capturing meaningful content.
-    MAX_EMBED_CHARS = 1500
+    # Gemini/OpenAI models accept 8k+ tokens; MiniLM accepts ~256.
+    # 4000 chars is safe for all providers while capturing more content.
+    MAX_EMBED_CHARS = 4000
 
     @staticmethod
     def _build_embed_content(title: str, body_text: str, extracted_text: str) -> str:
@@ -248,7 +248,7 @@ class LibraryIndex:
         if collection:
             filters["collection"] = collection
         if filters:
-            where = filters if len(filters) == 1 else {"$and": [{k: v} for k, v in filters.items()]}
+            where = filters
 
         results = self.embedding_manager.query(query, n_results=n_results, where=where)
 
@@ -256,10 +256,6 @@ class LibraryIndex:
         for r in results:
             item = self.get_item_text(r["id"])
             if not item:
-                continue
-            if source_kind and item.get("source_kind") != source_kind:
-                continue
-            if status and item.get("status") != status:
                 continue
 
             if item.get("source_kind") == "uploaded_pdf":
@@ -331,5 +327,5 @@ class LibraryIndex:
             if key not in items:
                 items[key] = item
 
-        sorted_keys = sorted(scores, key=lambda k: scores[k], reverse=True)
-        return [items[k] for k in sorted_keys[:limit]]
+        sorted_keys = sorted(scores, key=lambda rid: scores[rid], reverse=True)
+        return [items[rid] for rid in sorted_keys[:limit]]

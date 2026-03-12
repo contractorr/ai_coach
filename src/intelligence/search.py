@@ -327,11 +327,13 @@ class IntelSearch:
         try:
             # Get semantic ordering for these specific items
             sem_results = self.semantic_search(query, n_results=n_results * 2)
-            sem_urls = {item.get("url") for item in sem_results if item.get("url")}
-            # Boost date_items that also appear in semantic results
+            sem_scores = {
+                item.get("url"): item.get("score", 0.5) for item in sem_results if item.get("url")
+            }
+            # Boost date_items using actual similarity scores from semantic search
             scored = []
             for item in date_items:
-                boost = 1.0 if item.get("url") in sem_urls else 0.0
+                boost = sem_scores.get(item.get("url"), 0.0)
                 scored.append((item, boost))
             scored.sort(key=lambda x: x[1], reverse=True)
             return [item for item, _ in scored][:n_results]

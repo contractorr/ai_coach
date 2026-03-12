@@ -133,14 +133,15 @@ class EntityStore:
                 return int(cursor.lastrowid)
             except sqlite3.IntegrityError:
                 row = conn.execute(
-                    "SELECT id, aliases FROM entities WHERE normalized_name = ? AND type = ?",
+                    "SELECT id, name, aliases FROM entities WHERE normalized_name = ? AND type = ?",
                     (normalized_name, entity_type),
                 ).fetchone()
                 if not row:
                     raise
                 merged_aliases = set(self._decode_aliases(row["aliases"]))
                 merged_aliases.update(alias_values)
-                if name.strip() and normalize_entity_name(name) != normalized_name:
+                # Add incoming name as alias when it differs from the stored display name
+                if name.strip() and name.strip() != row["name"]:
                     merged_aliases.add(name.strip())
                 conn.execute(
                     "UPDATE entities SET aliases = ? WHERE id = ?",
@@ -231,7 +232,10 @@ class EntityStore:
                 entity["aliases"] = self._decode_aliases(entity.get("aliases"))
                 return entity
 
-            rows = conn.execute("SELECT * FROM entities").fetchall()
+            rows = conn.execute(
+                "SELECT * FROM entities WHERE COALESCE(aliases, '') LIKE ?",
+                (f"%{normalized_name}%",),
+            ).fetchall()
 
         for row in rows:
             aliases = self._decode_aliases(row["aliases"])

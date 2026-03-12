@@ -34,8 +34,8 @@ class MemoryPipeline:
             return []
 
         updates = self.resolver.resolve(candidates)
-        self._execute(updates, candidates)
-        self._maybe_consolidate(updates, candidates)
+        stored_ids = self._execute(updates, candidates)
+        self._maybe_consolidate(stored_ids)
 
         logger.info(
             "memory.journal_processed",
@@ -54,8 +54,8 @@ class MemoryPipeline:
             return []
 
         updates = self.resolver.resolve(candidates)
-        self._execute(updates, candidates)
-        self._maybe_consolidate(updates, candidates)
+        stored_ids = self._execute(updates, candidates)
+        self._maybe_consolidate(stored_ids)
 
         logger.info(
             "memory.feedback_processed",
@@ -74,8 +74,8 @@ class MemoryPipeline:
             return []
 
         updates = self.resolver.resolve(candidates)
-        self._execute(updates, candidates)
-        self._maybe_consolidate(updates, candidates)
+        stored_ids = self._execute(updates, candidates)
+        self._maybe_consolidate(stored_ids)
 
         logger.info(
             "memory.goal_processed",
@@ -98,8 +98,8 @@ class MemoryPipeline:
             return []
 
         updates = self.resolver.resolve(candidates)
-        self._execute(updates, candidates)
-        self._maybe_consolidate(updates, candidates)
+        stored_ids = self._execute(updates, candidates)
+        self._maybe_consolidate(stored_ids)
 
         logger.info(
             "memory.document_processed",
@@ -135,8 +135,8 @@ class MemoryPipeline:
 
             if candidates:
                 updates = self.resolver.resolve(candidates)
-                stored = self._execute(updates, candidates)
-                stats["facts_stored"] += stored
+                stored_ids = self._execute(updates, candidates)
+                stats["facts_stored"] += len(stored_ids)
 
             stats["entries_processed"] += 1
 
@@ -164,34 +164,28 @@ class MemoryPipeline:
         self.store.delete_by_source(FactSource.DOCUMENT, document_id)
         return self.process_document(document_id, document_text, document_metadata)
 
-    def _maybe_consolidate(self, updates: list[FactUpdate], candidates: list) -> None:
+    def _maybe_consolidate(self, stored_ids: list[str]) -> None:
         """Trigger incremental observation consolidation for newly stored facts."""
-        if not self.consolidator:
+        if not self.consolidator or not stored_ids:
             return
-        stored_ids = [
-            c.id
-            for u, c in zip(updates, candidates, strict=False)
-            if u.action in ("ADD", "UPDATE") and c and c.id
-        ]
-        if stored_ids:
-            try:
-                self.consolidator.consolidate_affected(stored_ids)
-            except Exception as e:
-                logger.warning("consolidation_failed", error=str(e))
+        try:
+            self.consolidator.consolidate_affected(stored_ids)
+        except Exception as e:
+            logger.warning("consolidation_failed", error=str(e))
 
-    def _execute(self, updates: list[FactUpdate], candidates: list) -> int:
-        """Execute resolved actions. Returns count of facts stored."""
-        stored = 0
+    def _execute(self, updates: list[FactUpdate], candidates: list) -> list[str]:
+        """Execute resolved actions. Returns list of stored fact IDs."""
+        stored_ids: list[str] = []
 
         for update, candidate in zip(updates, candidates, strict=False):
             if update.action == "ADD":
                 if candidate:
                     self.store.add(candidate)
-                    stored += 1
+                    stored_ids.append(candidate.id)
 
             elif update.action == "UPDATE" and update.existing_id:
                 if candidate:
-                    self.store.update(
+                    new_fact = self.store.update(
                         update.existing_id,
                         candidate.text,
                         candidate.source_id,
@@ -199,7 +193,7 @@ class MemoryPipeline:
                         new_category=candidate.category,
                         new_confidence=candidate.confidence,
                     )
-                    stored += 1
+                    stored_ids.append(new_fact.id)
 
             elif update.action == "DELETE" and update.existing_id:
                 self.store.delete(update.existing_id, reason=update.reasoning)
@@ -207,4 +201,4 @@ class MemoryPipeline:
             elif update.action == "NOOP" and update.existing_id:
                 self.store.reinforce(update.existing_id)
 
-        return stored
+        return stored_ids

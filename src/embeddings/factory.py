@@ -36,7 +36,7 @@ def create_embedding_function(
     emb_config = (config or {}).get("embeddings", {})
     resolved = provider or emb_config.get("provider") or "auto"
     model = model or emb_config.get("model")
-    dimensions = dimensions or emb_config.get("dimensions")
+    dimensions = dimensions if dimensions is not None else emb_config.get("dimensions")
 
     if resolved == "auto":
         resolved = _auto_detect_provider()

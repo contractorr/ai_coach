@@ -143,9 +143,17 @@ def _index_record(record: dict, store: ReportStore, index: LibraryIndex) -> None
     )
 
 
-def _sync_index(store: ReportStore, index: LibraryIndex) -> None:
+_synced_indices: set[str] = set()
+
+
+def _sync_index_once(store: ReportStore, index: LibraryIndex) -> None:
+    """Cold-start sync: index all records if not yet synced this process."""
+    key = str(index.db_path)
+    if key in _synced_indices:
+        return
     for record in store.list_reports(limit=10_000):
         _index_record(record, store, index)
+    _synced_indices.add(key)
 
 
 def _search_reports(
@@ -157,7 +165,7 @@ def _search_reports(
     collection: str | None,
     limit: int,
 ) -> list[dict]:
-    _sync_index(store, index)
+    _sync_index_once(store, index)
     hits = index.search(
         search,
         limit=limit,

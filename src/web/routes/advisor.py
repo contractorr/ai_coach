@@ -31,6 +31,7 @@ from web.conversation_store import (
 from web.deps import (
     SHARED_LLM_MODEL,
     enforce_shared_key_usage_limit,
+    get_coach_paths,
     get_config,
     get_council_members_for_user,
     get_intel_storage,
@@ -219,13 +220,15 @@ def _get_engine(user_id: str, use_tools: bool = False):
         from advisor.entity_retriever import EntityRetriever
         from intelligence.entity_store import EntityStore
 
-        entity_store = EntityStore(paths["intel_db"])
+        entity_store = EntityStore(get_coach_paths()["intel_db"])
         entity_retriever = EntityRetriever(entity_store, fact_store=fact_store)
         from advisor.query_analyzer import QueryAnalyzer
 
         query_analyzer = QueryAnalyzer(entity_store=entity_store)
-    except Exception:
-        pass
+    except Exception as exc:
+        import structlog
+
+        structlog.get_logger().warning("entity_components_init_failed", error=str(exc))
 
     users_db = get_default_db_path()
     rag = RAGRetriever(
@@ -474,9 +477,10 @@ async def ask_advisor_stream(
                 yield f"data: {json.dumps(event)}\n\n"
         finally:
             stream_closed = True
-            if task.done():
-                with suppress(asyncio.CancelledError, Exception):
-                    await task
+            if not task.done():
+                task.cancel()
+            with suppress(asyncio.CancelledError, Exception):
+                await task
 
     return StreamingResponse(_sse_generator(), media_type="text/event-stream")
 
