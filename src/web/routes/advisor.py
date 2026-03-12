@@ -9,7 +9,6 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Upload
 from starlette.responses import StreamingResponse
 
 from advisor.council import CouncilMember
-from library.index import LibraryIndex
 from library.pdf_text import extract_text_from_pdf_bytes
 from library.reports import ReportStore
 from services.advice import (
@@ -35,6 +34,7 @@ from web.deps import (
     get_config,
     get_council_members_for_user,
     get_intel_storage,
+    get_library_index,
     get_memory_store,
     get_profile_path,
     get_thread_store,
@@ -62,9 +62,8 @@ def _get_library_store(user_id: str) -> ReportStore:
     return ReportStore(Path(paths["data_dir"]) / "library")
 
 
-def _get_library_index(user_id: str) -> LibraryIndex:
-    paths = get_user_paths(user_id)
-    return LibraryIndex(Path(paths["data_dir"]) / "library")
+def _get_library_index(user_id: str):
+    return get_library_index(user_id)
 
 
 def _resolve_attachment_records(user_id: str, attachment_ids: list[str] | None) -> list[dict]:

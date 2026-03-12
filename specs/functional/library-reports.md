@@ -45,11 +45,28 @@ Library is the durable reference workspace for uploaded documents, generated rep
 - Report lifecycle: `ready` → `archived` → `restored`.
 - Reports generated using user profile + active goals as context.
 
+## Semantic Search
+
+- Embeddings generated via the shared embedding factory (`chroma_utils.build_embedding_function()`), one vector per document.
+- Stored in a `LocalCollection(name="library")` inside the user's chroma directory.
+- Embeddings upserted on every `upsert_item()` and removed on every `delete_item()`.
+- **Advisor RAG path** uses hybrid search (semantic + FTS5 via reciprocal rank fusion, default 70/30 semantic weight).
+- **Web list search** stays FTS5-only for latency.
+- Graceful fallback: when no embedding manager is present, `hybrid_search()` delegates to FTS5-only `search()`.
+
+### Acceptance Criteria
+
+- Concept search works: querying "exhaustion" retrieves a doc containing "burnout" (via semantic similarity).
+- FTS fallback works: `LibraryIndex` without an embedding manager still returns keyword results.
+- Deleting a library item removes its embedding.
+- Every write (create, update, refresh, upload) upserts the embedding automatically.
+
 ## Key System Components
 
 - `web/src/app/(dashboard)/library/page.tsx`
 - `src/web/routes/library.py`
 - `src/web/routes/research.py`
 - `src/library/reports.py` — `ReportStore`
-- `src/library/index.py` — `LibraryIndex` (FTS5)
+- `src/library/index.py` — `LibraryIndex` (FTS5 + optional semantic)
+- `src/library/embeddings.py` — `LibraryEmbeddingManager` (ChromaDB vectors)
 - `src/library/pdf_text.py` — PDF extraction

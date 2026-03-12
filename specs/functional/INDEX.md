@@ -20,7 +20,7 @@ This index summarizes each file in `specs/functional/` after the v2 simplificati
 | `intelligence-feed.md` | Unified Radar monitoring experience | Radar page, intel routes, suggestions | Review `For you`, manage saved items, run scan |
 | `journaling.md` | Fast capture plus deeper Journal workspace | Home quick capture, Journal page, sidebar shortcut | Capture quickly, open Journal, search and filter history |
 | `landing-page.md` | Public marketing page for unauthenticated visitors | Root route, login, hero, feature grid, source logos | View landing, click CTA, share link |
-| `library-reports.md` | Durable reference workspace | Library page, reports API, archived dossiers | Filter by type, open report, review archived dossier |
+| `library-reports.md` | Durable reference workspace + semantic search | Library page, reports API, archived dossiers, embeddings | Filter by type, open report, concept search via hybrid retrieval |
 | `memory-threads.md` | Settings memory + Radar threads | Memory routes, thread routes, Settings, Radar | Inspect memory, review thread, convert thread into action |
 | `outcome-harvester.md` | Background learning from outcomes | Journal/goal signals, ranking systems | Capture progress, harvest outcomes, improve later suggestions |
 | `profile-onboarding.md` | Short onboarding to Home | Onboarding page, settings, user profile | Save name, choose access mode, pick feed topics |

@@ -226,6 +226,16 @@ def get_regulatory_alert_store():
     return RegulatoryAlertStore(get_coach_paths()["intel_db"])
 
 
+def get_library_index(user_id: str):
+    """Construct the per-user library index with semantic search."""
+    from library.embeddings import LibraryEmbeddingManager
+    from library.index import LibraryIndex
+
+    paths = get_user_paths(user_id)
+    embeddings = LibraryEmbeddingManager(paths["chroma_dir"])
+    return LibraryIndex(Path(paths["data_dir"]) / "library", embedding_manager=embeddings)
+
+
 def get_insight_store():
     """Construct the shared insight store."""
     return create_insight_store(get_coach_paths())

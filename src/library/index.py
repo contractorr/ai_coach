@@ -5,10 +5,14 @@ from __future__ import annotations
 import re
 import sqlite3
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import structlog
 
 from db import wal_connect
+
+if TYPE_CHECKING:
+    from library.embeddings import LibraryEmbeddingManager
 
 logger = structlog.get_logger()
 
@@ -45,12 +49,17 @@ def _make_snippet(text: str, query: str, max_chars: int = 240) -> str:
 
 
 class LibraryIndex:
-    """SQLite FTS5 index for Library items."""
+    """SQLite FTS5 index for Library items with optional semantic search."""
 
-    def __init__(self, library_dir: str | Path):
+    def __init__(
+        self,
+        library_dir: str | Path,
+        embedding_manager: LibraryEmbeddingManager | None = None,
+    ):
         self.library_dir = Path(library_dir).expanduser().resolve()
         self.db_path = self.library_dir / "library_index.db"
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
+        self.embedding_manager = embedding_manager
         self._init_db()
 
     def _init_db(self) -> None:
@@ -72,6 +81,19 @@ class LibraryIndex:
                 )
                 """
             )
+
+    # MiniLM-L6-v2 accepts ~256 word-piece tokens; keep first ~1500 chars
+    # to stay within that window while capturing meaningful content.
+    MAX_EMBED_CHARS = 1500
+
+    @staticmethod
+    def _build_embed_content(title: str, body_text: str, extracted_text: str) -> str:
+        """Concatenate text fields into a single string for embedding, truncated to fit model window."""
+        parts = [p for p in (title, body_text, extracted_text) if p and p.strip()]
+        content = "\n\n".join(parts)
+        if len(content) > LibraryIndex.MAX_EMBED_CHARS:
+            content = content[: LibraryIndex.MAX_EMBED_CHARS]
+        return content
 
     def upsert_item(
         self,
@@ -110,9 +132,24 @@ class LibraryIndex:
                 ),
             )
 
+        if self.embedding_manager:
+            embed_content = self._build_embed_content(title, body_text, extracted_text)
+            if embed_content:
+                self.embedding_manager.add_item(
+                    report_id,
+                    embed_content,
+                    {
+                        "source_kind": source_kind,
+                        "status": status,
+                        "collection": collection or "",
+                    },
+                )
+
     def delete_item(self, report_id: str) -> None:
         with wal_connect(self.db_path) as conn:
             conn.execute("DELETE FROM library_fts WHERE report_id = ?", (report_id,))
+        if self.embedding_manager:
+            self.embedding_manager.remove_item(report_id)
 
     def search(
         self,
@@ -188,3 +225,111 @@ class LibraryIndex:
         if not row:
             return None
         return dict(row)
+
+    def semantic_search(
+        self,
+        query: str,
+        *,
+        n_results: int = 10,
+        source_kind: str | None = None,
+        status: str | None = None,
+        collection: str | None = None,
+    ) -> list[dict]:
+        """Search using semantic similarity via embedding manager."""
+        if not self.embedding_manager:
+            return []
+
+        where: dict | None = None
+        filters = {}
+        if source_kind:
+            filters["source_kind"] = source_kind
+        if status:
+            filters["status"] = status
+        if collection:
+            filters["collection"] = collection
+        if filters:
+            where = filters if len(filters) == 1 else {"$and": [{k: v} for k, v in filters.items()]}
+
+        results = self.embedding_manager.query(query, n_results=n_results, where=where)
+
+        enriched = []
+        for r in results:
+            item = self.get_item_text(r["id"])
+            if not item:
+                continue
+            if source_kind and item.get("source_kind") != source_kind:
+                continue
+            if status and item.get("status") != status:
+                continue
+
+            if item.get("source_kind") == "uploaded_pdf":
+                text = item.get("extracted_text") or ""
+            else:
+                text = (item.get("body_text") or "") + "\n" + (item.get("extracted_text") or "")
+
+            enriched.append(
+                {
+                    "id": item["report_id"],
+                    "title": item["title"],
+                    "source_kind": item.get("source_kind"),
+                    "file_name": item.get("file_name"),
+                    "snippet": _make_snippet(text, query),
+                    "score": 1 - r["distance"],
+                }
+            )
+
+        return enriched
+
+    def hybrid_search(
+        self,
+        query: str,
+        *,
+        limit: int = 20,
+        semantic_weight: float = 0.7,
+        source_kind: str | None = None,
+        status: str | None = None,
+        collection: str | None = None,
+    ) -> list[dict]:
+        """Combine semantic + FTS5 search via reciprocal rank fusion.
+
+        Falls back to FTS5-only when no embedding manager is present.
+        """
+        fts_results = self.search(
+            query,
+            limit=limit * 2,
+            source_kind=source_kind,
+            status=status,
+            collection=collection,
+        )
+
+        if not self.embedding_manager:
+            return fts_results[:limit]
+
+        sem_results = self.semantic_search(
+            query,
+            n_results=limit * 2,
+            source_kind=source_kind,
+            status=status,
+            collection=collection,
+        )
+
+        if not sem_results:
+            return fts_results[:limit]
+
+        k = 60  # standard RRF smoothing constant
+        scores: dict[str, float] = {}
+        items: dict[str, dict] = {}
+
+        for i, item in enumerate(sem_results):
+            key = item["id"]
+            scores[key] = scores.get(key, 0) + (1.0 / (k + i + 1)) * semantic_weight
+            items[key] = item
+
+        for i, item in enumerate(fts_results):
+            key = item["id"]
+            scores[key] = scores.get(key, 0) + (1.0 / (k + i + 1)) * (1 - semantic_weight)
+            if key not in items:
+                items[key] = item
+
+        sorted_keys = sorted(scores, key=lambda k: scores[k], reverse=True)
+        return [items[k] for k in sorted_keys[:limit]]

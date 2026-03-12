@@ -21,7 +21,7 @@ This index summarizes each file in `specs/technical/` after the v2 simplificatio
 | `intelligence.md` | Unified intelligence layer for Radar/Home | Intel route, suggestions route, Radar page | Run scan, review feed, save follow-up |
 | `journal.md` | Journal APIs for Home and deep Journal page | Journal route, Home page, Journal page | Quick capture, browse history, edit entry |
 | `landing-page.md` | Public marketing page at root route | Middleware, root page.tsx, Landing component, shared features constant | Auth fork, SSR landing, redirect to dashboard |
-| `library.md` | Durable reports, docs, archived dossiers | Library route, research route, Library page | Browse reference items, refresh report |
+| `library.md` | Durable reports, docs, archived dossiers + semantic embeddings | Library route, research route, Library page, LibraryEmbeddingManager | Browse reference items, hybrid search, refresh report |
 | `llm.md` | Shared model/provider configuration | Settings route, advisor, onboarding, research | Set key, test model access, run generation |
 | `mcp.md` | Advanced integration surface | MCP server, tool adapters, auth helpers | Call tools from integration clients |
 | `memory.md` | Durable memory storage and management | Memory route, memory services, Settings page | List facts, show stats, delete fact |

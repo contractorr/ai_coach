@@ -26,10 +26,22 @@ Library is the durable reference workspace for uploaded documents, generated rep
 - `_generate_report_content()` uses LLM with user profile + active goals as context
 - PDF binary storage in `attachments/{report_id}.pdf`, extracted text in `extracted/`
 
+### `embeddings.py` — `LibraryEmbeddingManager`
+- Mirrors `journal/embeddings.py` pattern
+- Constructor: `__init__(chroma_dir)` → `LocalCollection(name="library")` + `build_embedding_function()`
+- `add_item(id, content, metadata)` — upsert with metadata sanitization (lists → comma-joined strings)
+- `remove_item(id)` — delete, swallow errors
+- `query(text, n_results=5)` → `list[dict]` with `{id, content, metadata, distance}`
+- `sync_from_storage(items)` → `(added, removed)` — upsert all, prune deleted
+- `count()` → int
+
 ### `index.py` — `LibraryIndex`
 - SQLite FTS5 index with Porter stemmer
 - Columns: title, body, extracted_text, collection, filename
 - Supports search across all library item types (reports + uploads)
+- Optional `embedding_manager: LibraryEmbeddingManager` injected at construction
+- `semantic_search(query, *, n_results, source_kind, status, collection)` → delegates to embedding manager, enriches from FTS5 `get_item_text()`
+- `hybrid_search(query, *, limit, semantic_weight=0.7, source_kind, status, collection)` → RRF over `semantic_search` + `search`, falls back to FTS5-only when no embeddings
 
 ### `pdf_text.py`
 - `extract_text_from_pdf_bytes()` — uses `pypdf` (optional)

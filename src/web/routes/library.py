@@ -18,6 +18,7 @@ from web.deps import (
     SHARED_LLM_MODEL,
     enforce_shared_key_usage_limit,
     get_config,
+    get_library_index,
     get_memory_store,
     get_profile_storage,
     get_user_paths,
@@ -40,9 +41,8 @@ def _get_store(user_id: str) -> ReportStore:
     return ReportStore(Path(paths["data_dir"]) / "library")
 
 
-def _get_index(user_id: str) -> LibraryIndex:
-    paths = get_user_paths(user_id)
-    return LibraryIndex(Path(paths["data_dir"]) / "library")
+def _get_index(user_id: str):
+    return get_library_index(user_id)
 
 
 def _active_goal_titles(user_id: str) -> list[str]:

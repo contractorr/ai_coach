@@ -273,7 +273,9 @@ class RAGRetriever:
                 break
 
         if query and remaining_chars > 0 and len(selected) < max_items:
-            for hit in self._library_index.search(query, limit=max_items * 2, status="ready"):
+            for hit in self._library_index.hybrid_search(
+                query, limit=max_items * 2, status="ready"
+            ):
                 add_item(self._library_index.get_item_text(hit["id"]))
                 if remaining_chars <= 0 or len(selected) >= max_items:
                     break
