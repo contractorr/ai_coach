@@ -1,5 +1,7 @@
 """Observation consolidation — synthesize raw facts into higher-level observations."""
 
+import json
+
 import structlog
 
 from .models import FactCategory, FactSource, StewardFact
@@ -12,11 +14,14 @@ _SYNTHESIS_PROMPT = """You synthesize memory observations from individual facts 
 Given these facts about "{entity_name}":
 {fact_list}
 
-Write ONE sentence that captures the overall pattern or insight these facts reveal about the user. Rules:
-- Start with "User..." in third person
-- Be more insightful than any individual fact
-- If facts contradict each other, preserve the evolution (e.g. "User moved from X to Y")
-- Output ONLY the observation sentence. No preamble."""
+Output a JSON object with two fields:
+1. "observation" — ONE sentence capturing the overall pattern. Start with "User...", preserve contradictions as evolution.
+2. "abstract" — A keyword-dense phrase (under 40 words) optimized for semantic search. Include key entities, skills, tools, and relationships. No articles or filler words.
+
+Example output:
+{{"observation": "User has transitioned from Java to Kotlin for Android development while maintaining Java for backend services.", "abstract": "Java Kotlin Android development transition backend services mobile native"}}
+
+Output ONLY the JSON object. No preamble."""
 
 
 class ObservationConsolidator:
@@ -118,9 +123,9 @@ class ObservationConsolidator:
         prompt = _SYNTHESIS_PROMPT.format(entity_name=entity_key, fact_list=fact_list)
 
         try:
-            observation_text = self.provider.generate(
+            response = self.provider.generate(
                 messages=[{"role": "user", "content": prompt}],
-                max_tokens=200,
+                max_tokens=300,
             ).strip()
         except Exception as e:
             logger.warning(
@@ -130,8 +135,25 @@ class ObservationConsolidator:
             )
             return None
 
-        if not observation_text:
+        if not response:
             return None
+
+        # Parse structured JSON; fallback to plain text for backward compat
+        try:
+            parsed = json.loads(response)
+            observation_text = parsed["observation"]
+            if not isinstance(observation_text, str):
+                raise ValueError("observation must be string")
+            observation_text = observation_text.strip()
+            abstract_raw = parsed.get("abstract", "")
+            abstract_text = (
+                abstract_raw.strip()
+                if isinstance(abstract_raw, str) and abstract_raw.strip()
+                else None
+            )
+        except (json.JSONDecodeError, KeyError, AttributeError, ValueError):
+            observation_text = response
+            abstract_text = None
 
         avg_confidence = sum(f.confidence for f in facts) / len(facts)
 
@@ -145,6 +167,7 @@ class ObservationConsolidator:
                 new_category=FactCategory.OBSERVATION,
                 new_confidence=avg_confidence,
                 decay_amount=0.0,
+                new_abstract=abstract_text,
             )
         else:
             # Create new observation
@@ -155,6 +178,7 @@ class ObservationConsolidator:
                 source_type=FactSource.CONSOLIDATION,
                 source_id=entity_key,
                 confidence=avg_confidence,
+                abstract=abstract_text,
             )
             new_obs = self.store.add(new_obs)
 

@@ -1,5 +1,6 @@
 """Tests for ObservationConsolidator — entity grouping, synthesis, dedup, orphan cleanup."""
 
+import json
 from unittest.mock import MagicMock
 
 import pytest
@@ -7,6 +8,13 @@ import pytest
 from memory.consolidator import ObservationConsolidator
 from memory.models import FactCategory, FactSource, StewardFact
 from memory.store import FactStore
+
+_DEFAULT_JSON_RESPONSE = json.dumps(
+    {
+        "observation": "User is an experienced Python developer focused on data engineering.",
+        "abstract": "Python data engineering experienced developer pipelines",
+    }
+)
 
 
 @pytest.fixture
@@ -18,7 +26,7 @@ def store(tmp_path):
 @pytest.fixture
 def provider():
     p = MagicMock()
-    p.generate.return_value = "User is an experienced Python developer focused on data engineering."
+    p.generate.return_value = _DEFAULT_JSON_RESPONSE
     return p
 
 
@@ -80,8 +88,11 @@ class TestConsolidateAll:
 
         # Add new fact to same entity group
         store.add(_fact("f3", "User is learning Python async patterns"))
-        provider.generate.return_value = (
-            "User is an experienced Python developer advancing into async patterns."
+        provider.generate.return_value = json.dumps(
+            {
+                "observation": "User is an experienced Python developer advancing into async patterns.",
+                "abstract": "Python async patterns experienced developer advancement",
+            }
         )
         results = consolidator.consolidate_all()
 
@@ -153,7 +164,9 @@ class TestLLMFailure:
         store.add(_fact("f2", "User prefers Python over Java"))
 
         # First run succeeds
-        provider.generate.return_value = "User is a Python developer."
+        provider.generate.return_value = json.dumps(
+            {"observation": "User is a Python developer.", "abstract": "Python developer"}
+        )
         consolidator.consolidate_all()
         obs_before = store.get_all_active_observations()
         assert len(obs_before) == 1
@@ -187,3 +200,47 @@ class TestObservationSourceLinks:
         observations = store.get_observations_for_fact("f1")
         assert len(observations) >= 1
         assert observations[0].category == FactCategory.OBSERVATION
+
+
+class TestAbstract:
+    def test_abstract_stored_on_new_observation(self, store, consolidator):
+        store.add(_fact("f1", "User uses Python for data pipelines"))
+        store.add(_fact("f2", "User prefers Python over Java"))
+        results = consolidator.consolidate_all()
+
+        assert len(results) >= 1
+        obs = results[0]
+        assert obs.abstract == "Python data engineering experienced developer pipelines"
+        # Verify persisted
+        reloaded = store.get(obs.id)
+        assert reloaded.abstract == obs.abstract
+
+    def test_abstract_stored_on_updated_observation(self, store, consolidator, provider):
+        store.add(_fact("f1", "User uses Python for data pipelines"))
+        store.add(_fact("f2", "User prefers Python over Java"))
+        consolidator.consolidate_all()
+
+        store.add(_fact("f3", "User is learning Python async patterns"))
+        provider.generate.return_value = json.dumps(
+            {
+                "observation": "User is advancing into Python async.",
+                "abstract": "Python async advancement",
+            }
+        )
+        results = consolidator.consolidate_all()
+        obs = results[0]
+        assert obs.abstract == "Python async advancement"
+
+    def test_plain_text_fallback_sets_abstract_none(self, store, provider):
+        """When LLM returns plain text instead of JSON, abstract should be None."""
+        provider.generate.return_value = "User is a Python developer."
+        consolidator = ObservationConsolidator(store, provider=provider, min_facts_per_group=2)
+
+        store.add(_fact("f1", "User uses Python for data pipelines"))
+        store.add(_fact("f2", "User prefers Python over Java"))
+        results = consolidator.consolidate_all()
+
+        assert len(results) >= 1
+        obs = results[0]
+        assert obs.text == "User is a Python developer."
+        assert obs.abstract is None

@@ -15,7 +15,7 @@ from .models import FactCategory, FactSource, StewardFact
 
 logger = structlog.get_logger()
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 DEFAULT_REINFORCEMENT = 0.05
 DEFAULT_CONTRADICTION_DECAY = 0.15
 _SEARCH_STOPWORDS = {
@@ -128,6 +128,11 @@ class FactStore:
                 CREATE INDEX IF NOT EXISTS idx_obs_sources_fact
                 ON observation_sources(fact_id)
             """)
+            # L0 abstract column (v4)
+            try:
+                conn.execute("ALTER TABLE steward_facts ADD COLUMN abstract TEXT")
+            except sqlite3.OperationalError:
+                pass  # column already exists
             ensure_schema_version(conn, SCHEMA_VERSION)
 
     @property
@@ -172,8 +177,8 @@ class FactStore:
         with wal_connect(self.db_path) as conn:
             conn.execute(
                 """INSERT INTO steward_facts
-                   (id, text, category, source_type, source_id, confidence, created_at, updated_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                   (id, text, category, source_type, source_id, confidence, created_at, updated_at, abstract)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     fact.id,
                     fact.text,
@@ -187,6 +192,7 @@ class FactStore:
                     fact.confidence,
                     fact.created_at.isoformat(),
                     fact.updated_at.isoformat(),
+                    fact.abstract,
                 ),
             )
 
@@ -265,6 +271,7 @@ class FactStore:
         new_category: FactCategory | str | None = None,
         new_confidence: float | None = None,
         decay_amount: float = DEFAULT_CONTRADICTION_DECAY,
+        new_abstract: str | None = None,
     ) -> StewardFact:
         """Update existing fact: supersede old, create new with updated text."""
         old = self.get(fact_id)
@@ -305,6 +312,7 @@ class FactStore:
             confidence=new_confidence if new_confidence is not None else old.confidence,
             created_at=old.created_at,
             updated_at=now,
+            abstract=new_abstract,
         )
         return self.add(new_fact)
 
@@ -403,29 +411,37 @@ class FactStore:
         categories: list[FactCategory] | None = None,
         use_graph: bool = True,
         graph_limit: int = 5,
+        alpha: float = 0.5,
     ) -> list[StewardFact]:
-        """Semantic search over active facts via ChromaDB, with optional graph expansion."""
+        """Semantic search over active facts via ChromaDB, with optional graph expansion.
+
+        When ChromaDB is available, uses parent-score propagation: embedding scores
+        flow through entity groups to boost topically related neighbors.
+        ``alpha`` controls the blend: 1.0 = pure embedding, 0.0 = pure group score.
+        """
         coll = self._chroma
         if not coll:
             seeds = self._keyword_search(query, limit, categories)
-        else:
-            seeds = self._chroma_search(query, limit, categories)
+            if not use_graph or not seeds:
+                return seeds[:limit]
+            return self._graph_expand_and_merge(seeds, limit, graph_limit, categories)
 
-        if not use_graph or not seeds:
-            return seeds[:limit]
+        scored_seeds = self._chroma_search_scored(query, limit, categories)
+        if not use_graph or not scored_seeds:
+            return [f for f, _ in scored_seeds][:limit]
 
-        return self._graph_expand_and_merge(seeds, limit, graph_limit, categories)
+        return self._propagate_and_merge(scored_seeds, limit, graph_limit, categories, alpha)
 
-    def _chroma_search(
+    def _chroma_search_scored(
         self,
         query: str,
         limit: int,
         categories: list[FactCategory] | None = None,
-    ) -> list[StewardFact]:
-        """Raw ChromaDB semantic search (no graph expansion)."""
+    ) -> list[tuple[StewardFact, float]]:
+        """ChromaDB semantic search returning (fact, similarity_score) tuples."""
         coll = self._chroma
         if not coll:
-            return self._keyword_search(query, limit, categories)
+            return [(f, 0.0) for f in self._keyword_search(query, limit, categories)]
 
         where = None
         if categories:
@@ -447,19 +463,22 @@ class FactStore:
                 include=["documents", "metadatas", "distances"],
             )
 
-            facts = []
+            facts: list[tuple[StewardFact, float]] = []
             if results["ids"] and results["ids"][0]:
-                for fid in results["ids"][0]:
+                distances = results["distances"][0] if results.get("distances") else []
+                for idx, fid in enumerate(results["ids"][0]):
                     if fid in active_ids:
                         fact = self.get(fid)
                         if fact:
-                            facts.append(fact)
+                            # Cosine distance ∈ [0,2]; normalize to similarity ∈ [0,1]
+                            score = max(0.0, 1.0 - distances[idx]) if idx < len(distances) else 0.0
+                            facts.append((fact, score))
                     if len(facts) >= limit:
                         break
             return facts
         except Exception as e:
             logger.warning("chroma_search_failed", error=str(e))
-            return self._keyword_search(query, limit, categories)
+            return [(f, 0.0) for f in self._keyword_search(query, limit, categories)]
 
     def _keyword_search(
         self,
@@ -745,7 +764,11 @@ class FactStore:
         graph_limit: int,
         categories: list[FactCategory] | None = None,
     ) -> list[StewardFact]:
-        """Expand seed results via entity graph and merge with RRF."""
+        """Expand seed results via entity graph and merge with RRF.
+
+        Used only for keyword fallback path (no embedding scores available).
+        When ChromaDB is available, _propagate_and_merge is used instead.
+        """
         seed_ids = {f.id for f in seeds}
         neighbors = self._get_entity_neighbors(seed_ids, set())
 
@@ -797,6 +820,118 @@ class FactStore:
         ranked = sorted(scores.keys(), key=lambda fid: scores[fid], reverse=True)
         return [fact_map[fid] for fid in ranked if fid in fact_map][:limit]
 
+    def _get_fact_entities(self, fact_ids: set[str]) -> dict[str, list[int]]:
+        """Map fact_id → list of entity_ids it's linked to."""
+        if not fact_ids:
+            return {}
+        placeholders = ",".join("?" for _ in fact_ids)
+        with wal_connect(self.db_path) as conn:
+            rows = conn.execute(
+                f"SELECT fact_id, entity_id FROM fact_entity_links WHERE fact_id IN ({placeholders})",
+                list(fact_ids),
+            ).fetchall()
+        result: dict[str, list[int]] = {}
+        for fact_id, entity_id in rows:
+            result.setdefault(fact_id, []).append(entity_id)
+        return result
+
+    def _propagate_and_merge(
+        self,
+        scored_seeds: list[tuple[StewardFact, float]],
+        limit: int,
+        graph_limit: int,
+        categories: list[FactCategory] | None = None,
+        alpha: float = 0.5,
+    ) -> list[StewardFact]:
+        """Parent-score propagation: embedding scores flow through entity groups to neighbors."""
+        seed_scores: dict[str, float] = {f.id: s for f, s in scored_seeds}
+        fact_map: dict[str, StewardFact] = {f.id: f for f, _ in scored_seeds}
+        seed_ids = set(seed_scores.keys())
+
+        # Step 1: map seed facts → their entities
+        seed_entity_map = self._get_fact_entities(seed_ids)
+
+        # Step 2: entity-group scores = max embedding score of seeds linked to each entity
+        entity_group_scores: dict[int, float] = {}
+        for fid, entity_ids in seed_entity_map.items():
+            emb = seed_scores.get(fid, 0.0)
+            for eid in entity_ids:
+                if emb > entity_group_scores.get(eid, 0.0):
+                    entity_group_scores[eid] = emb
+
+        # Step 3: get graph neighbors
+        neighbors = self._get_entity_neighbors(seed_ids, set())
+        if not neighbors and not entity_group_scores:
+            # No entities, no neighbors — fall back to embedding score order
+            return [f for f, _ in sorted(scored_seeds, key=lambda x: x[1], reverse=True)][:limit]
+
+        # Load neighbor facts (respecting category filter + graph_limit)
+        cat_values = None
+        if categories:
+            cat_values = {c.value if isinstance(c, FactCategory) else c for c in categories}
+
+        added = 0
+        neighbor_ids: list[str] = []
+        for fact_id, _shared_count in neighbors:
+            if added >= graph_limit:
+                break
+            if fact_id in fact_map:
+                continue
+            fact = self.get(fact_id)
+            if not fact:
+                continue
+            if cat_values:
+                fact_cat = (
+                    fact.category.value
+                    if isinstance(fact.category, FactCategory)
+                    else fact.category
+                )
+                if fact_cat not in cat_values:
+                    continue
+            fact_map[fact_id] = fact
+            neighbor_ids.append(fact_id)
+            added += 1
+
+        # Step 4: map neighbor facts → their entities
+        neighbor_entity_map = self._get_fact_entities(set(neighbor_ids))
+
+        # Step 5: score all facts
+        final_scores: dict[str, float] = {}
+
+        for fid, emb_score in seed_scores.items():
+            eids = seed_entity_map.get(fid, [])
+            group_score = max((entity_group_scores.get(eid, 0.0) for eid in eids), default=0.0)
+            final_scores[fid] = alpha * emb_score + (1 - alpha) * group_score
+
+        for fid in neighbor_ids:
+            eids = neighbor_entity_map.get(fid, [])
+            group_score = max((entity_group_scores.get(eid, 0.0) for eid in eids), default=0.0)
+            # Neighbors have no direct embedding score
+            final_scores[fid] = (1 - alpha) * group_score
+
+        # Step 6: observation → fact propagation
+        obs_boost = 0.1
+        for fid in list(final_scores.keys()):
+            fact = fact_map.get(fid)
+            if not fact:
+                continue
+            cat = fact.category.value if isinstance(fact.category, FactCategory) else fact.category
+            if cat != FactCategory.OBSERVATION.value:
+                continue
+            source_ids = self.get_observation_source_ids(fid)
+            for sid in source_ids[:graph_limit]:
+                boost = obs_boost * final_scores[fid]
+                if sid in final_scores:
+                    final_scores[sid] += boost
+                else:
+                    source_fact = self.get(sid)
+                    if source_fact:
+                        fact_map[sid] = source_fact
+                        final_scores[sid] = boost
+
+        ranked = sorted(final_scores.keys(), key=lambda fid: final_scores[fid], reverse=True)
+        return [fact_map[fid] for fid in ranked if fid in fact_map][:limit]
+
     def _get_active_ids(self) -> set[str]:
         """Get set of active (non-superseded) fact IDs."""
         with wal_connect(self.db_path) as conn:
@@ -823,6 +958,7 @@ class FactStore:
             created_at=fact.created_at,
             updated_at=now,
             superseded_by=fact.superseded_by,
+            abstract=fact.abstract,
         )
         self._upsert_embedding(updated)
         return updated
@@ -835,9 +971,12 @@ class FactStore:
 
         try:
             cat = fact.category.value if isinstance(fact.category, FactCategory) else fact.category
+            doc_text = (
+                fact.abstract if fact.abstract and len(fact.abstract.split()) >= 3 else fact.text
+            )
             coll.upsert(
                 ids=[fact.id],
-                documents=[fact.text],
+                documents=[doc_text],
                 metadatas=[{"category": cat, "confidence": fact.confidence}],
             )
         except Exception as e:
@@ -882,4 +1021,5 @@ class FactStore:
             created_at=datetime.fromisoformat(created) if created else datetime.now(),
             updated_at=datetime.fromisoformat(updated) if updated else datetime.now(),
             superseded_by=d.get("superseded_by"),
+            abstract=d.get("abstract"),
         )

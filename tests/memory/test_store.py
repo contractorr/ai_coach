@@ -417,3 +417,183 @@ class TestReset:
         with wal_connect(store.db_path) as conn:
             count = conn.execute("SELECT COUNT(*) FROM observation_sources").fetchone()[0]
         assert count == 0
+
+
+class TestParentScorePropagation:
+    """Tests for Phase 2: parent-score propagation via entity groups."""
+
+    def test_get_fact_entities(self, store):
+        store.add(_fact(id="p1", text="User builds Django with Python"))
+        store.add(_fact(id="p2", text="User prefers Python over Ruby"))
+        entity_map = store._get_fact_entities({"p1", "p2"})
+        # Both should have entity links
+        assert "p1" in entity_map
+        assert "p2" in entity_map
+        assert len(entity_map["p1"]) > 0
+
+    def test_get_fact_entities_empty(self, store):
+        result = store._get_fact_entities(set())
+        assert result == {}
+
+    def test_propagate_high_score_seed_boosts_neighbors(self, store):
+        """Neighbor of a high-embedding-score seed should rank above neighbor of a low-score seed."""
+        # Seed facts with different "embedding scores"
+        f1 = _fact(id="h1", text="User excels at Python programming")
+        f2 = _fact(id="h2", text="User tried Ruby once")
+        f3 = _fact(id="h3", text="User builds Python ML pipelines")  # neighbor of h1 via Python
+        f4 = _fact(id="h4", text="User reads Ruby blogs")  # neighbor of h2 via Ruby
+        for f in [f1, f2, f3, f4]:
+            store.add(f)
+
+        # Simulate scored seeds: h1 highly relevant, h2 marginal
+        scored_seeds = [(f1, 0.95), (f2, 0.3)]
+        results = store._propagate_and_merge(scored_seeds, limit=10, graph_limit=5)
+        result_ids = [r.id for r in results]
+
+        # h3 (Python neighbor of high-score h1) should rank above h4 (Ruby neighbor of low-score h2)
+        assert "h3" in result_ids
+        assert "h4" in result_ids
+        assert result_ids.index("h3") < result_ids.index("h4")
+
+    def test_propagate_seeds_rescored_with_group(self, store):
+        """Seeds are re-scored with α-blended group scores, not just embedding."""
+        f1 = _fact(id="s1", text="User uses Python for ML")
+        f2 = _fact(id="s2", text="User builds Python APIs")
+        store.add(f1)
+        store.add(f2)
+
+        # Both share Python entity; f1 higher embedding score
+        scored_seeds = [(f1, 0.9), (f2, 0.4)]
+        results = store._propagate_and_merge(scored_seeds, limit=10, graph_limit=5, alpha=0.5)
+        # f2 should get boosted by Python group (driven by f1's 0.9)
+        # f2 final = 0.5 * 0.4 + 0.5 * 0.9 = 0.65
+        # f1 final = 0.5 * 0.9 + 0.5 * 0.9 = 0.9
+        # f1 still first but f2 boosted
+        assert results[0].id == "s1"
+        assert len(results) == 2
+
+    def test_alpha_one_pure_embedding(self, store):
+        """alpha=1.0 should produce pure embedding score ordering."""
+        f1 = _fact(id="a1", text="User uses Python for ML")
+        f2 = _fact(id="a2", text="User uses Python for APIs")
+        store.add(f1)
+        store.add(f2)
+
+        scored_seeds = [(f1, 0.3), (f2, 0.9)]
+        results = store._propagate_and_merge(scored_seeds, limit=10, graph_limit=5, alpha=1.0)
+        # Pure embedding: f2 (0.9) before f1 (0.3)
+        assert results[0].id == "a2"
+        assert results[1].id == "a1"
+
+    def test_alpha_zero_pure_group(self, store):
+        """alpha=0.0 should produce pure group score ordering."""
+        f1 = _fact(id="z1", text="User uses Python for ML")
+        f2 = _fact(id="z2", text="User uses Ruby for scripting")
+        f3 = _fact(id="z3", text="User builds Python web apps")  # neighbor via Python
+        store.add(f1)
+        store.add(f2)
+        store.add(f3)
+
+        # f1 has high embedding, shares Python with f3
+        scored_seeds = [(f1, 0.95), (f2, 0.1)]
+        results = store._propagate_and_merge(scored_seeds, limit=10, graph_limit=5, alpha=0.0)
+        result_ids = [r.id for r in results]
+        # f1 and f3 share Python group (score=0.95), f2 has Ruby group (score=0.1)
+        # With alpha=0, f2 final = 0.1, f1 final = 0.95, f3 final = 0.95
+        assert "z3" in result_ids
+        # f2 should be last (lowest group score)
+        assert result_ids[-1] == "z2"
+
+    def test_observation_boosts_source_facts(self, store):
+        """Observation matching query should boost its source facts."""
+        from memory.models import FactSource
+
+        # Source facts
+        f1 = _fact(id="of1", text="User uses Python daily")
+        f2 = _fact(id="of2", text="User builds Django apps")
+        store.add(f1)
+        store.add(f2)
+
+        # Observation linked to f1 and f2
+        obs = StewardFact(
+            id="obs1",
+            text="User is a Python and Django expert",
+            category=FactCategory.OBSERVATION,
+            source_type=FactSource.CONSOLIDATION,
+            source_id="python",
+            confidence=0.85,
+        )
+        store.add(obs)
+        store.link_observation_sources("obs1", ["of1", "of2"])
+
+        # Observation as a high-scoring seed
+        scored_seeds = [(obs, 0.9)]
+        results = store._propagate_and_merge(scored_seeds, limit=10, graph_limit=5)
+        result_ids = [r.id for r in results]
+
+        # Source facts should appear via observation propagation
+        assert "of1" in result_ids
+        assert "of2" in result_ids
+
+    def test_no_entities_falls_back_to_embedding_order(self, store):
+        """Facts with no extractable entities should rank by embedding score."""
+        f1 = _fact(id="ne1", text="user likes simple tools")  # no entities (lowercase)
+        f2 = _fact(id="ne2", text="user prefers minimal code")
+        store.add(f1)
+        store.add(f2)
+
+        scored_seeds = [(f1, 0.3), (f2, 0.8)]
+        results = store._propagate_and_merge(scored_seeds, limit=10, graph_limit=5)
+        # No entities → no group boost → alpha * emb + (1-alpha) * 0
+        # f2: 0.5 * 0.8 = 0.4, f1: 0.5 * 0.3 = 0.15
+        assert results[0].id == "ne2"
+
+    def test_search_alpha_param_accepted(self, store):
+        """search() should accept alpha parameter without error."""
+        store.add(_fact(id="sa1", text="User uses Python"))
+        # keyword fallback path (no ChromaDB) — alpha ignored but shouldn't crash
+        results = store.search("Python", limit=5, alpha=0.7)
+        assert len(results) >= 1
+
+    def test_keyword_fallback_unchanged(self, store):
+        """Keyword path still uses _graph_expand_and_merge, not propagation."""
+        store.add(_fact(id="kf1", text="User builds Django with Python"))
+        store.add(_fact(id="kf2", text="User prefers Python over Ruby"))
+        results = store.search("Django", limit=5, use_graph=True)
+        result_ids = {r.id for r in results}
+        # Graph expansion still works via old RRF path
+        assert "kf1" in result_ids
+        assert "kf2" in result_ids
+
+
+class TestAbstract:
+    def test_add_and_get_preserves_abstract(self, store):
+        f = _fact(id="abs1")
+        f.abstract = "Python preference backend development"
+        store.add(f)
+        result = store.get("abs1")
+        assert result.abstract == "Python preference backend development"
+
+    def test_abstract_defaults_to_none(self, store):
+        store.add(_fact(id="abs2"))
+        result = store.get("abs2")
+        assert result.abstract is None
+
+    def test_update_with_new_abstract(self, store):
+        store.add(_fact(id="abs3"))
+        new = store.update(
+            "abs3",
+            "User prefers Rust now",
+            "entry-2",
+            new_abstract="Rust preference migration systems programming",
+        )
+        assert new.abstract == "Rust preference migration systems programming"
+        reloaded = store.get(new.id)
+        assert reloaded.abstract == "Rust preference migration systems programming"
+
+    def test_update_without_abstract_defaults_none(self, store):
+        f = _fact(id="abs4")
+        f.abstract = "old abstract"
+        store.add(f)
+        new = store.update("abs4", "User prefers Rust", "entry-2")
+        assert new.abstract is None

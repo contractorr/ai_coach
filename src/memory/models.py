@@ -36,6 +36,7 @@ class StewardFact:
     created_at: datetime = field(default_factory=datetime.now)
     updated_at: datetime = field(default_factory=datetime.now)
     superseded_by: str | None = None
+    abstract: str | None = None
 
 
 @dataclass

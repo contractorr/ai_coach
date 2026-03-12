@@ -94,6 +94,7 @@ def _list_observations(args: dict) -> dict:
             {
                 "id": obs.id,
                 "text": obs.text,
+                "abstract": obs.abstract,
                 "confidence": obs.confidence,
                 "group_key": obs.source_id,
                 "supporting_facts": source_ids,
