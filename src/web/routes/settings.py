@@ -104,6 +104,9 @@ async def update_settings(
     user: dict = Depends(get_current_user),
 ):
     """Encrypt and save per-user settings."""
+    import json
+    import uuid
+
     fernet_key = get_secret_key()
     user_id = user["id"]
     updated_keys: list[str] = []
@@ -176,6 +179,69 @@ async def update_settings(
             set_user_secret(user_id, field, str(value), fernet_key)
             updated_keys.append(field)
 
+    # Custom providers
+    from web.deps import get_custom_providers_for_user
+
+    custom_providers = get_custom_providers_for_user(user_id)
+
+    # Add custom provider
+    if body.llm_custom_provider_add:
+        new_provider = {
+            "id": str(uuid.uuid4()),
+            "display_name": body.llm_custom_provider_add.display_name.strip(),
+            "base_url": body.llm_custom_provider_add.base_url.strip(),
+            "api_key": body.llm_custom_provider_add.api_key.strip(),
+            "model": body.llm_custom_provider_add.model.strip(),
+        }
+        # Validate base_url
+        if not new_provider["base_url"].startswith(("http://", "https://")):
+            raise HTTPException(
+                status_code=400, detail="Base URL must start with http:// or https://"
+            )
+        custom_providers.append(new_provider)
+        set_user_secret(user_id, "llm_custom_providers", json.dumps(custom_providers), fernet_key)
+        updated_keys.append("llm_custom_provider_add")
+
+    # Update custom provider
+    if body.llm_custom_provider_update:
+        provider_id = body.llm_custom_provider_update.id
+        found = False
+        for i, cp in enumerate(custom_providers):
+            if cp["id"] == provider_id:
+                found = True
+                if body.llm_custom_provider_update.display_name:
+                    cp["display_name"] = body.llm_custom_provider_update.display_name.strip()
+                if body.llm_custom_provider_update.base_url:
+                    url = body.llm_custom_provider_update.base_url.strip()
+                    if not url.startswith(("http://", "https://")):
+                        raise HTTPException(
+                            status_code=400, detail="Base URL must start with http:// or https://"
+                        )
+                    cp["base_url"] = url
+                if body.llm_custom_provider_update.api_key:
+                    cp["api_key"] = body.llm_custom_provider_update.api_key.strip()
+                if body.llm_custom_provider_update.model:
+                    cp["model"] = body.llm_custom_provider_update.model.strip()
+                custom_providers[i] = cp
+                break
+        if not found:
+            raise HTTPException(status_code=404, detail="Custom provider not found")
+        set_user_secret(user_id, "llm_custom_providers", json.dumps(custom_providers), fernet_key)
+        updated_keys.append("llm_custom_provider_update")
+
+    # Remove custom providers
+    if body.llm_custom_providers_remove:
+        custom_providers = [
+            cp for cp in custom_providers if cp["id"] not in body.llm_custom_providers_remove
+        ]
+        if custom_providers:
+            set_user_secret(
+                user_id, "llm_custom_providers", json.dumps(custom_providers), fernet_key
+            )
+        else:
+            delete_user_secret(user_id, "llm_custom_providers")
+        updated_keys.extend([f"remove:custom:{pid}" for pid in body.llm_custom_providers_remove])
+
     logger.info("settings.updated", user_id=user_id, keys=updated_keys)
     return SettingsResponse(**get_settings_mask_for_user(user["id"]))
 
@@ -223,4 +289,47 @@ async def test_llm_connectivity(
         return {"ok": True, "provider": provider.provider_name, "response": response.strip()}
     except Exception as e:
         logger.warning("settings.test_llm_failed", user_id=user["id"], error=str(e))
+        raise HTTPException(status_code=422, detail=str(e))
+
+
+@router.post("/test-custom-provider")
+async def test_custom_provider(
+    provider_id: str = Query(...),
+    user: dict = Depends(get_current_user),
+):
+    """Test that a custom provider configuration works."""
+    from llm.providers.openai_compatible import OpenAICompatibleProvider
+    from web.deps import get_custom_providers_for_user
+
+    custom_providers = get_custom_providers_for_user(user["id"])
+    provider_config = next((cp for cp in custom_providers if cp["id"] == provider_id), None)
+
+    if not provider_config:
+        raise HTTPException(status_code=404, detail="Custom provider not found")
+
+    try:
+        provider = OpenAICompatibleProvider(
+            base_url=provider_config["base_url"],
+            api_key=provider_config["api_key"],
+            model=provider_config["model"],
+            display_name=provider_config["display_name"],
+        )
+        response = await asyncio.to_thread(
+            provider.generate,
+            messages=[{"role": "user", "content": "ping"}],
+            system="Reply with exactly: ok",
+            max_tokens=5,
+        )
+        return {
+            "ok": True,
+            "provider": provider_config["display_name"],
+            "response": response.strip(),
+        }
+    except Exception as e:
+        logger.warning(
+            "settings.test_custom_provider_failed",
+            user_id=user["id"],
+            provider_id=provider_id,
+            error=str(e),
+        )
         raise HTTPException(status_code=422, detail=str(e))

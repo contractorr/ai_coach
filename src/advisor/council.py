@@ -19,6 +19,8 @@ class CouncilMember:
     provider: str
     api_key: str
     model: str | None = None
+    display_name: str | None = None
+    base_url: str | None = None
 
 
 @dataclass
@@ -26,6 +28,7 @@ class CouncilMemberResponse:
     provider: str
     content: str | None = None
     error: str | None = None
+    display_name: str | None = None
 
     @property
     def ok(self) -> bool:
@@ -113,11 +116,24 @@ class CouncilOrchestrator:
         max_tokens: int,
     ) -> CouncilMemberResponse:
         try:
-            provider = self.provider_factory(
-                provider=member.provider,
-                api_key=member.api_key,
-                model=member.model,
-            )
+            # Handle custom OpenAI-compatible providers
+            if member.provider == "openai_compatible":
+                from llm.providers.openai_compatible import OpenAICompatibleProvider
+
+                provider = OpenAICompatibleProvider(
+                    base_url=member.base_url,
+                    api_key=member.api_key,
+                    model=member.model,
+                    display_name=member.display_name,
+                )
+            else:
+                # Use factory for built-in providers
+                provider = self.provider_factory(
+                    provider=member.provider,
+                    api_key=member.api_key,
+                    model=member.model,
+                )
+
             messages = list(conversation_history or [])
             messages.append(
                 {
@@ -130,14 +146,20 @@ class CouncilOrchestrator:
                 system=PromptTemplates.build_council_member_system(system),
                 max_tokens=max_tokens,
             )
-            return CouncilMemberResponse(provider=member.provider, content=content)
+            display_name = member.display_name or member.provider
+            return CouncilMemberResponse(
+                provider=member.provider, content=content, display_name=display_name
+            )
         except Exception as exc:
             logger.warning(
                 "advisor.council.member_failed",
-                provider=member.provider,
+                provider=member.display_name or member.provider,
                 error=str(exc),
             )
-            return CouncilMemberResponse(provider=member.provider, error=str(exc))
+            display_name = member.display_name or member.provider
+            return CouncilMemberResponse(
+                provider=member.provider, error=str(exc), display_name=display_name
+            )
 
     def _select_synthesis_member(
         self,

@@ -7,6 +7,21 @@ from pydantic import BaseModel, Field
 # --- Settings ---
 
 
+class CustomProviderCreate(BaseModel):
+    display_name: str = Field(..., min_length=1, max_length=100)
+    base_url: str = Field(..., min_length=1, max_length=500)
+    api_key: str = Field(..., min_length=1)
+    model: str = Field(..., min_length=1, max_length=200)
+
+
+class CustomProviderUpdate(BaseModel):
+    id: str = Field(..., min_length=1)
+    display_name: Optional[str] = Field(None, min_length=1, max_length=100)
+    base_url: Optional[str] = Field(None, min_length=1, max_length=500)
+    api_key: Optional[str] = Field(None, min_length=1)
+    model: Optional[str] = Field(None, min_length=1, max_length=200)
+
+
 class SettingsUpdate(BaseModel):
     """Update user settings / API keys."""
 
@@ -18,6 +33,9 @@ class SettingsUpdate(BaseModel):
     llm_api_key_openai: Optional[str] = None
     llm_api_key_gemini: Optional[str] = None
     llm_remove_providers: list[str] = Field(default_factory=list)
+    llm_custom_provider_add: Optional[CustomProviderCreate] = None
+    llm_custom_provider_update: Optional[CustomProviderUpdate] = None
+    llm_custom_providers_remove: list[str] = Field(default_factory=list)
     tavily_api_key: Optional[str] = None
     github_token: Optional[str] = None
     github_pat: Optional[str] = None
@@ -44,6 +62,13 @@ class LLMProviderKeyStatus(BaseModel):
     council_eligible: bool = False
 
 
+class CustomProviderInfo(BaseModel):
+    id: str
+    display_name: str
+    base_url: str
+    model: str
+
+
 class SettingsResponse(BaseModel):
     """Settings with bool mask for secrets (never raw keys)."""
 
@@ -52,6 +77,7 @@ class SettingsResponse(BaseModel):
     llm_council_enabled: bool = True
     llm_council_ready: bool = False
     llm_provider_keys: list[LLMProviderKeyStatus] = Field(default_factory=list)
+    llm_custom_providers: list[CustomProviderInfo] = Field(default_factory=list)
     llm_api_key_set: bool = False
     llm_api_key_hint: Optional[str] = None
     has_profile: bool = False

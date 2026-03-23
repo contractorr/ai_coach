@@ -14,7 +14,8 @@ Users can currently rely on one model provider at a time, which creates a single
 
 ## Desired Behavior
 
-- Settings lets the user connect one API key per supported provider and manage each key independently.
+- Settings lets the user connect one API key per supported provider (Claude, OpenAI, Gemini) and manage each key independently.
+- Settings lets the user add multiple custom OpenAI-compatible providers (Together AI, Groq, Fireworks, OpenRouter, Ollama, vLLM, LM Studio, etc.) by providing display name, base URL, API key, and model ID.
 - Settings clearly communicates which providers are currently available for use.
 - Users can choose a default lead provider for normal single-provider answers.
 - If the user has only one working provider key, steward answers normally with that provider.
@@ -46,14 +47,73 @@ Council mode is not intended for:
 - short rewrite or formatting requests
 - routine follow-up messages where deliberation adds little value
 
+## Custom OpenAI-Compatible Providers
+
+Users can extend council capabilities beyond the three built-in providers (Claude, OpenAI, Gemini) by adding custom providers that implement the OpenAI `/v1/chat/completions` API specification.
+
+### Supported Providers
+
+Any provider implementing OpenAI's chat completions API is compatible, including:
+- Together AI
+- Fireworks AI
+- Groq
+- OpenRouter
+- Ollama (local)
+- vLLM (self-hosted)
+- LM Studio (local)
+- Any other OpenAI-compatible endpoint
+
+### Configuration Requirements
+
+Each custom provider requires four fields:
+1. **Display Name**: User-chosen label (e.g., "Together – Llama 3")
+2. **Base URL**: Provider's API root (e.g., `https://api.together.xyz/v1`)
+3. **API Key**: Provider's authentication key
+4. **Model ID**: Model string to send (e.g., `meta-llama/Llama-3-70b-chat-hf`)
+
+### Custom Provider Behavior
+
+- Multiple custom providers can be configured (no hard limit beyond UI/UX considerations)
+- Each custom provider participates in council mode alongside built-in providers
+- Custom providers use the display name chosen by the user in council UI
+- Custom providers support the same test connection flow as built-in providers
+- API keys for custom providers are encrypted and stored with the same security as built-in provider keys
+- Custom providers can be edited or removed independently without affecting other providers
+- If a custom provider times out or fails, council continues with remaining providers
+
+### Validation
+
+Before saving a custom provider:
+- Base URL must be a valid URL format
+- All four fields must be non-empty
+- Optional: Test connection verifies URL, key, and model work together
+
+### Error Handling
+
+Common failure modes handled gracefully:
+- Invalid base URL → "Base URL must be a valid URL"
+- Authentication failure (401) → "Authentication failed. Check your API key."
+- Model not found (404) → "Model not available at this provider."
+- Network timeout → "Provider did not respond in time."
+- Rate limit → Treated same as built-in provider rate limits
+
 ## User Flows
 
-1. The user opens `Settings` and connects API keys for two or more supported providers.
+### Standard Provider Flow
+1. The user opens `Settings` and connects API keys for two or more supported providers (Claude, OpenAI, Gemini).
 2. The user selects a default lead provider for normal fast answers.
 3. The user sees that multiple providers are available and that steward may use council mode for eligible prompts in `Home`, `/advisor`, or deep-research style strategic queries.
 4. The user asks an important or open-ended question in one of those eligible surfaces.
 5. Steward automatically decides whether council mode applies and returns a single synthesized answer that highlights shared conclusions, disagreements, and the best recommended next step.
 6. The user can act on the recommendation without having to reconcile multiple raw model replies themselves.
+
+### Custom Provider Flow
+1. The user opens `Settings` and navigates to the "Custom Providers (OpenAI-compatible)" section.
+2. The user clicks "Add Provider" and fills in: display name, base URL, API key, and model ID.
+3. Optionally, the user clicks "Test Connection" to verify the configuration before saving.
+4. The user saves the custom provider. It now appears in the provider list and is eligible for council mode.
+5. The user can edit or remove custom providers independently.
+6. When council mode triggers, custom providers participate alongside built-in providers, with their display names shown in the council UI.
 
 ## Acceptance Criteria
 
@@ -70,6 +130,22 @@ Council mode is not intended for:
 - [ ] If only one working provider remains, steward falls back to a single-provider answer instead of failing the request.
 - [ ] The user can understand the latency and cost tradeoff before relying on council mode.
 
+### Custom Provider Criteria
+
+- [ ] A user can add multiple custom OpenAI-compatible providers from `Settings`.
+- [ ] Each custom provider requires display name, base URL, API key, and model ID.
+- [ ] All four fields must be non-empty before saving.
+- [ ] Base URL is validated for correct URL format.
+- [ ] Custom provider API keys are encrypted and stored with the same security as built-in provider keys.
+- [ ] Each custom provider has a "Test Connection" button that validates the configuration.
+- [ ] Test connection returns clear error messages for common failure modes (invalid URL, auth failure, model not found, timeout).
+- [ ] Custom providers can be edited independently.
+- [ ] Custom providers can be removed independently without affecting other providers.
+- [ ] Custom providers participate in council mode alongside built-in providers.
+- [ ] Custom providers use their user-defined display name in council UI and responses.
+- [ ] Council readiness calculation includes both built-in and custom providers.
+- [ ] If a custom provider fails during council, council continues with remaining providers.
+
 ## Edge Cases
 
 | Scenario | Expected Behavior |
@@ -80,15 +156,22 @@ Council mode is not intended for:
 | Providers materially disagree | The answer surfaces the disagreement clearly and avoids pretending there is a false consensus. |
 | User asks for a simple formatting or factual task | Steward uses the normal answer path and does not expose a manual `force council` override in v1. |
 | User removes a provider after using council mode previously | Future answers only use the providers that are still configured and healthy. |
+| Custom provider base URL is invalid | Settings shows clear validation error and prevents saving. |
+| Custom provider API key is incorrect | Test connection shows "Authentication failed" error. |
+| Custom provider model ID doesn't exist | Test connection shows "Model not available" error. |
+| Custom provider endpoint times out | Test connection shows timeout error; during council, provider is skipped. |
+| User adds two custom providers with same display name | Allowed; display names are user-chosen labels and need not be unique (though unique names are recommended for clarity). |
+| User's custom provider endpoint goes offline | Council skips that provider and continues with others; UI shows partial council indicator. |
 
 ## Out of Scope
 
-- Multiple keys for the same provider
+- Multiple keys for the same built-in provider (Claude/OpenAI/Gemini)
 - User-facing display of raw hidden reasoning or full internal debate transcripts
 - Automatic optimization for provider pricing beyond clear user messaging about extra cost
-- Self-hosted or custom model backends in the first release
 - User-configurable council synthesis styles in the first release
 - Manual per-prompt `force council` controls in the first release
+- Auto-discovery of custom providers (user must manually configure each provider)
+- OAuth or other auth flows for custom providers (API key auth only)
 
 ## Key System Components
 

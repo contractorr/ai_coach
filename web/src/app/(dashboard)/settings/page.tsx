@@ -38,12 +38,20 @@ interface LLMProviderKeyStatus {
   council_eligible: boolean;
 }
 
+interface CustomProvider {
+  id: string;
+  display_name: string;
+  base_url: string;
+  model: string;
+}
+
 interface Settings {
   llm_provider: string | null;
   llm_model: string | null;
   llm_council_enabled: boolean;
   llm_council_ready: boolean;
   llm_provider_keys: LLMProviderKeyStatus[];
+  llm_custom_providers: CustomProvider[];
   llm_api_key_set: boolean;
   llm_api_key_hint: string | null;
   using_shared_key: boolean;
@@ -484,6 +492,13 @@ export default function SettingsPage() {
   const [watchRemoving, setWatchRemoving] = useState<string | null>(null);
   const [editingWatchId, setEditingWatchId] = useState<string | null>(null);
   const [testingProvider, setTestingProvider] = useState<string | null>(null);
+  const [customProviderDisplayName, setCustomProviderDisplayName] = useState("");
+  const [customProviderBaseUrl, setCustomProviderBaseUrl] = useState("");
+  const [customProviderApiKey, setCustomProviderApiKey] = useState("");
+  const [customProviderModel, setCustomProviderModel] = useState("");
+  const [editingCustomProviderId, setEditingCustomProviderId] = useState<string | null>(null);
+  const [customProviderSaving, setCustomProviderSaving] = useState(false);
+  const [testingCustomProviderId, setTestingCustomProviderId] = useState<string | null>(null);
 
   const sectionLinks = [
     { id: "account", label: "Account" },
@@ -767,6 +782,104 @@ export default function SettingsPage() {
     }
   };
 
+  const resetCustomProviderForm = () => {
+    setCustomProviderDisplayName("");
+    setCustomProviderBaseUrl("");
+    setCustomProviderApiKey("");
+    setCustomProviderModel("");
+    setEditingCustomProviderId(null);
+  };
+
+  const handleSaveCustomProvider = async () => {
+    if (!token) return;
+    if (!customProviderDisplayName.trim() || !customProviderBaseUrl.trim() ||
+        !customProviderApiKey.trim() || !customProviderModel.trim()) {
+      toast.error("All fields are required");
+      return;
+    }
+    const urlPattern = /^https?:\/\/[^\s/$.?#].[^\s]*$/;
+    if (!urlPattern.test(customProviderBaseUrl.trim())) {
+      toast.error("Invalid base URL format");
+      return;
+    }
+    setCustomProviderSaving(true);
+    try {
+      const payload: Record<string, unknown> = {};
+      if (editingCustomProviderId) {
+        payload.llm_custom_provider_update = {
+          id: editingCustomProviderId,
+          display_name: customProviderDisplayName.trim(),
+          base_url: customProviderBaseUrl.trim(),
+          api_key: customProviderApiKey.trim(),
+          model: customProviderModel.trim(),
+        };
+      } else {
+        payload.llm_custom_provider_add = {
+          display_name: customProviderDisplayName.trim(),
+          base_url: customProviderBaseUrl.trim(),
+          api_key: customProviderApiKey.trim(),
+          model: customProviderModel.trim(),
+        };
+      }
+      const updated = await apiFetch<Settings>(
+        "/api/settings",
+        { method: "PUT", body: JSON.stringify(payload) },
+        token
+      );
+      setSettings(updated);
+      resetCustomProviderForm();
+      toast.success(editingCustomProviderId ? "Provider updated" : "Provider added");
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setCustomProviderSaving(false);
+    }
+  };
+
+  const handleEditCustomProvider = (provider: CustomProvider) => {
+    setEditingCustomProviderId(provider.id);
+    setCustomProviderDisplayName(provider.display_name);
+    setCustomProviderBaseUrl(provider.base_url);
+    setCustomProviderModel(provider.model);
+    setCustomProviderApiKey("");
+  };
+
+  const handleRemoveCustomProvider = async (providerId: string) => {
+    if (!token) return;
+    setTestingCustomProviderId(providerId);
+    try {
+      const updated = await apiFetch<Settings>(
+        "/api/settings",
+        { method: "PUT", body: JSON.stringify({ llm_custom_providers_remove: [providerId] }) },
+        token
+      );
+      setSettings(updated);
+      if (editingCustomProviderId === providerId) resetCustomProviderForm();
+      toast.success("Provider removed");
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setTestingCustomProviderId(null);
+    }
+  };
+
+  const handleTestCustomProvider = async (providerId: string) => {
+    if (!token) return;
+    setTestingCustomProviderId(providerId);
+    try {
+      const result = await apiFetch<{ ok: boolean; provider: string }>(
+        `/api/settings/test-custom-provider?provider_id=${encodeURIComponent(providerId)}`,
+        { method: "POST" },
+        token
+      );
+      toast.success(`${result.provider} connection successful!`);
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setTestingCustomProviderId(null);
+    }
+  };
+
   if (!settings) return <SettingsSkeleton />;
 
   return (
@@ -959,6 +1072,132 @@ export default function SettingsPage() {
                 </div>
               );
             })}
+          </div>
+
+          <Separator className="my-6" />
+
+          <div className="space-y-4">
+            <div>
+              <h3 className="text-sm font-semibold">Custom Providers (OpenAI-compatible)</h3>
+              <p className="text-xs text-muted-foreground mt-1">
+                Add any provider that implements the OpenAI chat completions API: Together AI, Groq, Fireworks, OpenRouter, Ollama, vLLM, LM Studio, etc.
+              </p>
+            </div>
+
+            {settings.llm_custom_providers.length > 0 && (
+              <div className="space-y-2">
+                {settings.llm_custom_providers.map((provider) => (
+                  <div key={provider.id} className="rounded-lg border p-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium">{provider.display_name}</p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {provider.base_url} • {provider.model}
+                        </p>
+                      </div>
+                      <div className="flex gap-1 shrink-0">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          disabled={testingCustomProviderId === provider.id}
+                          onClick={() => handleTestCustomProvider(provider.id)}
+                          className="h-7 text-xs"
+                        >
+                          {testingCustomProviderId === provider.id ? "Testing..." : "Test"}
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleEditCustomProvider(provider)}
+                          className="h-7 w-7 p-0"
+                          aria-label={`Edit ${provider.display_name}`}
+                        >
+                          <Pencil className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          disabled={testingCustomProviderId === provider.id}
+                          onClick={() => handleRemoveCustomProvider(provider.id)}
+                          className="h-7 w-7 p-0"
+                          aria-label={`Remove ${provider.display_name}`}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="space-y-3 rounded-lg border p-4 bg-muted/30">
+              <p className="text-sm font-medium">{editingCustomProviderId ? "Edit Provider" : "Add Provider"}</p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <Label className="text-xs text-muted-foreground">Display Name</Label>
+                  <Input
+                    value={customProviderDisplayName}
+                    onChange={(e) => setCustomProviderDisplayName(e.target.value)}
+                    placeholder="e.g., Together – Llama 3"
+                    className="mt-1 h-8 text-sm"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Base URL</Label>
+                  <Input
+                    value={customProviderBaseUrl}
+                    onChange={(e) => setCustomProviderBaseUrl(e.target.value)}
+                    placeholder="https://api.together.xyz/v1"
+                    className="mt-1 h-8 text-sm"
+                  />
+                </div>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <Label className="text-xs text-muted-foreground">API Key</Label>
+                  <Input
+                    type="password"
+                    value={customProviderApiKey}
+                    onChange={(e) => setCustomProviderApiKey(e.target.value)}
+                    placeholder="Your API key"
+                    className="mt-1 h-8 text-sm"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Model ID</Label>
+                  <Input
+                    value={customProviderModel}
+                    onChange={(e) => setCustomProviderModel(e.target.value)}
+                    placeholder="e.g., meta-llama/Llama-3-70b-chat-hf"
+                    className="mt-1 h-8 text-sm"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  onClick={handleSaveCustomProvider}
+                  disabled={customProviderSaving}
+                  className="h-8"
+                >
+                  {customProviderSaving ? "Saving..." : editingCustomProviderId ? "Update" : "Add"}
+                </Button>
+                {editingCustomProviderId && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={resetCustomProviderForm}
+                    className="h-8"
+                  >
+                    Cancel
+                  </Button>
+                )}
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>

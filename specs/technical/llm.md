@@ -194,6 +194,8 @@ Resolution steps:
 3. Imports the provider class lazily and instantiates it.
 4. Unknown provider string → raises `LLMError("Unknown provider: {resolved}. Use: claude, openai, gemini")`.
 
+**Note:** `create_llm_provider` does NOT handle custom OpenAI-compatible providers. Custom providers must be instantiated directly via `OpenAICompatibleProvider(base_url=..., api_key=..., model=..., display_name=...)` or via council/settings integration which constructs them separately.
+
 **`create_cheap_provider`:**
 
 ```python
@@ -501,6 +503,86 @@ Missing package (ImportError at init): `LLMError("google-genai package not insta
 
 #### Configuration
 Default model: `"gemini-2.5-flash"`. Cheap model: `"gemini-2.0-flash"`. No `extended_thinking` support.
+
+---
+
+### OpenAICompatibleProvider
+**File:** `src/llm/providers/openai_compatible.py`
+
+#### Behavior
+
+```python
+class OpenAICompatibleProvider(LLMProvider):
+    provider_name = "openai_compatible"
+
+    def __init__(
+        self,
+        base_url: str,
+        api_key: str,
+        model: str,
+        display_name: str | None = None,
+    )
+```
+
+A generic provider for any service implementing the OpenAI `/v1/chat/completions` API specification. Uses the `openai` SDK's client with custom `base_url` override.
+
+**`__init__`:**
+
+- Constructs an `OpenAI` client with `base_url` and `api_key` overrides
+- Stores `model` and `display_name` for identification
+- No default model — `model` is required
+- `display_name` used for council UI labels; defaults to `provider_name` if `None`
+
+**`generate` and `generate_with_tools`:**
+
+Identical to `OpenAIProvider` implementation — delegates to `self.client.chat.completions.create()` with standard OpenAI request format. System prompt prepended as `{"role": "system"}` message.
+
+**Tool format:**
+
+Same as `OpenAIProvider` — wraps `ToolDefinition` in OpenAI function format.
+
+**Message conversion:**
+
+Same as `OpenAIProvider` — no custom message format conversion needed since the provider is OpenAI-compatible.
+
+**Finish reason mapping:**
+
+| `choice.finish_reason` | `GenerateResponse.finish_reason` |
+|---|---|
+| `"tool_calls"` | `"tool_calls"` |
+| `"length"` | `"max_tokens"` |
+| anything else | `"stop"` |
+
+#### Inputs / Outputs
+- `generate` → `str`
+- `generate_with_tools` → `GenerateResponse`
+
+#### Invariants
+
+- `base_url` must be provided and valid
+- `api_key` must be provided
+- `model` must be provided (no default)
+- Behavior identical to `OpenAIProvider` except for endpoint location
+- `use_thinking` is silently ignored (same as OpenAI)
+
+#### Error Handling
+
+Uses the same exception handling as `OpenAIProvider`:
+
+| SDK exception | Raised as |
+|---|---|
+| `openai.AuthenticationError` | `LLMAuthError(f"{display_name} auth failed: ...")` |
+| `openai.RateLimitError` | `LLMRateLimitError(f"{display_name} rate limit: ...")` |
+| `openai.APIError` | `LLMError(f"{display_name} API error: ...")` |
+| `httpx.TimeoutException` | `LLMError(f"{display_name} timeout: ...")` |
+| `httpx.ConnectError` | `LLMError(f"{display_name} connection failed: ...")` |
+| Any other exception | `LLMError(f"{display_name} error: ...")` |
+
+Missing package (ImportError at init): `LLMError("openai package required for OpenAI-compatible providers")`.
+
+#### Configuration
+
+No default model. Model must be explicitly provided by the user.
 
 ---
 

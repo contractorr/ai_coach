@@ -385,6 +385,20 @@ def resolve_llm_credentials_for_user(
     return preferred if preferred in SUPPORTED_LLM_PROVIDERS else None, None, None
 
 
+def get_custom_providers_for_user(user_id: str) -> list[dict[str, str]]:
+    """Return user's custom OpenAI-compatible provider configs."""
+    import json
+
+    secrets = get_decrypted_secrets_for_user(user_id)
+    raw = secrets.get("llm_custom_providers")
+    if not raw:
+        return []
+    try:
+        return json.loads(raw)
+    except (json.JSONDecodeError, TypeError):
+        return []
+
+
 def get_council_members_for_user(user_id: str) -> list[dict[str, str]]:
     """Return configured personal provider credentials eligible for council mode."""
     secrets = get_decrypted_secrets_for_user(user_id)
@@ -392,11 +406,26 @@ def get_council_members_for_user(user_id: str) -> list[dict[str, str]]:
     if not enabled:
         return []
 
-    return [
-        {"provider": provider, "api_key": api_key}
-        for provider, api_key in _get_personal_llm_keys_from_secrets(secrets).items()
-        if api_key
-    ]
+    members = []
+
+    # Add built-in providers
+    for provider, api_key in _get_personal_llm_keys_from_secrets(secrets).items():
+        if api_key:
+            members.append({"provider": provider, "api_key": api_key})
+
+    # Add custom providers
+    for custom in get_custom_providers_for_user(user_id):
+        members.append(
+            {
+                "provider": "openai_compatible",
+                "api_key": custom["api_key"],
+                "model": custom["model"],
+                "display_name": custom["display_name"],
+                "base_url": custom["base_url"],
+            }
+        )
+
+    return members
 
 
 def get_api_key_with_source(user_id: str) -> tuple[str | None, str | None]:
@@ -471,14 +500,26 @@ def get_settings_mask_for_user(user_id: str) -> dict:
         key_hint = _hint(next(iter(personal_keys.values())))
     council_enabled = _parse_bool_secret(secrets.get("llm_council_enabled"), default=True)
     has_profile = is_onboarded(user_id)
+    custom_providers = get_custom_providers_for_user(user_id)
+    custom_provider_infos = [
+        {
+            "id": cp["id"],
+            "display_name": cp["display_name"],
+            "base_url": cp["base_url"],
+            "model": cp["model"],
+        }
+        for cp in custom_providers
+    ]
+    total_providers = len(personal_keys) + len(custom_providers)
 
     return {
         "has_profile": has_profile,
         "llm_provider": display_provider,
         "llm_model": secrets.get("llm_model") or config.llm.model,
         "llm_council_enabled": council_enabled,
-        "llm_council_ready": council_enabled and len(personal_keys) >= 2,
+        "llm_council_ready": council_enabled and total_providers >= 2,
         "llm_provider_keys": provider_statuses,
+        "llm_custom_providers": custom_provider_infos,
         "llm_api_key_set": has_own_key,
         "llm_api_key_hint": key_hint,
         "using_shared_key": source == "shared",
