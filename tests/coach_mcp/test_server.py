@@ -40,8 +40,8 @@ def test_load_tools_returns_20(mock_components):
 
     registry = _load_tools()
     tools = registry.get_mcp_definitions()
-    assert len(tools) == 52
-    assert len(registry.get_definitions()) == 52
+    assert len(tools) == 53
+    assert len(registry.get_definitions()) == 53
 
 
 def test_load_tools_names(mock_components):
@@ -104,6 +104,7 @@ def test_load_tools_names(mock_components):
         "curriculum_progress",
         "curriculum_due_reviews",
         "curriculum_recommend_next",
+        "curriculum_skill_tree",
     }
     assert names == expected
 
@@ -191,4 +192,4 @@ async def test_list_tools_async(mock_components):
     from coach_mcp.server import list_tools
 
     tools = await list_tools()
-    assert len(tools) == 52
+    assert len(tools) == 53
