@@ -19,6 +19,12 @@ const statusStyles: Record<string, string> = {
   completed: "bg-green-50 border-green-300 dark:bg-green-950/30",
 };
 
+const difficultyStyles: Record<string, { bg: string; text: string; label: string }> = {
+  introductory: { bg: "bg-green-100 dark:bg-green-950", text: "text-green-700 dark:text-green-400", label: "Intro" },
+  intermediate: { bg: "bg-amber-100 dark:bg-amber-950", text: "text-amber-700 dark:text-amber-400", label: "Inter" },
+  advanced: { bg: "bg-red-100 dark:bg-red-950", text: "text-red-700 dark:text-red-400", label: "Adv" },
+};
+
 export const SkillTreeNodeCard = forwardRef<HTMLDivElement, SkillTreeNodeProps>(
   function SkillTreeNodeCard({ node, trackColor }, ref) {
     const router = useRouter();
@@ -60,11 +66,30 @@ export const SkillTreeNodeCard = forwardRef<HTMLDivElement, SkillTreeNodeProps>(
           <p className="line-clamp-2 text-xs font-medium leading-tight">{node.title}</p>
         </div>
 
-        {node.mastery_score > 0 && (
-          <p className="mt-1 text-[10px] text-muted-foreground">
-            Mastery {Math.round(node.mastery_score)}%
-          </p>
-        )}
+        <div className="mt-1.5 flex items-center gap-1.5">
+          {difficultyStyles[node.difficulty] && (
+            <Badge
+              variant="outline"
+              className={cn(
+                "h-4 px-1 text-[9px] font-medium border-0",
+                difficultyStyles[node.difficulty].bg,
+                difficultyStyles[node.difficulty].text
+              )}
+            >
+              {difficultyStyles[node.difficulty].label}
+            </Badge>
+          )}
+          {node.mastery_score > 0 && (
+            <p className="text-[10px] text-muted-foreground">
+              {Math.round(node.mastery_score)}% mastery
+            </p>
+          )}
+          {!node.mastery_score && node.chapter_count > 0 && (
+            <p className="text-[10px] text-muted-foreground">
+              {node.chapter_count} ch
+            </p>
+          )}
+        </div>
 
         {node.enrolled && node.progress_pct > 0 && (
           <div className="mt-1.5">

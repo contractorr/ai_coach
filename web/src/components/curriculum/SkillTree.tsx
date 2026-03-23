@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Loader2, Route } from "lucide-react";
 import { useToken } from "@/hooks/useToken";
 import { apiFetch } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
@@ -15,11 +15,98 @@ import type {
 import { SkillTreeNodeCard } from "./SkillTreeNode";
 import { SkillTreeEdges } from "./SkillTreeEdges";
 
+interface LearningPath {
+  id: string;
+  name: string;
+  description: string;
+  guideIds: string[];
+  color: string;
+}
+
+const LEARNING_PATHS: LearningPath[] = [
+  {
+    id: "cognitive-science",
+    name: "🧠 Cognitive Science",
+    description: "Philosophy → Neuroscience → Psychology → Sociology",
+    guideIds: [
+      "01-philosophy-guide",
+      "16-cognitive-neuroscience-guide",
+      "18-behavioral-psychology-guide",
+      "23-sociology-institutional-design-guide",
+    ],
+    color: "#f59e0b",
+  },
+  {
+    id: "business-analytics",
+    name: "💼 Business Analytics",
+    description: "Math → Stats → Economics → MBA → Financial Services",
+    guideIds: [
+      "03-mathematics-pure-applied-guide",
+      "04-statistics-probability-guide",
+      "26-economics-guide",
+      "30-mba-curriculum",
+      "industry-financialservices",
+    ],
+    color: "#3b82f6",
+  },
+  {
+    id: "ai-ml",
+    name: "🤖 AI & Machine Learning",
+    description: "Math → Stats → Computer Science → AI/ML",
+    guideIds: [
+      "03-mathematics-pure-applied-guide",
+      "04-statistics-probability-guide",
+      "36-computer-science-algorithms-guide",
+      "37-ai-ml-fundamentals-guide",
+    ],
+    color: "#8b5cf6",
+  },
+  {
+    id: "policy-governance",
+    name: "🌍 Policy & Governance",
+    description: "Philosophy → Sociology → Government → Geopolitics",
+    guideIds: [
+      "01-philosophy-guide",
+      "18-behavioral-psychology-guide",
+      "23-sociology-institutional-design-guide",
+      "24-government-politics-guide",
+      "35-geopolitics-guide",
+    ],
+    color: "#ef4444",
+  },
+  {
+    id: "healthcare",
+    name: "🏥 Healthcare",
+    description: "Chemistry → Biology → Medicine → Healthcare Industry",
+    guideIds: [
+      "07-chemistry-biochemistry-guide",
+      "13-evolutionary-biology-guide",
+      "17-medicine-human-physiology-guide",
+      "industry-healthcare",
+    ],
+    color: "#10b981",
+  },
+  {
+    id: "data-science",
+    name: "📊 Data Science",
+    description: "Math → Stats → Info Theory → CS → AI/ML",
+    guideIds: [
+      "03-mathematics-pure-applied-guide",
+      "04-statistics-probability-guide",
+      "08-information-theory-complex-systems-guide",
+      "36-computer-science-algorithms-guide",
+      "37-ai-ml-fundamentals-guide",
+    ],
+    color: "#6366f1",
+  },
+];
+
 export function SkillTree() {
   const token = useToken();
   const [data, setData] = useState<SkillTreeResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedTracks, setSelectedTracks] = useState<Set<string>>(new Set());
+  const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const nodeRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const [nodePositions, setNodePositions] = useState<Map<string, DOMRect>>(new Map());
@@ -79,10 +166,28 @@ export function SkillTree() {
     return { coreNodes: core, industryNodes: industry };
   }, [data]);
 
+  // Get active learning path guide IDs
+  const pathGuideIds = useMemo(() => {
+    if (!selectedPath) return null;
+    const path = LEARNING_PATHS.find((p) => p.id === selectedPath);
+    return path ? new Set(path.guideIds) : null;
+  }, [selectedPath]);
+
   const filteredNodes = useMemo((): SkillTreeNode[] => {
-    if (selectedTracks.size === 0) return coreNodes;
-    return coreNodes.filter((n) => selectedTracks.has(n.track));
-  }, [coreNodes, selectedTracks]);
+    let nodes = coreNodes;
+
+    // Filter by track if tracks are selected
+    if (selectedTracks.size > 0) {
+      nodes = nodes.filter((n) => selectedTracks.has(n.track));
+    }
+
+    // Filter by learning path if path is selected
+    if (pathGuideIds) {
+      nodes = nodes.filter((n) => pathGuideIds.has(n.id));
+    }
+
+    return nodes;
+  }, [coreNodes, selectedTracks, pathGuideIds]);
 
   const filteredEdges = useMemo((): SkillTreeEdge[] => {
     if (!data) return [];
@@ -149,6 +254,43 @@ export function SkillTree() {
             Foundational knowledge organized as prerequisite pathways
           </p>
         </div>
+
+        {/* Learning Path Selector */}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-2">
+            <Route className="h-3.5 w-3.5 text-muted-foreground" />
+            <span className="text-xs font-medium text-muted-foreground">Learning Path:</span>
+          </div>
+          <select
+            value={selectedPath ?? ""}
+            onChange={(e) => {
+              const val = e.target.value;
+              setSelectedPath(val === "" ? null : val);
+              if (val) setSelectedTracks(new Set()); // Clear track filters when path selected
+            }}
+            className="h-8 rounded-md border bg-background px-2 text-xs"
+          >
+            <option value="">All guides (no path)</option>
+            {LEARNING_PATHS.map((path) => (
+              <option key={path.id} value={path.id}>
+                {path.name}
+              </option>
+            ))}
+          </select>
+          {selectedPath && (
+            <Badge variant="outline" className="text-xs">
+              {LEARNING_PATHS.find((p) => p.id === selectedPath)?.guideIds.length ?? 0} guides
+            </Badge>
+          )}
+        </div>
+
+        {selectedPath && (
+          <div className="rounded-lg border bg-muted/30 p-3">
+            <p className="text-xs text-muted-foreground">
+              {LEARNING_PATHS.find((p) => p.id === selectedPath)?.description}
+            </p>
+          </div>
+        )}
 
         {/* Track filter bar */}
         <div className="flex flex-wrap gap-1.5 px-1">
