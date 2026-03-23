@@ -73,7 +73,7 @@ export function CurriculumRenderer({ content }: CurriculumRendererProps) {
 
         if (isInline) {
           return (
-            <code className="rounded bg-muted px-1.5 py-0.5 text-[13px] font-mono">
+            <code className="rounded bg-muted px-1.5 py-0.5 text-[13px] font-mono text-primary/90">
               {children}
             </code>
           );
@@ -131,27 +131,62 @@ export function CurriculumRenderer({ content }: CurriculumRendererProps) {
         return <tr className="border-b last:border-0 even:bg-muted/30">{children}</tr>;
       },
       td({ children }) {
-        return <td className="px-3 py-2">{children}</td>;
+        return <td className="px-3 py-2 text-sm">{children}</td>;
       },
 
       // Headings: add scroll-margin for TOC linking
       h1({ children }) {
-        return <h1 className="scroll-mt-20 text-2xl font-bold mt-8 mb-4">{children}</h1>;
+        return <h1 className="sr-only">{children}</h1>;
       },
       h2({ children }) {
-        return <h2 className="scroll-mt-20 text-xl font-semibold mt-6 mb-3 border-b pb-1">{children}</h2>;
+        return (
+          <h2 className="scroll-mt-20 flex items-center gap-2 text-base font-semibold mt-8 mb-3 pb-2 border-b border-border/60">
+            <span className="inline-block w-1 h-5 rounded-full bg-primary/60 shrink-0" />
+            {children}
+          </h2>
+        );
       },
       h3({ children }) {
-        return <h3 className="scroll-mt-20 text-lg font-medium mt-5 mb-2">{children}</h3>;
+        return <h3 className="scroll-mt-20 text-sm font-semibold mt-6 mb-2 text-foreground/80">{children}</h3>;
       },
 
       // Blockquotes: styled as callouts
       blockquote({ children }) {
         return (
-          <blockquote className="my-4 border-l-4 border-primary/40 bg-primary/5 rounded-r-lg pl-4 pr-3 py-3 text-sm italic">
+          <blockquote className="my-4 border-l-4 border-primary/40 bg-primary/5 rounded-r-lg pl-4 pr-3 py-3 text-sm italic text-foreground/80">
             {children}
           </blockquote>
         );
+      },
+
+      // Paragraphs, lists, links, hr, inline styles
+      p({ children }) {
+        return <p className="my-3 text-sm leading-relaxed">{children}</p>;
+      },
+      ul({ children }) {
+        return <ul className="my-3 ml-6 list-disc space-y-1.5 text-sm">{children}</ul>;
+      },
+      ol({ children }) {
+        return <ol className="my-3 ml-6 list-decimal space-y-1.5 text-sm">{children}</ol>;
+      },
+      li({ children }) {
+        return <li className="leading-relaxed">{children}</li>;
+      },
+      a({ children, href }) {
+        return (
+          <a href={href} className="text-primary underline underline-offset-2 decoration-primary/40 hover:decoration-primary/80 transition-colors">
+            {children}
+          </a>
+        );
+      },
+      hr() {
+        return <hr className="my-8 border-t border-border" />;
+      },
+      strong({ children }) {
+        return <strong className="font-semibold text-foreground">{children}</strong>;
+      },
+      em({ children }) {
+        return <em className="italic text-foreground/90">{children}</em>;
       },
     }),
     []

@@ -234,7 +234,7 @@ export default function ChapterReaderPage() {
       <PreReadingCard chapterId={fullChapterId} isCompleted={isCompleted} />
 
       {/* Content */}
-      <article className="prose prose-sm dark:prose-invert max-w-none">
+      <article className="max-w-none rounded-xl border bg-card p-6 shadow-sm">
         <CurriculumRenderer content={chapter.content} />
       </article>
 
