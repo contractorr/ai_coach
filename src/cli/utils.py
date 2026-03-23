@@ -6,6 +6,7 @@ from pathlib import Path
 import structlog
 from rich.console import Console
 
+from coach_config import LegacyPaths
 from storage_access import (
     create_insight_store,
     create_intel_storage,
@@ -19,7 +20,7 @@ from storage_access import (
 from storage_access import (
     get_profile_path as resolve_profile_path,
 )
-from storage_paths import get_single_user_paths
+from storage_paths import StoragePaths, get_single_user_paths
 
 console = Console()
 logger = structlog.get_logger()
@@ -110,7 +111,9 @@ def get_components(skip_advisor: bool = False):
     }
 
 
-def get_storage_paths(config: dict | None = None, paths: dict | None = None) -> dict[str, Path]:
+def get_storage_paths(
+    config: dict | None = None, paths: LegacyPaths | dict | None = None
+) -> StoragePaths:
     """Return canonical single-user storage paths for CLI helpers and commands."""
     if config is None:
         from cli.config import load_config
@@ -129,55 +132,57 @@ def get_storage_paths(config: dict | None = None, paths: dict | None = None) -> 
     return get_single_user_paths(coach_home=coach_home, profile_path=profile_path)
 
 
-def get_rec_db_path(config: dict | None = None, storage_paths: dict | None = None) -> Path:
+def get_rec_db_path(config: dict | None = None, storage_paths: StoragePaths | None = None) -> Path:
     """Get recommendations directory path."""
     resolved_storage_paths = storage_paths or get_storage_paths(config=config)
     return get_recommendations_dir(resolved_storage_paths)
 
 
-def get_profile_storage(config: dict | None = None, storage_paths: dict | None = None):
+def get_profile_storage(config: dict | None = None, storage_paths: StoragePaths | None = None):
     """Get ProfileStorage instance from config."""
     resolved_storage_paths = storage_paths or get_storage_paths(config=config)
     return create_profile_storage(resolved_storage_paths)
 
 
-def get_profile_path(config: dict, storage_paths: dict | None = None) -> str:
+def get_profile_path(config: dict, storage_paths: StoragePaths | None = None) -> str:
     """Get profile YAML path from config."""
     resolved_storage_paths = storage_paths or get_storage_paths(config=config)
     return str(resolve_profile_path(resolved_storage_paths))
 
 
-def get_thread_store(config: dict | None = None, storage_paths: dict | None = None):
+def get_thread_store(config: dict | None = None, storage_paths: StoragePaths | None = None):
     """Get the single-user thread store for CLI commands."""
     resolved_storage_paths = storage_paths or get_storage_paths(config=config)
     return create_thread_store(resolved_storage_paths)
 
 
-def get_watchlist_store(config: dict | None = None, storage_paths: dict | None = None):
+def get_watchlist_store(config: dict | None = None, storage_paths: StoragePaths | None = None):
     """Get the single-user watchlist store for CLI commands."""
     resolved_storage_paths = storage_paths or get_storage_paths(config=config)
     return create_watchlist_store(resolved_storage_paths)
 
 
-def get_memory_store(config: dict | None = None, storage_paths: dict | None = None):
+def get_memory_store(config: dict | None = None, storage_paths: StoragePaths | None = None):
     """Get the single-user memory store for CLI commands."""
     resolved_storage_paths = storage_paths or get_storage_paths(config=config)
     return create_memory_store(resolved_storage_paths)
 
 
-def get_intel_storage(config: dict | None = None, storage_paths: dict | None = None):
+def get_intel_storage(config: dict | None = None, storage_paths: StoragePaths | None = None):
     """Get the shared intel store for CLI commands."""
     resolved_storage_paths = storage_paths or get_storage_paths(config=config)
     return create_intel_storage(resolved_storage_paths)
 
 
-def get_recommendation_storage(config: dict | None = None, storage_paths: dict | None = None):
+def get_recommendation_storage(
+    config: dict | None = None, storage_paths: StoragePaths | None = None
+):
     """Get the recommendation store for CLI commands."""
     resolved_storage_paths = storage_paths or get_storage_paths(config=config)
     return create_recommendation_storage(resolved_storage_paths)
 
 
-def get_insight_store(config: dict | None = None, storage_paths: dict | None = None):
+def get_insight_store(config: dict | None = None, storage_paths: StoragePaths | None = None):
     """Get the insight store for CLI commands."""
     resolved_storage_paths = storage_paths or get_storage_paths(config=config)
     return create_insight_store(resolved_storage_paths)

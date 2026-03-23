@@ -3,6 +3,8 @@
 from pathlib import Path
 from typing import Mapping
 
+from storage_paths import StoragePaths  # noqa: F401 — re-exported for consumers
+
 PathMap = Mapping[str, Path]
 
 

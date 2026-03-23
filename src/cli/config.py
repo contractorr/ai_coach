@@ -5,6 +5,7 @@ from typing import Optional
 
 import structlog
 
+from coach_config import LegacyPaths
 from coach_config import get_paths as _get_paths
 from coach_config import load_config as _load_config
 from coach_config import load_config_model as _load_config_model
@@ -58,7 +59,7 @@ def _deep_merge(base: dict, override: dict) -> dict:
     return result
 
 
-def get_paths(config: dict) -> dict:
+def get_paths(config: dict) -> LegacyPaths:
     """Get expanded paths from config."""
     return _get_paths(config)
 

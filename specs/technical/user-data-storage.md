@@ -42,9 +42,19 @@ $COACH_HOME/
 
 `safe_user_id` converts `google:12345` → `google_12345` (colons replaced with underscores).
 
+## Path TypedDicts
+
+Two `TypedDict` classes enforce key correctness at type-check time:
+
+**`StoragePaths`** (17 keys) — defined in `storage_paths.py`, returned by `_build_paths()`, `get_user_paths()`, `get_single_user_paths()`. Contains all canonical keys: `data_dir`, `journal_dir`, `chroma_dir`, `recommendations_dir`, `profile`, `profile_path`, `memory_db`, `threads_db`, `receipts_db`, `mind_maps_db`, `escalations_db`, `outcomes_db`, `assumptions_db`, `watchlist_path`, `follow_up_path`, `intel_follow_ups_path`, `intel_db`.
+
+**`LegacyPaths`** (4 keys) — defined in `coach_config.py`, returned by `get_paths()`. Contains: `journal_dir`, `chroma_dir`, `intel_db`, `log_file`.
+
+Factory functions in `storage_access.py` accept `PathMap = Mapping[str, Path]` which is compatible with both shapes at runtime. mypy does not recognize TypedDict as Mapping-compatible (known limitation), so these calls produce advisory `arg-type` warnings.
+
 ## Per-User Path Resolution
 
-For per-user paths, use `storage_paths.get_user_paths(user_id)` which returns a dict of canonical paths. In the web layer, `web.deps.get_user_paths(user_id)` wraps this.
+For per-user paths, use `storage_paths.get_user_paths(user_id)` which returns a `StoragePaths` dict of canonical paths. In the web layer, `web.deps.get_user_paths(user_id)` wraps this.
 
 ```python
 paths = get_user_paths(user_id)

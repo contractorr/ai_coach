@@ -13,7 +13,7 @@ from storage_access import (
     create_thread_store,
     create_watchlist_store,
 )
-from storage_paths import get_coach_home, get_single_user_paths
+from storage_paths import StoragePaths, get_coach_home, get_single_user_paths
 
 logger = structlog.get_logger()
 
@@ -57,7 +57,7 @@ def _resolve_coach_home(components: dict) -> Path:
     return get_coach_home()
 
 
-def get_storage_paths() -> dict:
+def get_storage_paths() -> StoragePaths:
     """Return canonical single-user storage paths for MCP tools."""
     components = get_components()
     cached = components.get("storage_paths")

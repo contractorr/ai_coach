@@ -1,7 +1,7 @@
 """Shared configuration loading helpers used across surfaces and domains."""
 
 from pathlib import Path
-from typing import Optional
+from typing import Optional, TypedDict
 
 import structlog
 import yaml
@@ -9,6 +9,16 @@ import yaml
 from cli.config_models import CoachConfig, LimitsConfig
 
 logger = structlog.get_logger()
+
+
+class LegacyPaths(TypedDict):
+    """Legacy 4-key path dictionary returned by get_paths()."""
+
+    journal_dir: Path
+    chroma_dir: Path
+    intel_db: Path
+    log_file: Path
+
 
 DEFAULTS = LimitsConfig().model_dump()
 DEFAULT_CONFIG = CoachConfig().to_dict()
@@ -72,15 +82,15 @@ def load_config_model(config_path: Optional[Path] = None) -> CoachConfig:
         raise ValueError(f"Config validation failed: {e}")
 
 
-def get_paths(config: dict) -> dict:
+def get_paths(config: dict) -> LegacyPaths:
     """Get expanded paths from config using defaults when unset."""
     paths = config.get("paths", DEFAULT_CONFIG["paths"])
-    return {
-        "journal_dir": Path(paths.get("journal_dir", "~/coach/journal")).expanduser(),
-        "chroma_dir": Path(paths.get("chroma_dir", "~/coach/chroma")).expanduser(),
-        "intel_db": Path(paths.get("intel_db", "~/coach/intel.db")).expanduser(),
-        "log_file": Path(paths.get("log_file", "~/coach/coach.log")).expanduser(),
-    }
+    return LegacyPaths(
+        journal_dir=Path(paths.get("journal_dir", "~/coach/journal")).expanduser(),
+        chroma_dir=Path(paths.get("chroma_dir", "~/coach/chroma")).expanduser(),
+        intel_db=Path(paths.get("intel_db", "~/coach/intel.db")).expanduser(),
+        log_file=Path(paths.get("log_file", "~/coach/coach.log")).expanduser(),
+    )
 
 
 def get_limits(config: dict) -> dict:

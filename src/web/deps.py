@@ -7,7 +7,7 @@ from pathlib import Path
 import structlog
 from fastapi import Depends, HTTPException
 
-from coach_config import get_paths, load_config_model
+from coach_config import LegacyPaths, get_paths, load_config_model
 from storage_access import (
     create_follow_up_store,
     create_insight_store,
@@ -23,6 +23,7 @@ from storage_access import (
 from storage_access import (
     get_profile_path as resolve_profile_path,
 )
+from storage_paths import StoragePaths
 from storage_paths import get_user_paths as resolve_user_paths
 from storage_paths import safe_user_id as _safe_user_id
 from web.auth import get_current_user
@@ -56,17 +57,17 @@ def get_config():
     return load_config_model()
 
 
-def get_coach_paths() -> dict:
+def get_coach_paths() -> LegacyPaths:
     """Get expanded paths dict (CLI / legacy single-user)."""
     coach_home = os.getenv("COACH_HOME")
     if coach_home:
         base = Path(coach_home).expanduser()
-        return {
-            "journal_dir": base / "journal",
-            "chroma_dir": base / "chroma",
-            "intel_db": base / "intel.db",
-            "log_file": base / "coach.log",
-        }
+        return LegacyPaths(
+            journal_dir=base / "journal",
+            chroma_dir=base / "chroma",
+            intel_db=base / "intel.db",
+            log_file=base / "coach.log",
+        )
 
     config = get_config()
     return get_paths(config.to_dict())
@@ -88,7 +89,7 @@ def safe_user_id(user_id: str) -> str:
     return _safe_user_id(user_id)
 
 
-def get_user_paths(user_id: str) -> dict:
+def get_user_paths(user_id: str) -> StoragePaths:
     """Per-user data directories under ~/coach/users/{user_id}/."""
     return resolve_user_paths(user_id)
 
