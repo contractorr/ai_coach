@@ -6,9 +6,54 @@ from typing import Optional
 
 import numpy as np
 import structlog
-from sklearn.cluster import KMeans
+
+from graceful import graceful_context
 
 logger = structlog.get_logger()
+
+
+def _kmeans(
+    data: np.ndarray, n_clusters: int, n_init: int = 10, max_iter: int = 300, seed: int = 42
+) -> np.ndarray:
+    """Lightweight KMeans using numpy only (Lloyd's algorithm, multi-init).
+
+    Returns an int array of cluster labels with shape (n_samples,).
+    """
+    rng = np.random.RandomState(seed)
+    n_samples, n_features = data.shape
+    best_labels = np.zeros(n_samples, dtype=int)
+    best_inertia = np.inf
+
+    for _ in range(n_init):
+        # Random initialization (Forgy)
+        indices = rng.choice(n_samples, size=n_clusters, replace=False)
+        centroids = data[indices].copy()
+
+        for _ in range(max_iter):
+            # Assign each point to nearest centroid
+            diffs = data[:, np.newaxis, :] - centroids[np.newaxis, :, :]
+            dists = np.sum(diffs**2, axis=2)
+            labels = np.argmin(dists, axis=1)
+
+            # Update centroids
+            new_centroids = np.empty_like(centroids)
+            for k in range(n_clusters):
+                members = data[labels == k]
+                if len(members) == 0:
+                    new_centroids[k] = data[rng.randint(n_samples)]
+                else:
+                    new_centroids[k] = members.mean(axis=0)
+
+            if np.allclose(centroids, new_centroids):
+                break
+            centroids = new_centroids
+
+        inertia = sum(np.sum((data[labels == k] - centroids[k]) ** 2) for k in range(n_clusters))
+        if inertia < best_inertia:
+            best_inertia = inertia
+            best_labels = labels.copy()
+
+    return best_labels
 
 
 class TrendDetector:
@@ -51,8 +96,7 @@ class TrendDetector:
         # Cluster all entries
         embeddings = np.array([e["embedding"] for e in entries])
         n_clusters = min(n_clusters, len(entries))
-        kmeans = KMeans(n_clusters=n_clusters, n_init=10, random_state=42)
-        labels = kmeans.fit_predict(embeddings)
+        labels = _kmeans(embeddings, n_clusters=n_clusters, n_init=10, seed=42)
 
         # Assign cluster labels to entries
         for i, entry in enumerate(entries):
@@ -126,14 +170,13 @@ Summarize:
 2. What topics are fading
 3. Any notable patterns or recommendations"""
 
-        try:
+        with graceful_context("graceful.trends.llm_analysis"):
             return self.llm_caller(
                 "You are a personal advisor analyzing journal topic trends.",
                 prompt,
                 1000,
             )
-        except Exception:
-            return trend_text
+        return trend_text
 
     def _get_entries_with_timestamps(self, days: int) -> list[dict]:
         """Get journal entries with embeddings and timestamps."""
@@ -177,7 +220,7 @@ Summarize:
         """Get embedding vector for an entry from ChromaDB."""
         if not self.search.embeddings:
             return None
-        try:
+        with graceful_context("graceful.trends.embedding_lookup"):
             path_str = str(entry.get("path", ""))
             result = self.search.embeddings.collection.get(
                 ids=[path_str],
@@ -185,8 +228,6 @@ Summarize:
             )
             if result["embeddings"] and result["embeddings"][0]:
                 return np.array(result["embeddings"][0])
-        except Exception:
-            pass
         return None
 
     def _bucket_entries(self, entries: list, window: str) -> dict[str, list]:

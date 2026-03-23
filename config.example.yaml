@@ -71,7 +71,7 @@ sources:
     change_threshold: 5.0
     max_items: 8
   google_trends:
-    enabled: true
+    enabled: false  # requires: pip install stewardme[google-trends]
     keywords: [AI agents, LLM fine-tuning, rust programming]
     spike_threshold: 20.0
     timeframe: "today 1-m"
@@ -97,7 +97,7 @@ sources:
     - yc_jobs
     - google_patents
     - ai_capabilities
-    - google_trends
+    # - google_trends      # requires: pip install stewardme[google-trends]
     # - indeed_hiring_lab  # requires Indeed API access
     # - crunchbase         # requires API key
 

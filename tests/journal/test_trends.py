@@ -1,6 +1,39 @@
 """Tests for topic trend detection."""
 
-from journal.trends import TrendDetector
+import numpy as np
+
+from journal.trends import TrendDetector, _kmeans
+
+
+class TestKmeans:
+    """Test numpy-only KMeans implementation."""
+
+    def test_separable_clusters(self):
+        """Clearly separated clusters should be correctly identified."""
+        rng = np.random.RandomState(0)
+        c1 = rng.randn(30, 2) + np.array([5, 5])
+        c2 = rng.randn(30, 2) + np.array([-5, -5])
+        c3 = rng.randn(30, 2) + np.array([5, -5])
+        data = np.vstack([c1, c2, c3])
+
+        labels = _kmeans(data, n_clusters=3, seed=0)
+
+        assert labels.shape == (90,)
+        assert set(labels.tolist()) == {0, 1, 2}
+        # All points in each original group should share a label
+        assert len(set(labels[:30])) == 1
+        assert len(set(labels[30:60])) == 1
+        assert len(set(labels[60:])) == 1
+
+    def test_returns_correct_dtype(self):
+        data = np.random.randn(20, 4)
+        labels = _kmeans(data, n_clusters=2)
+        assert labels.dtype == int or np.issubdtype(labels.dtype, np.integer)
+
+    def test_single_cluster(self):
+        data = np.random.randn(10, 3)
+        labels = _kmeans(data, n_clusters=1)
+        assert np.all(labels == 0)
 
 
 class TestTrendDetector:

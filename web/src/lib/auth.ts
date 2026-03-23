@@ -1,3 +1,6 @@
+// TODO: next-auth pinned at 5.0.0-beta.30 — beta semver is unreliable.
+// Auth.js was acquired by Better Auth; evaluate migrating to better-auth
+// or waiting for a stable next-auth v5 release before upgrading.
 import NextAuth from "next-auth";
 import type { Provider } from "next-auth/providers";
 import GitHub from "next-auth/providers/github";
