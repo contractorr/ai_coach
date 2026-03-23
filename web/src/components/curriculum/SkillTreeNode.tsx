@@ -2,8 +2,9 @@
 
 import { forwardRef } from "react";
 import { useRouter } from "next/navigation";
-import { Diamond } from "lucide-react";
+import { Diamond, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 import type { SkillTreeNode as SkillTreeNodeType } from "@/types/curriculum";
 
 interface SkillTreeNodeProps {
@@ -21,6 +22,7 @@ const statusStyles: Record<string, string> = {
 export const SkillTreeNodeCard = forwardRef<HTMLDivElement, SkillTreeNodeProps>(
   function SkillTreeNodeCard({ node, trackColor }, ref) {
     const router = useRouter();
+    const isEntryPoint = node.is_entry_point;
 
     return (
       <div
@@ -32,16 +34,27 @@ export const SkillTreeNodeCard = forwardRef<HTMLDivElement, SkillTreeNodeProps>(
           if (e.key === "Enter" || e.key === " ") router.push(`/learn/${node.id}`);
         }}
         className={cn(
-          "w-40 cursor-pointer rounded-md border p-2.5 transition-shadow hover:shadow-md",
+          "w-40 cursor-pointer rounded-md border p-2.5 transition-shadow hover:shadow-md relative",
           statusStyles[node.status] ?? statusStyles.not_started,
+          isEntryPoint && "ring-2 ring-primary/20",
         )}
         style={{ borderLeftWidth: 4, borderLeftColor: trackColor }}
       >
+        {isEntryPoint && (
+          <Badge
+            variant="secondary"
+            className="absolute -top-2 -right-2 h-5 px-1.5 text-[9px] font-semibold bg-primary text-primary-foreground"
+            title="Entry point - recommended starting guide"
+          >
+            <Sparkles className="h-2.5 w-2.5 mr-0.5" />
+            START
+          </Badge>
+        )}
         <div className="flex items-start gap-1">
           {node.is_entry_point && (
             <Diamond
               className="mt-0.5 h-3 w-3 shrink-0 fill-current text-orange-500"
-              title="Entry point - recommended starting guide"
+              aria-label="Entry point - recommended starting guide"
             />
           )}
           <p className="line-clamp-2 text-xs font-medium leading-tight">{node.title}</p>

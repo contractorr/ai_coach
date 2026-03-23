@@ -64,11 +64,25 @@ export function SkillTree() {
     });
   };
 
+  // Split into core curriculum vs industry applications
+  const { coreNodes, industryNodes } = useMemo(() => {
+    if (!data) return { coreNodes: [], industryNodes: [] };
+    const core: SkillTreeNode[] = [];
+    const industry: SkillTreeNode[] = [];
+    for (const node of data.nodes) {
+      if (node.id.startsWith("industry-")) {
+        industry.push(node);
+      } else {
+        core.push(node);
+      }
+    }
+    return { coreNodes: core, industryNodes: industry };
+  }, [data]);
+
   const filteredNodes = useMemo((): SkillTreeNode[] => {
-    if (!data) return [];
-    if (selectedTracks.size === 0) return data.nodes;
-    return data.nodes.filter((n) => selectedTracks.has(n.track));
-  }, [data, selectedTracks]);
+    if (selectedTracks.size === 0) return coreNodes;
+    return coreNodes.filter((n) => selectedTracks.has(n.track));
+  }, [coreNodes, selectedTracks]);
 
   const filteredEdges = useMemo((): SkillTreeEdge[] => {
     if (!data) return [];
@@ -121,84 +135,118 @@ export function SkillTree() {
     );
   }
 
-  const tracks = Object.values(data.tracks) as Track[];
+  // Filter tracks to exclude industry track from main tree filters
+  const coreTrackIds = Object.keys(data.tracks).filter((tid) => tid !== "industry");
+  const coreTracks = coreTrackIds.map((tid) => data.tracks[tid] as Track);
 
   return (
-    <div className="space-y-4">
-      {/* Track filter bar */}
-      <div className="flex flex-wrap gap-1.5 px-1">
-        {tracks.map((track) => (
-          <Badge
-            key={track.id}
-            variant={
-              selectedTracks.size === 0 || selectedTracks.has(track.id)
-                ? "default"
-                : "outline"
-            }
-            className="cursor-pointer text-xs"
-            style={
-              selectedTracks.size === 0 || selectedTracks.has(track.id)
-                ? { backgroundColor: track.color, borderColor: track.color }
-                : { color: track.color, borderColor: track.color }
-            }
-            onClick={() => toggleTrack(track.id)}
-          >
-            {track.title}
-          </Badge>
-        ))}
-        {selectedTracks.size > 0 && (
-          <Badge
-            key="clear-filter"
-            variant="outline"
-            className="cursor-pointer text-xs"
-            onClick={() => setSelectedTracks(new Set())}
-          >
-            Clear
-          </Badge>
-        )}
-      </div>
+    <div className="space-y-6">
+      {/* Core Curriculum Section */}
+      <div className="space-y-4">
+        <div>
+          <h3 className="text-sm font-semibold text-foreground">Core Curriculum</h3>
+          <p className="text-xs text-muted-foreground">
+            Foundational knowledge organized as prerequisite pathways
+          </p>
+        </div>
 
-      {/* Tree container */}
-      <div ref={containerRef} className="relative overflow-x-auto pb-4">
-        {filteredNodes.length === 0 ? (
-          <div className="rounded-lg border border-dashed p-8 text-center">
-            <p className="text-sm text-muted-foreground">
-              No guides match the selected filters
-            </p>
+        {/* Track filter bar */}
+        <div className="flex flex-wrap gap-1.5 px-1">
+          {coreTracks.map((track) => (
             <Badge
+              key={track.id}
+              variant={
+                selectedTracks.size === 0 || selectedTracks.has(track.id)
+                  ? "default"
+                  : "outline"
+              }
+              className="cursor-pointer text-xs"
+              style={
+                selectedTracks.size === 0 || selectedTracks.has(track.id)
+                  ? { backgroundColor: track.color, borderColor: track.color }
+                  : { color: track.color, borderColor: track.color }
+              }
+              onClick={() => toggleTrack(track.id)}
+            >
+              {track.title}
+            </Badge>
+          ))}
+          {selectedTracks.size > 0 && (
+            <Badge
+              key="clear-filter"
               variant="outline"
-              className="cursor-pointer text-xs mt-3"
+              className="cursor-pointer text-xs"
               onClick={() => setSelectedTracks(new Set())}
             >
-              Clear filters
+              Clear
             </Badge>
-          </div>
-        ) : (
-          <>
-            <SkillTreeEdges
-              edges={filteredEdges}
-              nodePositions={nodePositions}
-              containerRect={containerRect}
-              getTrackColor={getTrackColor}
-            />
+          )}
+        </div>
 
-            <div className="relative z-10 flex flex-col gap-8">
-              {depthRows.map(([depth, nodes]) => (
-                <div key={depth} className="flex flex-wrap justify-center gap-3">
-                  {nodes.map((node) => (
-                    <SkillTreeNodeCard
-                      key={node.id}
-                      ref={(el) => setNodeRef(node.id, el)}
-                      node={node}
-                      trackColor={data.tracks[node.track]?.color ?? "#888"}
-                    />
-                  ))}
-                </div>
-              ))}
+        {/* Tree container */}
+        <div ref={containerRef} className="relative overflow-x-auto pb-4">
+          {filteredNodes.length === 0 ? (
+            <div className="rounded-lg border border-dashed p-8 text-center">
+              <p className="text-sm text-muted-foreground">
+                No guides match the selected filters
+              </p>
+              <Badge
+                variant="outline"
+                className="cursor-pointer text-xs mt-3"
+                onClick={() => setSelectedTracks(new Set())}
+              >
+                Clear filters
+              </Badge>
             </div>
-          </>
-        )}
+          ) : (
+            <>
+              <SkillTreeEdges
+                edges={filteredEdges}
+                nodePositions={nodePositions}
+                containerRect={containerRect}
+                getTrackColor={getTrackColor}
+              />
+
+              <div className="relative z-10 flex flex-col gap-8">
+                {depthRows.map(([depth, nodes]) => (
+                  <div key={depth} className="flex flex-wrap justify-center gap-3">
+                    {nodes.map((node) => (
+                      <SkillTreeNodeCard
+                        key={node.id}
+                        ref={(el) => setNodeRef(node.id, el)}
+                        node={node}
+                        trackColor={data.tracks[node.track]?.color ?? "#888"}
+                      />
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
       </div>
+
+      {/* Industry Applications Section */}
+      {industryNodes.length > 0 && (
+        <div className="space-y-4">
+          <div>
+            <h3 className="text-sm font-semibold text-foreground">Industry Applications</h3>
+            <p className="text-xs text-muted-foreground">
+              Sector-specific guides for practitioners — {industryNodes.length} industries
+            </p>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {industryNodes.map((node) => (
+              <SkillTreeNodeCard
+                key={node.id}
+                node={node}
+                trackColor={data.tracks[node.track]?.color ?? "#888"}
+              />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -67,6 +67,8 @@ tracks:
         prerequisites: ["18-behavioral-psychology-guide"]
       - id: "34-demography-urbanization-infrastructure-guide"
         prerequisites: ["23-sociology-institutional-design-guide", "04-statistics-probability-guide"]
+      - id: "35-geopolitics-guide"
+        prerequisites: ["24-government-politics-guide", "22-world-history-civilizational-dynamics-guide"]
 
   business_economics:
     title: "Business & Economics"
@@ -85,8 +87,6 @@ tracks:
         prerequisites: ["26-economics-guide", "28-accounting"]
       - id: "31-private-markets-curriculum"
         prerequisites: ["30-mba-curriculum"]
-      - id: "34-game-theory-strategic-interaction-guide"
-        prerequisites: ["05-game-theory-strategic-interaction-guide", "26-economics-guide"]
 
   technology:
     title: "Technology"
@@ -101,10 +101,6 @@ tracks:
         prerequisites: ["36-computer-science-algorithms-guide"]
       - id: "32-engineering-guide"
         prerequisites: ["06-physics-fundamentals-guide", "03-mathematics-pure-applied-guide"]
-      - id: "35-engineering-guide"
-        prerequisites: ["32-engineering-guide"]
-      - id: "35-geopolitics-guide"
-        prerequisites: ["24-government-politics-guide", "22-world-history-civilizational-dynamics-guide"]
 
   industry:
     title: "Industry"
