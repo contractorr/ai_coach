@@ -126,6 +126,8 @@ EXTERNAL INTELLIGENCE:
 
 {thoughts_context}
 
+{curriculum_context}
+
 {research_context}
 
 USER QUESTION: {question}
@@ -149,6 +151,8 @@ EXTERNAL INTELLIGENCE:
 {memory_context}
 
 {thoughts_context}
+
+{curriculum_context}
 
 DEEP RESEARCH (auto-generated reports on topics you've shown interest in):
 {research_context}
@@ -181,6 +185,8 @@ Use the research context when relevant to provide more informed, thorough answer
 
 {thoughts_context}
 
+{curriculum_context}
+
 {research_context}
 
 USER QUESTION: {question}
@@ -210,6 +216,8 @@ Provide a helpful, specific response:"""
 {memory_context}
 
 {thoughts_context}
+
+{curriculum_context}
 
 <deep_research>
 {research_context}
@@ -271,6 +279,7 @@ COUNCIL RESPONSES:
         thoughts_context: str = "",
         research_context: str = "",
         entity_context: str = "",
+        curriculum_context: str = "",
         question: str,
     ) -> str:
         """Assemble user prompt, omitting empty optional sections."""
@@ -283,6 +292,7 @@ COUNCIL RESPONSES:
             thoughts_context=thoughts_context,
             research_context=research_context,
             entity_context=entity_context,
+            curriculum_context=curriculum_context,
             question=question,
         )
         # Collapse runs of 3+ blank lines into 2

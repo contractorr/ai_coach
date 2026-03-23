@@ -160,16 +160,56 @@ async def get_chapter(
 @router.post("/guides/{guide_id}/enroll", status_code=status.HTTP_201_CREATED)
 async def enroll_guide(
     guide_id: str,
+    create_goal: bool = Query(True),
     user: dict = Depends(get_current_user),
 ):
-    store = _get_store(user["id"])
-    guide = store.get_guide(guide_id)
+    user_id = user["id"]
+    store = _get_store(user_id)
+    guide = store.get_guide(guide_id, user_id=user_id)
     if not guide:
         raise HTTPException(status_code=404, detail="Guide not found")
 
-    store.enroll(user["id"], guide_id)
-    log_event("curriculum_enrolled", user["id"], {"guide_id": guide_id})
-    return {"status": "enrolled", "guide_id": guide_id}
+    store.enroll(user_id, guide_id)
+
+    linked_goal_path: str | None = None
+    milestones_added = 0
+
+    if create_goal:
+        try:
+            from advisor.goals import GoalTracker, get_goal_defaults
+            from journal.storage import JournalStorage
+
+            paths = get_user_paths(user_id)
+            journal_storage = JournalStorage(paths["journal_dir"])
+            goal_path = journal_storage.create(
+                content=f"Complete the **{guide['title']}** curriculum guide.",
+                entry_type="goal",
+                title=f"Learn: {guide['title']}",
+                tags=["learning", "curriculum"],
+                metadata=get_goal_defaults(goal_type="learning"),
+            )
+            linked_goal_path = str(goal_path)
+
+            # Add chapter milestones
+            tracker = GoalTracker(journal_storage)
+            chapters = guide.get("chapters", [])
+            for ch in chapters:
+                if not ch.get("is_glossary"):
+                    tracker.add_milestone(goal_path, ch["title"])
+                    milestones_added += 1
+
+            # Link goal back to enrollment
+            store.enroll(user_id, guide_id, linked_goal_id=linked_goal_path)
+        except Exception as exc:
+            logger.warning("enroll_goal_creation_failed", guide=guide_id, error=str(exc))
+
+    log_event("curriculum_enrolled", user_id, {"guide_id": guide_id})
+    return {
+        "status": "enrolled",
+        "guide_id": guide_id,
+        "linked_goal_path": linked_goal_path,
+        "milestones_added": milestones_added,
+    }
 
 
 @router.post("/progress")
@@ -177,9 +217,10 @@ async def update_progress(
     body: ProgressUpdate,
     user: dict = Depends(get_current_user),
 ):
-    store = _get_store(user["id"])
+    user_id = user["id"]
+    store = _get_store(user_id)
     result = store.update_progress(
-        user_id=user["id"],
+        user_id=user_id,
         chapter_id=body.chapter_id,
         guide_id=body.guide_id,
         status=body.status.value if body.status else None,
@@ -187,17 +228,83 @@ async def update_progress(
         scroll_position=body.scroll_position,
     )
 
+    reflection_prompt: str | None = None
+    memory_facts_extracted = 0
+
     if body.status == ChapterStatus.COMPLETED:
         log_event(
             "chapter_completed",
-            user["id"],
-            {
-                "chapter_id": body.chapter_id,
-                "guide_id": body.guide_id,
-            },
+            user_id,
+            {"chapter_id": body.chapter_id, "guide_id": body.guide_id},
         )
 
-    return result
+        # Reflection prompt
+        try:
+            chapter = store.get_chapter(body.chapter_id)
+            ch_title = chapter["title"] if chapter else body.chapter_id
+            guide = store.get_guide(body.guide_id)
+            g_title = guide["title"] if guide else body.guide_id
+            guide_complete = _is_guide_just_completed(store, user_id, body.guide_id)
+            reflection_prompt = _generate_reflection_prompt(ch_title, g_title, guide_complete)
+        except Exception as exc:
+            logger.debug("reflection_prompt_failed", error=str(exc))
+
+        # Memory extraction from chapter content
+        try:
+            config = get_config()
+            if config.memory.enabled:
+                content_path = _chapter_content_path(body.chapter_id)
+                if content_path and content_path.is_file():
+                    text = content_path.read_text(encoding="utf-8")[:3000]
+                    from memory.pipeline import MemoryPipeline
+                    from web.deps import get_memory_store
+
+                    fact_store = get_memory_store(user_id)
+                    pipeline = MemoryPipeline(fact_store)
+                    updates = pipeline.process_document(
+                        document_id=f"curriculum:{body.chapter_id}",
+                        document_text=text,
+                        document_metadata={
+                            "source_type": "curriculum",
+                            "guide_id": body.guide_id,
+                            "chapter_id": body.chapter_id,
+                        },
+                    )
+                    memory_facts_extracted = len(updates)
+        except Exception as exc:
+            logger.debug("curriculum_memory_extraction_failed", error=str(exc))
+
+    return {
+        **(result if isinstance(result, dict) else {"status": "updated"}),
+        "reflection_prompt": reflection_prompt,
+        "memory_facts_extracted": memory_facts_extracted,
+    }
+
+
+def _generate_reflection_prompt(
+    chapter_title: str, guide_title: str, is_guide_complete: bool
+) -> str:
+    if is_guide_complete:
+        return (
+            f"You finished '{guide_title}'. What's the most important concept "
+            f"you learned and how might you apply it?"
+        )
+    return f"You completed '{chapter_title}'. What was the key takeaway?"
+
+
+def _is_guide_just_completed(store: CurriculumStore, user_id: str, guide_id: str) -> bool:
+    """Check if all non-glossary chapters are now completed."""
+    guide = store.get_guide(guide_id, user_id=user_id)
+    if not guide:
+        return False
+    chapters = guide.get("chapters", [])
+    for ch in chapters:
+        if ch.get("is_glossary"):
+            continue
+        prog = store.get_chapter_progress(user_id, ch["id"])
+        if not prog or prog.get("status") != "completed":
+            return False
+    return True
 
 
 @router.get("/review/due")

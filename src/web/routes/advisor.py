@@ -269,6 +269,7 @@ def _get_engine(user_id: str, use_tools: bool = False):
         "structured_profile": True,
         "xml_delimiters": True,
         "inject_documents": True,
+        "inject_curriculum": True,
     }
     if config.memory.enabled:
         rag_config["inject_memory"] = True

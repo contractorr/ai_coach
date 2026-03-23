@@ -293,6 +293,7 @@ class AdvisorEngine:
                 thoughts_context=ctx.thoughts,
                 research_context=research_ctx if has_research else "",
                 entity_context=ctx.entity_context,
+                curriculum_context=ctx.curriculum_context,
                 question=question,
             )
             return system_prompt, user_prompt

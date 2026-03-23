@@ -37,6 +37,7 @@ class AskContext:
     documents: str = ""
     entity_context: str = ""
     repo_context: str = ""
+    curriculum_context: str = ""
 
 
 class RAGRetriever:
@@ -188,6 +189,46 @@ class RAGRetriever:
             logger.debug("repo_context_skipped", error=str(e))
             return ""
 
+    def get_curriculum_context(self, query: str = "", max_chars: int = 1500) -> str:
+        """Get curriculum progress context for advisor prompt injection."""
+        if not self._user_id or not self.intel_db_path:
+            return ""
+        try:
+            from curriculum.store import CurriculumStore
+
+            db_path = Path(self.intel_db_path).parent / "curriculum.db"
+            if not db_path.exists():
+                return ""
+            store = CurriculumStore(db_path)
+            enrollments = store.get_enrollments(self._user_id)
+            active = [e for e in enrollments if not e.get("completed_at")][:5]
+            if not active:
+                return ""
+
+            lines = ["<curriculum_progress>"]
+            for enrollment in active:
+                guide = store.get_guide(enrollment["guide_id"])
+                if not guide:
+                    continue
+                chapters = guide.get("chapters", [])
+                total = len(chapters)
+                completed = 0
+                if chapters:
+                    for ch in chapters:
+                        prog = store.get_chapter_progress(self._user_id, ch["id"])
+                        if prog and prog.get("status") == "completed":
+                            completed += 1
+                lines.append(
+                    f'  <guide id="{guide["id"]}" title="{guide["title"]}" '
+                    f'progress="{completed}/{total}" />'
+                )
+            lines.append("</curriculum_progress>")
+            result = "\n".join(lines)
+            return result if len(result) <= max_chars else result[:max_chars]
+        except Exception as e:
+            logger.debug("curriculum_context_skipped", error=str(e))
+            return ""
+
     def build_context_for_ask(
         self,
         query: str,
@@ -225,6 +266,10 @@ class RAGRetriever:
         if cfg.get("inject_repo_context", True):
             repo_ctx = self.get_repo_context(query)
 
+        curriculum_ctx = ""
+        if cfg.get("inject_curriculum", True):
+            curriculum_ctx = self.get_curriculum_context(query)
+
         return AskContext(
             journal=enhanced.journal,
             intel=enhanced.intel,
@@ -234,6 +279,7 @@ class RAGRetriever:
             documents=documents_ctx,
             entity_context=enhanced.entity_context,
             repo_context=repo_ctx,
+            curriculum_context=curriculum_ctx,
         )
 
     def get_document_context(

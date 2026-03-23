@@ -11,6 +11,8 @@ import {
   ChevronLeft,
   Clock,
   ClipboardList,
+  PenLine,
+  X,
 } from "lucide-react";
 import { useToken } from "@/hooks/useToken";
 import { apiFetch } from "@/lib/api";
@@ -32,6 +34,8 @@ export default function ChapterReaderPage() {
   const [completing, setCompleting] = useState(false);
   const [quiz, setQuiz] = useState<ReviewItem[] | null>(null);
   const [quizLoading, setQuizLoading] = useState(false);
+  const [reflectionPrompt, setReflectionPrompt] = useState<string | null>(null);
+  const [savingReflection, setSavingReflection] = useState(false);
 
   // Reading time tracker
   const readingStart = useRef(Date.now());
@@ -98,8 +102,28 @@ export default function ChapterReaderPage() {
   const handleComplete = async () => {
     setCompleting(true);
     try {
-      await syncProgress("completed");
+      const elapsed = Math.round((Date.now() - lastSync.current) / 1000);
+      lastSync.current = Date.now();
+      const progressResult = await apiFetch<{
+        reflection_prompt?: string;
+        memory_facts_extracted?: number;
+      }>(
+        "/api/curriculum/progress",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            chapter_id: fullChapterId,
+            guide_id: guideId,
+            status: "completed",
+            reading_time_seconds: elapsed > 0 ? elapsed : undefined,
+          }),
+        },
+        token!
+      );
       toast.success("Chapter completed!");
+      if (progressResult.reflection_prompt) {
+        setReflectionPrompt(progressResult.reflection_prompt);
+      }
       // Refresh to get updated status
       const data = await apiFetch<ChapterDetail>(
         `/api/curriculum/guides/${guideId}/chapters/${chapterId}`,
@@ -111,6 +135,32 @@ export default function ChapterReaderPage() {
       toast.error((e as Error).message);
     } finally {
       setCompleting(false);
+    }
+  };
+
+  const handleSaveReflection = async () => {
+    if (!token || !reflectionPrompt) return;
+    setSavingReflection(true);
+    try {
+      await apiFetch(
+        "/api/journal",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            content: reflectionPrompt,
+            entry_type: "reflection",
+            title: `Chapter Review: ${chapter?.title ?? chapterId}`,
+            tags: ["curriculum", guideId],
+          }),
+        },
+        token
+      );
+      toast.success("Reflection saved");
+      setReflectionPrompt(null);
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setSavingReflection(false);
     }
   };
 
@@ -218,6 +268,22 @@ export default function ChapterReaderPage() {
           )}
         </div>
       </div>
+
+      {/* Reflection prompt */}
+      {reflectionPrompt && (
+        <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 space-y-3">
+          <p className="text-sm">{reflectionPrompt}</p>
+          <div className="flex gap-2">
+            <Button size="sm" onClick={handleSaveReflection} disabled={savingReflection}>
+              <PenLine className="mr-1.5 h-3.5 w-3.5" />
+              {savingReflection ? "Saving..." : "Write reflection"}
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setReflectionPrompt(null)}>
+              <X className="mr-1.5 h-3.5 w-3.5" /> Dismiss
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Quiz panel (inline) */}
       {quiz && quiz.length > 0 && (

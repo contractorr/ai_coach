@@ -1,8 +1,11 @@
 "use client";
 
-import { useMemo, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { BarChart3 } from "lucide-react";
+import { parseChartData, type ParsedChartData } from "@/lib/chart-parser";
+import { ChartOverlay } from "./ChartOverlay";
 
 /**
  * Detect if a code block contains an ASCII diagram.
@@ -161,39 +164,89 @@ export function CurriculumRenderer({ content }: CurriculumRendererProps) {
   );
 }
 
-/** Render ASCII diagram with subtle styling */
-function DiagramBlock({ text }: { text: string }) {
+/** Chart toggle button shown when data is parseable */
+function ChartToggle({
+  chartData,
+  showChart,
+  onToggle,
+}: {
+  chartData: ParsedChartData;
+  showChart: boolean;
+  onToggle: () => void;
+}) {
+  if (chartData.chartType === "none") return null;
   return (
-    <code className="text-slate-700 dark:text-slate-300">
-      {text}
-    </code>
+    <button
+      onClick={onToggle}
+      className="absolute top-2 right-2 p-1 rounded hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors"
+      title={showChart ? "Show ASCII" : "Show chart"}
+    >
+      <BarChart3 className="h-4 w-4" />
+    </button>
   );
 }
 
-/** Render data table with alternating row backgrounds */
-function TableBlock({ text }: { text: string }) {
-  const lines = text.split("\n");
+/** Render ASCII diagram with subtle styling + optional chart overlay */
+function DiagramBlock({ text }: { text: string }) {
+  const [showChart, setShowChart] = useState(false);
+  const chartData = useMemo(() => parseChartData(text), [text]);
+
+  if (showChart && chartData) {
+    return (
+      <div className="relative">
+        <ChartToggle chartData={chartData} showChart={showChart} onToggle={() => setShowChart(false)} />
+        <ChartOverlay data={chartData} />
+      </div>
+    );
+  }
+
   return (
-    <code>
-      {lines.map((line, i) => {
-        const isSep = /^[\s─\-|:+]+$/.test(line);
-        return (
-          <span
-            key={i}
-            className={
-              isSep
-                ? "text-muted-foreground/60"
-                : i % 2 === 0
-                  ? ""
-                  : "bg-muted/30"
-            }
-            style={{ display: "block" }}
-          >
-            {line}
-            {"\n"}
-          </span>
-        );
-      })}
-    </code>
+    <div className="relative">
+      {chartData && <ChartToggle chartData={chartData} showChart={showChart} onToggle={() => setShowChart(true)} />}
+      <code className="text-slate-700 dark:text-slate-300">{text}</code>
+    </div>
+  );
+}
+
+/** Render data table with alternating row backgrounds + optional chart overlay */
+function TableBlock({ text }: { text: string }) {
+  const [showChart, setShowChart] = useState(false);
+  const chartData = useMemo(() => parseChartData(text), [text]);
+  const lines = text.split("\n");
+
+  if (showChart && chartData) {
+    return (
+      <div className="relative">
+        <ChartToggle chartData={chartData} showChart={showChart} onToggle={() => setShowChart(false)} />
+        <ChartOverlay data={chartData} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative">
+      {chartData && <ChartToggle chartData={chartData} showChart={showChart} onToggle={() => setShowChart(true)} />}
+      <code>
+        {lines.map((line, i) => {
+          const isSep = /^[\s─\-|:+]+$/.test(line);
+          return (
+            <span
+              key={i}
+              className={
+                isSep
+                  ? "text-muted-foreground/60"
+                  : i % 2 === 0
+                    ? ""
+                    : "bg-muted/30"
+              }
+              style={{ display: "block" }}
+            >
+              {line}
+              {"\n"}
+            </span>
+          );
+        })}
+      </code>
+    </div>
   );
 }

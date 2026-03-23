@@ -10,7 +10,7 @@ Learn is a structured study workspace that turns a corpus of markdown guides int
 
 - Workspace: `Learn`
 - Primary job: read, study, and retain knowledge from curated guides
-- Cross-system handoffs: completed chapters create memory facts, guide enrollment can auto-create goals, review reminders surface in recommendations
+- Cross-system handoffs: completed chapters create memory facts (auto-extracted), guide enrollment auto-creates goals with milestones, review reminders surface in recommendations, advisor RAG injects `<curriculum_progress>` context
 
 ## Current Behavior
 
@@ -27,11 +27,14 @@ Learn is a structured study workspace that turns a corpus of markdown guides int
 - User opens `/learn` and sees a grid of all guides with category badges, difficulty indicators, and estimated reading time.
 - User can filter by category, search by title, and sort by recommended/alpha/progress/difficulty.
 - User clicks a guide to see chapters and enrolls to start tracking.
+- On enrollment, a learning goal is auto-created with chapter titles as milestones. Opt-out via `create_goal=false` query param.
 
 ### Read
 - User opens a chapter. Content renders as rich markdown with styled diagram blocks and tables.
+- When a diagram or table contains parseable numeric data, a chart toggle (bar chart icon) appears top-right. Clicking it renders an interactive Recharts overlay (bar, line, or scatter). Clicking again returns to ASCII view.
 - Reading time is tracked automatically (IntersectionObserver + 30s periodic sync).
 - User marks chapter complete and navigates prev/next.
+- On chapter completion, a reflection prompt card appears inline suggesting a brief reflection. User can write a journal reflection or dismiss.
 
 ### Quiz
 - After reading, user starts a quiz. System generates 5 questions at varying Bloom's levels.
@@ -59,6 +62,10 @@ Learn is a structured study workspace that turns a corpus of markdown guides int
 - [ ] Review session shows due items and advances to next after grading
 - [ ] Content sync picks up new/changed chapters and regenerates questions for changed content
 - [ ] MCP tools expose curriculum data for Claude Code integration
+- [ ] Numeric tables/diagrams show interactive chart toggle; renders Recharts overlay
+- [ ] Enrolling in a guide creates a learning goal with chapter milestones
+- [ ] Completing a chapter shows inline reflection prompt; memory facts auto-extracted
+- [ ] Advisor queries include `<curriculum_progress>` context when user has active enrollments
 
 ## Edge Cases
 
@@ -68,14 +75,14 @@ Learn is a structured study workspace that turns a corpus of markdown guides int
 | Chapter markdown has no H1 | Title derived from filename |
 | Content changes (re-scan) | content_hash mismatch triggers question regeneration |
 | All chapters completed | Guide marked complete, excluded from "next" recommendations |
+| Chapter has no numeric data | Chart toggle does not appear |
+| Goal creation fails on enroll | Enrollment succeeds; goal creation is best-effort |
+| Memory extraction fails | Progress update succeeds; extraction is best-effort |
 | No LLM available for quiz | Keyword matching fallback for grading |
 | Industry guide naming | `Industries/Healthcare/` → guide ID `industry-healthcare` |
 
 ## Out of Scope
 
-- Interactive charts (Recharts overlays for data diagrams) — Phase 5
-- Advisor RAG context injection for curriculum — Phase 7 deeper
-- Auto-goal creation on enrollment — Phase 7 deeper
 - Cross-domain synthesis questions — requires 3+ active guides
 
 ## Key System Components

@@ -8,8 +8,8 @@ Structured learning system that scans markdown guide directories, tracks per-use
 
 ## Dependencies
 
-**Depends on:** `db` (WAL connect, schema versioning), `llm` (question generation + grading), `memory` (FactSource.CURRICULUM)
-**Depended on by:** `web.routes.curriculum`, `coach_mcp.tools.curriculum`
+**Depends on:** `db` (WAL connect, schema versioning), `llm` (question generation + grading), `memory` (FactSource.CURRICULUM), `journal` (goal creation), `advisor.rag` (curriculum context)
+**Depended on by:** `web.routes.curriculum`, `coach_mcp.tools.curriculum`, `advisor.rag` (via get_curriculum_context)
 
 ---
 
@@ -141,6 +141,21 @@ Content resolution: `_content_dirs()` resolves repo-relative `content/curriculum
 
 Auto-sync: `list_guides` triggers catalog sync on first call (empty DB).
 
+### enroll_guide() — auto-goal creation
+
+On `POST /guides/{guide_id}/enroll`, after `store.enroll()`:
+- If `create_goal=True` (default): creates a learning goal via `JournalStorage.create()` with `entry_type="goal"`, title `Learn: {guide_title}`, tags `["learning", "curriculum"]`.
+- Adds milestones via `GoalTracker.add_milestone()` for each non-glossary chapter.
+- Calls `store.enroll(..., linked_goal_id=str(goal_path))` to link back.
+- Entire goal block wrapped in try/except — enrollment succeeds regardless.
+
+### update_progress() — reflection + memory
+
+On chapter completion (`status == COMPLETED`):
+- **Reflection prompt**: `_generate_reflection_prompt()` returns a context-aware prompt string. Guide-complete prompt differs from chapter-complete prompt. Returned in response as `reflection_prompt`.
+- **Memory extraction**: reads chapter content (truncated to 3000 chars), calls `MemoryPipeline.process_document()` with `source_type: "curriculum"`. Gated behind `config.memory.enabled`. Returns `memory_facts_extracted` count in response.
+- Both are catch-all guarded — progress update never fails due to these.
+
 ---
 
 ## MCP Tools
@@ -175,12 +190,31 @@ Auto-sync: `list_guides` triggers catalog sync on first call (empty DB).
 - `/learn/review` — Review session: flashcard flow, self-grade buttons (0-5), progress bar, session summary.
 
 ### Key Components (`web/src/components/curriculum/`)
-- `CurriculumRenderer.tsx` — ReactMarkdown + remarkGfm. Code block override detects ASCII diagrams (box-drawing chars, `+---+`, tree `├──`, arrows) and data tables (aligned columns + separators). Diagrams get monospace 13px, `bg-slate-50`, rounded border. Tables get alternating row backgrounds.
+- `CurriculumRenderer.tsx` — ReactMarkdown + remarkGfm. Code block override detects ASCII diagrams (box-drawing chars, `+---+`, tree `├──`, arrows) and data tables (aligned columns + separators). Diagrams get monospace 13px, `bg-slate-50`, rounded border. Tables get alternating row backgrounds. Both `DiagramBlock` and `TableBlock` parse their text with `parseChartData()` and show a chart toggle button when data is extractable.
+- `ChartOverlay.tsx` — Recharts wrapper accepting `ParsedChartData`. Renders `<BarChart>`, `<LineChart>`, or `<ScatterChart>` in a `<ResponsiveContainer>` (256px height). Uses CSS variables `--chart-1` through `--chart-5` for series colors.
+- `chart-parser.ts` (`web/src/lib/`) — Heuristic parser: detects tables with numeric columns (≥70% numeric, ≥3 data rows) → bar/line chart, and axis-labeled diagrams → line/scatter chart. Returns `ParsedChartData | null`.
 - `GuideCard.tsx` — Grid card with title, category/difficulty badges, progress bar.
 - `ChapterList.tsx` — Chapter list with completion status icons.
 - `ReviewCard.tsx` — Question + text input + submit/self-grade.
 - `ProgressRing.tsx` — SVG circular progress indicator.
 - `DifficultyBadge.tsx` — Colored badge (green/yellow/red).
+
+---
+
+## Advisor Integration
+
+### RAGRetriever.get_curriculum_context()
+
+**File:** `src/advisor/rag.py`
+
+New method on `RAGRetriever` that lazily imports `CurriculumStore`, constructs it from `Path(self.intel_db_path).parent / "curriculum.db"`, and builds a `<curriculum_progress>` XML block with active enrollments (max 5), completion counts, and current chapter titles.
+
+- Added `curriculum_context: str = ""` field to `AskContext` dataclass.
+- `build_context_for_ask()` calls `get_curriculum_context(query)` when `inject_curriculum` config flag is true (default true).
+- Prompt templates (`GENERAL_ASK_EXTENDED`, `GENERAL_ASK_EXTENDED_WITH_RESEARCH`, `GENERAL_ASK_XML`, `GENERAL_ASK_XML_WITH_RESEARCH`) include `{curriculum_context}` slot.
+- `_build_user_prompt()` accepts and passes `curriculum_context` kwarg.
+- `engine.py` `_build_advice_prompt()` passes `curriculum_context=ctx.curriculum_context`.
+- Returns empty string on any error (catch-all, debug log).
 
 ---
 
