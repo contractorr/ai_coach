@@ -32,17 +32,21 @@ const STEPS = [
   {
     number: "2",
     title: "Tell it what matters",
-    description: "Add topics, goals, or paste your first journal entry.",
+    description: "Add topics, goals, enroll in a learning guide, or paste your first journal entry.",
   },
   {
     number: "3",
-    title: "Get briefed",
+    title: "Learn and get briefed",
     description:
-      "Your steward cross-references live intel with your journal and goals — then tells you what to do next and why.",
+      "Your tutor teaches via spaced repetition and Bloom's taxonomy quizzes while scanning live intel — then tells you what to do next.",
   },
 ];
 
 const COMPARISON_ROWS = [
+  {
+    axis: "Structured learning",
+    detail: "50+ guides, SM-2 spaced repetition, teach-back, Bloom's quizzes",
+  },
   { axis: "Your data stays local", detail: "SQLite + markdown files" },
   {
     axis: "Scans live sources for you",
@@ -78,11 +82,11 @@ export default function Landing() {
           <Brain className="h-7 w-7 text-primary" />
         </div>
         <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">
-          Know what matters next
+          Your AI tutor and steward
         </h1>
         <p className="mt-4 max-w-md text-lg text-muted-foreground">
-          AI steward that scans the world, learns from your journal, and guides
-          you through what&apos;s next.
+          Teaches what matters with spaced repetition, scans the world for live
+          intel, and gives personalized guidance grounded in your journal.
         </p>
         <div className="mt-4 flex gap-2">
           <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer">

@@ -37,8 +37,8 @@ export default function LoginPage() {
           </div>
           <CardTitle className="text-2xl text-primary">StewardMe</CardTitle>
           <CardDescription className="text-balance">
-            AI steward that scans the world, learns from your journal, and
-            guides you through what&apos;s next. Open-source and self-hosted.
+            AI tutor and steward that teaches what matters, tracks your learning
+            with spaced repetition, and scans the world so you know what&apos;s next.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">

@@ -4,22 +4,22 @@ import { redirect } from "next/navigation";
 import Landing from "@/components/landing";
 
 export const metadata: Metadata = {
-  title: "StewardMe — Know what matters next",
+  title: "StewardMe — Your AI tutor and steward",
   description:
-    "Open-source AI steward that scans HN, GitHub, arXiv, Reddit & RSS, learns from your journal, and tells you what matters next.",
+    "Open-source AI tutor that teaches what matters with spaced repetition, scans HN, GitHub, arXiv & RSS, and gives personalized guidance grounded in your journal.",
   openGraph: {
-    title: "StewardMe — Know what matters next",
+    title: "StewardMe — Your AI tutor and steward",
     description:
-      "Open-source AI steward that scans HN, GitHub, arXiv, Reddit & RSS, learns from your journal, and tells you what matters next.",
+      "Open-source AI tutor that teaches what matters with spaced repetition, scans HN, GitHub, arXiv & RSS, and gives personalized guidance grounded in your journal.",
     url: "https://stewardme.ai",
     siteName: "StewardMe",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "StewardMe — Know what matters next",
+    title: "StewardMe — Your AI tutor and steward",
     description:
-      "Open-source AI steward that scans HN, GitHub, arXiv, Reddit & RSS, learns from your journal, and tells you what matters next.",
+      "Open-source AI tutor that teaches what matters with spaced repetition, scans HN, GitHub, arXiv & RSS, and gives personalized guidance grounded in your journal.",
   },
 };
 
