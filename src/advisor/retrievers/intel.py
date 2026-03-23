@@ -28,11 +28,13 @@ class IntelRetriever:
         intel_search: IntelSearch | None = None,
         profile_loader: Callable[[], UserProfile | None] | None = None,
         cache=None,
+        user_id: str | None = None,
     ):
         self.intel_db_path = Path(intel_db_path).expanduser() if intel_db_path else None
         self.intel_search = intel_search
         self._profile_loader = profile_loader
         self.cache = cache
+        self.user_id = user_id
 
     def get_intel_context(
         self,
@@ -71,30 +73,38 @@ class IntelRetriever:
             return "No external intelligence available yet."
 
         try:
+            user_clause = ""
+            user_params: tuple = ()
+            if self.user_id:
+                user_clause = "AND (user_id IS NULL OR user_id = ?)"
+                user_params = (self.user_id,)
+
             with wal_connect(self.intel_db_path) as conn:
                 conn.row_factory = sqlite3.Row
                 cursor = conn.execute(
-                    """
+                    f"""
                     SELECT title, source, summary, url, scraped_at
                     FROM intel_items
-                    WHERE title LIKE ? OR summary LIKE ?
+                    WHERE (title LIKE ? OR summary LIKE ?)
+                    {user_clause}
                     ORDER BY scraped_at DESC
                     LIMIT ?
                 """,
-                    (f"%{query}%", f"%{query}%", max_items * 2),
+                    (f"%{query}%", f"%{query}%", *user_params, max_items * 2),
                 )
 
                 items = cursor.fetchall()
 
                 if not items:
                     cursor = conn.execute(
-                        """
+                        f"""
                         SELECT title, source, summary, url, scraped_at
                         FROM intel_items
+                        WHERE 1=1 {user_clause}
                         ORDER BY scraped_at DESC
                         LIMIT ?
                     """,
-                        (max_items,),
+                        (*user_params, max_items),
                     )
                     items = cursor.fetchall()
 

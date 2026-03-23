@@ -156,6 +156,31 @@ def get_intel_storage():
     return create_intel_storage(get_coach_paths())
 
 
+def get_user_intel_storage(user_id: str):
+    """Construct user-scoped intel storage (shared items + user's own)."""
+    from intelligence.user_intel_view import UserIntelView
+
+    return UserIntelView(get_intel_storage(), user_id)
+
+
+def get_intel_search(user_id: str | None = None):
+    """Construct IntelSearch with optional user-scoping."""
+    from intelligence.search import IntelSearch
+
+    storage = get_intel_storage()
+    # Try to get embedding manager for semantic search
+    embedding_manager = None
+    try:
+        from intelligence.embeddings import IntelEmbeddingManager
+
+        paths = get_coach_paths()
+        chroma_dir = Path(paths.get("chroma_dir", paths["intel_db"]).parent / "chroma")
+        embedding_manager = IntelEmbeddingManager(chroma_dir)
+    except Exception:
+        pass
+    return IntelSearch(storage, embedding_manager=embedding_manager, user_id=user_id)
+
+
 def get_watchlist_store(user_id: str):
     """Construct the per-user watchlist store."""
     return create_watchlist_store(get_user_paths(user_id))

@@ -56,8 +56,9 @@ class RSSFeedScraper(BaseScraper):
         name: Optional[str] = None,
         source_tag: Optional[str] = None,
         feed_health_tracker=None,
+        default_user_id: Optional[str] = None,
     ):
-        super().__init__(storage)
+        super().__init__(storage, default_user_id=default_user_id)
         self.feed_url = feed_url
         self._name = name or _extract_name(feed_url)
         self.source_tag = source_tag or _detect_source_tag(feed_url)

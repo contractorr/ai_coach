@@ -235,9 +235,18 @@ class IntelSearch:
         self,
         storage: IntelStorage,
         embedding_manager: Optional[IntelEmbeddingManager] = None,
+        user_id: Optional[str] = None,
     ):
         self.storage = storage
         self.embeddings = embedding_manager
+        self.user_id = user_id
+        # Wrap storage with user-scoped view when user_id is set
+        if user_id:
+            from intelligence.user_intel_view import UserIntelView
+
+            self._filtered_storage = UserIntelView(storage, user_id)
+        else:
+            self._filtered_storage = storage
 
     def semantic_search(
         self,
@@ -252,7 +261,18 @@ class IntelSearch:
         if not self.embeddings:
             return self.keyword_search(query, limit=n_results)
 
-        where = {"source": source_filter} if source_filter else None
+        # Build ChromaDB where filter with user_id scoping
+        where_parts: list[dict] = []
+        if self.user_id:
+            where_parts.append({"$or": [{"user_id": "__shared__"}, {"user_id": self.user_id}]})
+        if source_filter:
+            where_parts.append({"source": source_filter})
+        if len(where_parts) > 1:
+            where = {"$and": where_parts}
+        elif where_parts:
+            where = where_parts[0]
+        else:
+            where = None
         results = self.embeddings.query(query, n_results=n_results, where=where)
 
         # Enrich results with full item data from storage
@@ -277,9 +297,11 @@ class IntelSearch:
     ) -> list[dict]:
         """Keyword search — uses FTS5 when available, else LIKE fallback."""
         try:
-            return self.storage.fts_search(query, limit=limit, source_filter=source_filter)
+            return self._filtered_storage.fts_search(
+                query, limit=limit, source_filter=source_filter
+            )
         except Exception:
-            return self.storage.search(query, limit=limit, source_filter=source_filter)
+            return self._filtered_storage.search(query, limit=limit, source_filter=source_filter)
 
     def hybrid_search(
         self,
@@ -318,7 +340,9 @@ class IntelSearch:
         Gets date-filtered items from storage, then reranks by semantic
         similarity when embeddings are available.
         """
-        date_items = self.storage.get_by_date_range(start=start, end=end, limit=n_results * 3)
+        date_items = self._filtered_storage.get_by_date_range(
+            start=start, end=end, limit=n_results * 3
+        )
         if not date_items:
             return []
 
@@ -387,7 +411,7 @@ class IntelSearch:
 
         if not candidates:
             # Fallback to recent items, still filter them
-            candidates = self.storage.get_recent(days=7, limit=pool_size)
+            candidates = self._filtered_storage.get_recent(days=7, limit=pool_size)
 
         if not candidates:
             return []
@@ -436,7 +460,7 @@ class IntelSearch:
 
         if not results:
             # Fallback to recent items
-            results = self.storage.get_recent(days=7, limit=max_items)
+            results = self._filtered_storage.get_recent(days=7, limit=max_items)
 
         if not results:
             return "No external intelligence available."
@@ -530,11 +554,11 @@ class IntelSearch:
         if not self.embeddings:
             return 0, 0
 
-        # Get all items from storage
+        # Get all items from storage (unscoped — syncs ALL for cross-user dedup)
         with wal_connect(self.storage.db_path) as conn:
             conn.row_factory = sqlite3.Row
             cursor = conn.execute("""
-                SELECT id, source, title, url, summary, content, tags
+                SELECT id, source, title, url, summary, content, tags, user_id
                 FROM intel_items
                 WHERE duplicate_of IS NULL
             """)
@@ -552,6 +576,7 @@ class IntelSearch:
                         "source": row["source"],
                         "url": row["url"],
                         "tags": row["tags"] or "",
+                        "user_id": row["user_id"] or "__shared__",
                     },
                 }
             )

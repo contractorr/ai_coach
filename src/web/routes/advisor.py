@@ -200,6 +200,17 @@ def _get_engine(user_id: str, use_tools: bool = False):
     fts_index = JournalFTSIndex(paths["journal_dir"])
     journal_search = JournalSearch(journal_storage, embeddings, fts_index=fts_index)
 
+    # Build user-scoped intel search for RAG
+    intel_search = None
+    try:
+        from intelligence.embeddings import IntelEmbeddingManager
+        from intelligence.search import IntelSearch
+
+        intel_emb = IntelEmbeddingManager(paths["chroma_dir"])
+        intel_search = IntelSearch(intel_storage, embedding_manager=intel_emb, user_id=user_id)
+    except Exception:
+        pass
+
     fact_store = None
     thread_store = None
     memory_config = None
@@ -234,6 +245,7 @@ def _get_engine(user_id: str, use_tools: bool = False):
     rag = RAGRetriever(
         journal_search=journal_search,
         intel_db_path=paths["intel_db"],
+        intel_search=intel_search,
         profile_path=str(get_profile_path(user_id)),
         users_db_path=users_db,
         user_id=user_id,

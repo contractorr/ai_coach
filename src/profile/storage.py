@@ -13,6 +13,15 @@ from shared_types import CareerStage
 logger = structlog.get_logger()
 
 
+class IntelPreferences(BaseModel):
+    """Per-user intelligence feed preferences."""
+
+    excluded_sources: list[str] = Field(default_factory=list)
+    excluded_keywords: list[str] = Field(default_factory=list)
+    min_relevance: float = Field(default=0.0, ge=0.0, le=1.0)
+    preferred_sources: list[str] = Field(default_factory=list)
+
+
 class Skill(BaseModel):
     name: str
     proficiency: int = Field(ge=1, le=5, description="1=beginner, 5=expert")
@@ -36,6 +45,7 @@ class UserProfile(BaseModel):
     fears_risks: list[str] = Field(default_factory=list)
     active_projects: list[str] = Field(default_factory=list)
     github_username: Optional[str] = None
+    intel_preferences: IntelPreferences = Field(default_factory=IntelPreferences)
     updated_at: Optional[str] = None
 
     def is_stale(self, days: int = 90) -> bool:

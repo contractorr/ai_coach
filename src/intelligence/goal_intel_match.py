@@ -191,10 +191,19 @@ class GoalIntelMatcher:
         intel_storage: IntelStorage,
         match_store: "GoalIntelMatchStore | None" = None,
         embedding_manager: "IntelEmbeddingManager | None" = None,
+        user_id: str | None = None,
     ):
         self.intel_storage = intel_storage
         self.match_store = match_store
         self.embeddings = embedding_manager
+        self.user_id = user_id
+        # Use filtered view for reads when user_id is set
+        if user_id:
+            from intelligence.user_intel_view import UserIntelView
+
+            self._read_storage = UserIntelView(intel_storage, user_id)
+        else:
+            self._read_storage = intel_storage
 
     def _build_goal_query(self, goal: dict) -> str:
         """Build a natural-language query string from goal for embedding search."""
@@ -218,7 +227,11 @@ class GoalIntelMatcher:
         if not query:
             return []
         try:
-            results = self.embeddings.query(query, n_results=n_results)
+            # Apply user_id filter on ChromaDB when set
+            where = None
+            if self.user_id:
+                where = {"$or": [{"user_id": "__shared__"}, {"user_id": self.user_id}]}
+            results = self.embeddings.query(query, n_results=n_results, where=where)
         except Exception as e:
             logger.warning("semantic_match.query_failed", error=str(e))
             return []
@@ -407,7 +420,7 @@ class GoalIntelMatcher:
         """Match all goals against recent intel via keyword + optional semantic scoring."""
         if days is None:
             days = self._compute_days_window()
-        intel_items = self.intel_storage.get_recent(days=days, limit=500)
+        intel_items = self._read_storage.get_recent(days=days, limit=500)
 
         has_intel = bool(intel_items)
         has_embeddings = bool(self.embeddings)

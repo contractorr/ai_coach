@@ -18,7 +18,7 @@ from db import ensure_schema_version, wal_connect
 
 logger = structlog.get_logger().bind(source="intel_storage")
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 _ALLOWED_SCHEMES = {"http", "https"}
 _INTERNAL_SCHEMES = {"research"}
@@ -54,6 +54,7 @@ class IntelItem:
     published: Optional[datetime] = None
     tags: Optional[list[str]] = None
     content_hash: Optional[str] = None
+    user_id: Optional[str] = None  # None=shared/global, str=user-specific
 
     def compute_hash(self) -> str:
         """Compute content hash for deduplication."""
@@ -102,11 +103,13 @@ class IntelStorage:
             for col, typedef in [
                 ("content_hash", "TEXT"),
                 ("duplicate_of", "INTEGER"),
+                ("user_id", "TEXT"),
             ]:
                 try:
                     conn.execute(f"ALTER TABLE intel_items ADD COLUMN {col} {typedef}")
                 except sqlite3.OperationalError:
                     pass  # Column already exists
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_intel_user_id ON intel_items(user_id)")
 
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS scraper_health (
@@ -188,8 +191,8 @@ class IntelStorage:
                 conn.execute(
                     """
                     INSERT OR IGNORE INTO intel_items
-                    (source, title, url, summary, content, published, tags, content_hash)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    (source, title, url, summary, content, published, tags, content_hash, user_id)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                     (
                         item.source,
@@ -200,6 +203,7 @@ class IntelStorage:
                         item.published.isoformat() if item.published else None,
                         ",".join(item.tags) if item.tags else None,
                         content_hash,
+                        item.user_id,
                     ),
                 )
                 if conn.total_changes > 0:
@@ -242,6 +246,7 @@ class IntelStorage:
             item["tags"] = [t.strip() for t in item["tags"].split(",")]
         else:
             item["tags"] = []
+        item.setdefault("user_id", None)
         return item
 
     def get_recent(
@@ -379,9 +384,10 @@ class IntelStorage:
 class BaseScraper(ABC):
     """Async base class for intelligence scrapers."""
 
-    def __init__(self, storage: IntelStorage, embedding_manager=None):
+    def __init__(self, storage: IntelStorage, embedding_manager=None, default_user_id=None):
         self.storage = storage
         self.embedding_manager = embedding_manager
+        self.default_user_id = default_user_id
         self._client: httpx.AsyncClient | None = None
         self._client_headers = {"User-Agent": "AI-Coach/1.0 (Personal Use)"}
 
@@ -445,6 +451,10 @@ class BaseScraper(ABC):
         new_count = 0
         deduped_count = 0
         for item in items:
+            # Apply default_user_id from scraper if item has no explicit user_id
+            if item.user_id is None and self.default_user_id:
+                item.user_id = self.default_user_id
+
             canonical_id: str | None = None
 
             # Semantic dedup check if embedding manager available
@@ -465,7 +475,10 @@ class BaseScraper(ABC):
                 new_count += 1
                 if self.embedding_manager:
                     content = f"{item.title} {item.summary}"
-                    meta = {"source": item.source}
+                    meta = {
+                        "source": item.source,
+                        "user_id": item.user_id or "__shared__",
+                    }
                     self.embedding_manager.add_item(str(row_id), content, meta)
             # else: URL/hash dupe, skip
 

@@ -272,21 +272,29 @@ class IntelScheduler:
                 )
                 config_rss_urls.add(url)
 
-        # Merge user-added RSS feeds
+        # Merge user-added RSS feeds with per-user ownership tagging
         try:
             from user_state_store import get_all_user_rss_feeds
 
+            # Build feed_url → set[user_id] mapping for ownership
+            feed_user_map: dict[str, set[str]] = {}
             for feed in get_all_user_rss_feeds():
-                if feed["url"] not in config_rss_urls:
+                feed_user_map.setdefault(feed["url"], set()).add(feed["user_id"])
+
+            for url, user_ids in feed_user_map.items():
+                if url not in config_rss_urls:
+                    # Single user → tag items; multiple users → shared (None)
+                    owner = next(iter(user_ids)) if len(user_ids) == 1 else None
                     self._scrapers.append(
                         RSSFeedScraper(
                             self.storage,
-                            feed["url"],
-                            name=feed.get("name"),
+                            url,
+                            name=None,
                             feed_health_tracker=self._feed_health,
+                            default_user_id=owner,
                         )
                     )
-                    config_rss_urls.add(feed["url"])
+                    config_rss_urls.add(url)
         except Exception:
             pass  # web module may not be available in CLI mode
 

@@ -21,7 +21,9 @@ from web.deps import (
     get_hiring_signal_store,
     get_intel_storage,
     get_profile_path,
+    get_profile_storage,
     get_regulatory_alert_store,
+    get_user_intel_storage,
     get_watchlist_store,
 )
 from web.models import (
@@ -75,7 +77,9 @@ class FollowUpUpsert(BaseModel):
     watchlist_ids: list[str] = []
 
 
-def _get_storage():
+def _get_storage(user_id: str | None = None):
+    if user_id:
+        return get_user_intel_storage(user_id)
     return get_intel_storage()
 
 
@@ -137,7 +141,7 @@ async def get_recent(
     limit: int = Query(default=50, ge=1, le=200),
     user: dict = Depends(get_current_user),
 ):
-    storage = _get_storage()
+    storage = _get_storage(user["id"])
     # Include semantic duplicates so Feed shows all sources, not just canonicals
     items = storage.get_recent(days=days, limit=limit, include_duplicates=True)
     # Fall back to broader window when narrow one returns empty — avoids
@@ -171,7 +175,7 @@ async def search_intel(
     limit: int = Query(default=20, ge=1, le=100),
     user: dict = Depends(get_current_user),
 ):
-    storage = _get_storage()
+    storage = _get_storage(user["id"])
     items = storage.search(q, limit=limit)
     _apply_watchlist_state(items, user["id"])
     _attach_entity_tags(items)
@@ -479,6 +483,35 @@ def _get_cheap_llm(user_id: str):
         return create_cheap_provider()
     except Exception:
         return None
+
+
+class IntelPreferencesUpdate(BaseModel):
+    excluded_sources: list[str] | None = None
+    excluded_keywords: list[str] | None = None
+    min_relevance: float | None = None
+    preferred_sources: list[str] | None = None
+
+
+@router.get("/preferences")
+async def get_intel_preferences(user: dict = Depends(get_current_user)):
+    """Get user's intel feed preferences."""
+    ps = get_profile_storage(user["id"])
+    profile = ps.get_or_empty()
+    return profile.intel_preferences.model_dump()
+
+
+@router.put("/preferences")
+async def update_intel_preferences(
+    body: IntelPreferencesUpdate, user: dict = Depends(get_current_user)
+):
+    """Update user's intel feed preferences."""
+    ps = get_profile_storage(user["id"])
+    profile = ps.get_or_empty()
+    updates = body.model_dump(exclude_none=True)
+    for key, value in updates.items():
+        setattr(profile.intel_preferences, key, value)
+    ps.save(profile)
+    return profile.intel_preferences.model_dump()
 
 
 @router.post("/scrape")

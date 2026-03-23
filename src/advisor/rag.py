@@ -53,7 +53,9 @@ class RAGRetriever:
         # Build sub-retrievers
         self._profile = ProfileRetriever(profile_path or "~/coach/profile.yaml")
         self._journal = JournalRetriever(journal_search, cache)
-        self._intel = IntelRetriever(intel_db_path, intel_search, self._profile.load, cache)
+        self._intel = IntelRetriever(
+            intel_db_path, intel_search, self._profile.load, cache, user_id=user_id
+        )
         # Always create MemoryRetriever (methods return "" when fact_store is None)
         self._memory = MemoryRetriever(fact_store, memory_config, thread_store)
         resolved_intel_db = Path(intel_db_path).expanduser() if intel_db_path else None
