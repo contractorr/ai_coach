@@ -19,6 +19,8 @@ export type BloomLevel =
 
 export type ChapterStatus = "not_started" | "in_progress" | "completed";
 
+export type ReviewItemType = "quiz" | "teachback" | "pre_reading";
+
 export interface Guide {
   id: string;
   title: string;
@@ -87,6 +89,7 @@ export interface ReviewItem {
   question: string;
   expected_answer: string;
   bloom_level: BloomLevel;
+  item_type?: ReviewItemType;
   easiness_factor: number;
   interval_days: number;
   repetitions: number;
@@ -130,4 +133,12 @@ export interface NextRecommendation {
   guide_title?: string;
   chapter: Chapter | null;
   reason: string;
+}
+
+export interface RelatedChapter {
+  chapter_id: string;
+  guide_id: string;
+  title: string;
+  guide_title: string;
+  distance: number;
 }

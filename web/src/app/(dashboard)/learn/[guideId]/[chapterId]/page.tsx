@@ -19,6 +19,9 @@ import { apiFetch } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CurriculumRenderer } from "@/components/curriculum/CurriculumRenderer";
+import { PreReadingCard } from "@/components/curriculum/PreReadingCard";
+import { TeachBackCard } from "@/components/curriculum/TeachBackCard";
+import { RelatedChaptersCard } from "@/components/curriculum/RelatedChaptersCard";
 import type { ChapterDetail, ChapterStatus, ReviewItem } from "@/types/curriculum";
 
 export default function ChapterReaderPage() {
@@ -228,6 +231,9 @@ export default function ChapterReaderPage() {
         </div>
       </div>
 
+      {/* Pre-reading questions */}
+      <PreReadingCard chapterId={fullChapterId} isCompleted={isCompleted} />
+
       {/* Content */}
       <article className="prose prose-sm dark:prose-invert max-w-none">
         <CurriculumRenderer content={chapter.content} />
@@ -285,6 +291,9 @@ export default function ChapterReaderPage() {
         </div>
       )}
 
+      {/* Teach-back */}
+      {isCompleted && <TeachBackCard chapterId={fullChapterId} />}
+
       {/* Quiz panel (inline) */}
       {quiz && quiz.length > 0 && (
         <div className="space-y-4 border-t pt-4">
@@ -301,6 +310,9 @@ export default function ChapterReaderPage() {
           ))}
         </div>
       )}
+
+      {/* Cross-guide connections */}
+      <RelatedChaptersCard chapterId={fullChapterId} />
     </div>
   );
 }

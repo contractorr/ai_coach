@@ -59,7 +59,7 @@ RAG-based personal AI advisor. Journal entries + external intelligence scrapers 
 - **library/** — Content library management
 - **services/** — Shared service layer
 - **web/** — FastAPI backend: JWT auth (python-jose), Fernet-encrypted secret storage, per-user data isolation at `~/coach/users/{safe_user_id}/`. Global intel DB stays shared. 24 route modules. `get_or_create_user()` auto-registers on first request
-- **curriculum/** — Structured learning system: content scanner, SQLite store, SM-2 spaced repetition, LLM question generation, Bloom's taxonomy grading
+- **curriculum/** — Structured learning system: content scanner, SQLite store, SM-2 spaced repetition, LLM question generation, Bloom's taxonomy grading, teach-back prompts, pre-reading questions, cross-guide chapter connections (ChromaDB embeddings)
 - **coach_mcp/** — 52 MCP tools across 13 modules (journal, goals, intel, recommendations, research, reflect, profile, projects, insights, brief, memory, threads, curriculum)
 
 ### Advisor deep dive

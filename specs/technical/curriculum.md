@@ -49,7 +49,7 @@ Returns `(guides: list[Guide], chapters: list[Chapter])` sorted by guide order.
 
 #### Behavior
 - Constructor: `__init__(db_path: str | Path)` — creates SQLite DB with WAL mode.
-- Schema version 1: tables `guides`, `chapters`, `user_guide_enrollment`, `user_chapter_progress`, `review_items`.
+- Schema version 2: tables `guides`, `chapters`, `user_guide_enrollment`, `user_chapter_progress`, `review_items` (v2 adds `item_type` column).
 - `sync_catalog(guides, chapters)` — bulk upsert via `ON CONFLICT DO UPDATE`. Single transaction.
 - `update_progress(...)` — upserts chapter progress, accumulates reading time (not replaces), auto-marks guide complete when all non-glossary chapters done.
 - `grade_review(review_id, grade)` — applies SM-2 algorithm, updates `next_review`, `easiness_factor`, `interval_days`, `repetitions`.
@@ -63,7 +63,7 @@ Returns `(guides: list[Guide], chapters: list[Chapter])` sorted by guide order.
 | `chapters` | `id TEXT` | guide_id (FK), title, filename, order, word_count, content_hash, is_glossary |
 | `user_guide_enrollment` | `(user_id, guide_id)` | enrolled_at, completed_at, linked_goal_id |
 | `user_chapter_progress` | `(user_id, chapter_id)` | guide_id, status, reading_time_seconds, scroll_position, started_at, completed_at |
-| `review_items` | `id TEXT` | user_id, chapter_id, question, expected_answer, bloom_level, easiness_factor, interval_days, repetitions, next_review, content_hash |
+| `review_items` | `id TEXT` | user_id, chapter_id, question, expected_answer, bloom_level, easiness_factor, interval_days, repetitions, next_review, content_hash, item_type (quiz/teachback/pre_reading) |
 
 #### Invariants
 - Reading time is additive — `update_progress` adds to existing, never replaces.
@@ -111,10 +111,33 @@ Returns `(guides: list[Guide], chapters: list[Chapter])` sorted by guide order.
   - EVALUATE/CREATE: expensive LLM with rubric.
   - Keyword grading: set overlap ratio → grade 0-5.
 
+#### Teach-back Generation & Grading
+- `generate_teachback(content, chapter_title, guide_title, ...) -> ReviewItem | None` — cheap LLM identifies single most important concept, returns `ReviewItem` with `item_type=TEACHBACK`, `bloom_level=CREATE`.
+- `grade_teachback(concept, expected_answer, student_answer, chapter_title, guide_title) -> ReviewGradeResult` — expensive LLM grades on accuracy/completeness/clarity (0-5 each), returns `ReviewGradeResult`.
+- Prompt constants: `_TEACHBACK_CONCEPT_PROMPT`, `_TEACHBACK_GRADING_PROMPT`.
+
+#### Pre-reading Question Generation
+- `generate_questions()` gains `include_pre_reading: bool = False`, `pre_reading_count: int = 3` params.
+- When enabled, `extra_instructions` populated with pre-reading prompt; items with `"pre_reading": true` in LLM response get `item_type=PRE_READING`, `expected_answer=""`, `next_review=None`.
+
 #### Error Handling
 - LLM unavailable: returns empty list for generation, keyword fallback for grading.
 - JSON parse failure: returns empty list, logs warning.
 - Grade result parse failure: returns grade=0 with error feedback.
+
+---
+
+### ChapterEmbeddingManager
+
+**File:** `src/curriculum/embeddings.py`
+**Status:** Experimental
+
+#### Behavior
+- Wraps `EmbeddingManager(collection_name="curriculum_chapters")`.
+- `upsert_chapter(chapter_id, content, guide_id, chapter_title, content_hash)` — truncates to 2000 words, stores with metadata `{guide_id, title, content_hash}`.
+- `find_related(chapter_content, current_guide_id, enrolled_guide_ids, n_results=3)` — queries 4×n_results, post-filters (exclude same guide, only enrolled guides, distance < 0.5), returns top n.
+- `sync_from_chapters(chapters, content_reader) -> int` — bulk upsert, skips glossary chapters.
+- `count() -> int`.
 
 ---
 
@@ -136,6 +159,10 @@ Returns `(guides: list[Guide], chapters: list[Chapter])` sorted by guide order.
 | `/api/curriculum/stats` | GET | Learning stats |
 | `/api/curriculum/sync` | POST | Re-scan content directories |
 | `/api/curriculum/next` | GET | Recommended next chapter |
+| `/api/curriculum/teachback/{chapter_id}/generate` | POST | Generate teach-back prompt for completed chapter |
+| `/api/curriculum/teachback/{review_id}/grade` | POST | Grade teach-back response |
+| `/api/curriculum/chapters/{chapter_id}/pre-reading` | GET | Get/generate pre-reading questions |
+| `/api/curriculum/chapters/{chapter_id}/related` | GET | Find related chapters from other guides |
 
 Content resolution: `_content_dirs()` resolves repo-relative `content/curriculum/` + any `config.curriculum.extra_content_dirs`. `_chapter_content_path()` handles both regular and industry guide ID formats.
 
@@ -178,6 +205,10 @@ On chapter completion (`status == COMPLETED`):
 | `curriculum.review_session_size` | `20` | Max items per review session |
 | `curriculum.cross_domain_questions` | `true` | Enable cross-domain synthesis questions |
 | `curriculum.interleaving_ratio` | `0.3` | Fraction of review items from non-current guide |
+| `curriculum.teachback_enabled` | `true` | Enable teach-back / Feynman prompts |
+| `curriculum.pre_reading_enabled` | `true` | Enable pre-reading priming questions |
+| `curriculum.pre_reading_count` | `3` | Number of pre-reading questions per chapter |
+| `curriculum.cross_guide_connections` | `true` | Enable cross-guide chapter connections |
 
 ---
 

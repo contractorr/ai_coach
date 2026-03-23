@@ -336,6 +336,10 @@ class CurriculumConfig(BaseModel):
     review_session_size: int = 20
     cross_domain_questions: bool = True
     interleaving_ratio: float = 0.3
+    teachback_enabled: bool = True
+    pre_reading_enabled: bool = True
+    pre_reading_count: int = 3
+    cross_guide_connections: bool = True
 
     @field_validator("interleaving_ratio")
     @classmethod

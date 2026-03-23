@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import type { ReviewItem } from "@/types/curriculum";
+import type { ReviewItem, ReviewItemType } from "@/types/curriculum";
 
 const gradeLabels = [
   "Blackout",
@@ -31,6 +31,7 @@ interface ReviewCardProps {
 }
 
 export function ReviewCard({ item, onGrade, showAnswer = false }: ReviewCardProps) {
+  const isTeachback = (item as ReviewItem & { item_type?: ReviewItemType }).item_type === "teachback";
   const [answer, setAnswer] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [grading, setGrading] = useState(false);
@@ -60,18 +61,28 @@ export function ReviewCard({ item, onGrade, showAnswer = false }: ReviewCardProp
     <div className="space-y-4 rounded-lg border bg-card p-4">
       <div className="flex items-start justify-between gap-2">
         <p className="text-sm font-medium leading-relaxed">{item.question}</p>
-        <Badge variant="outline" className="shrink-0 text-[10px] capitalize">
-          {item.bloom_level}
-        </Badge>
+        <div className="flex gap-1 shrink-0">
+          {isTeachback && (
+            <Badge className="bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-300 text-[10px]">
+              Teach-back
+            </Badge>
+          )}
+          <Badge variant="outline" className="text-[10px] capitalize">
+            {item.bloom_level}
+          </Badge>
+        </div>
       </div>
+      {isTeachback && (
+        <p className="text-xs text-muted-foreground">Explain in your own words</p>
+      )}
 
       {!submitted ? (
         <div className="space-y-3">
           <Textarea
             value={answer}
             onChange={(e) => setAnswer(e.target.value)}
-            placeholder="Type your answer..."
-            rows={3}
+            placeholder={isTeachback ? "Explain in your own words..." : "Type your answer..."}
+            rows={isTeachback ? 6 : 3}
             className="text-sm"
           />
           <div className="flex items-center gap-2">

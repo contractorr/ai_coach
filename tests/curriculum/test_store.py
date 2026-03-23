@@ -12,6 +12,7 @@ from curriculum.models import (
     Guide,
     GuideCategory,
     ReviewItem,
+    ReviewItemType,
 )
 from curriculum.store import CurriculumStore
 
@@ -297,3 +298,146 @@ def test_get_chapter_metadata(store, sample_guide, sample_chapters):
     assert ch is not None
     assert ch["title"] == "Introduction to Philosophy"
     assert ch["word_count"] == 2000
+
+
+def test_schema_v2_item_type_column(store, sample_guide, sample_chapters):
+    """Schema v2 migration adds item_type column."""
+    store.sync_catalog([sample_guide], sample_chapters)
+    user_id = "test-user"
+    now = datetime.utcnow()
+
+    # Default item_type is quiz
+    items = [
+        ReviewItem(
+            id="quiz-1",
+            user_id=user_id,
+            chapter_id="01-philosophy-guide/01-introduction",
+            guide_id="01-philosophy-guide",
+            question="What is X?",
+            expected_answer="X is Y",
+            bloom_level=BloomLevel.REMEMBER,
+            next_review=now,
+            created_at=now,
+        ),
+    ]
+    store.add_review_items(items)
+    item = store.get_review_item("quiz-1")
+    assert item["item_type"] == "quiz"
+
+
+def test_add_teachback_item(store, sample_guide, sample_chapters):
+    store.sync_catalog([sample_guide], sample_chapters)
+    user_id = "test-user"
+    now = datetime.utcnow()
+
+    items = [
+        ReviewItem(
+            id="tb-1",
+            user_id=user_id,
+            chapter_id="01-philosophy-guide/01-introduction",
+            guide_id="01-philosophy-guide",
+            question="Explain logic as if teaching someone with no background",
+            expected_answer="Logic is the study of reasoning",
+            bloom_level=BloomLevel.CREATE,
+            item_type=ReviewItemType.TEACHBACK,
+            next_review=now,
+            created_at=now,
+        ),
+    ]
+    store.add_review_items(items)
+
+    tb = store.get_teachback_for_chapter(user_id, "01-philosophy-guide/01-introduction")
+    assert tb is not None
+    assert tb["item_type"] == "teachback"
+    assert tb["bloom_level"] == "create"
+
+
+def test_pre_reading_items(store, sample_guide, sample_chapters):
+    store.sync_catalog([sample_guide], sample_chapters)
+    user_id = "test-user"
+    now = datetime.utcnow()
+
+    items = [
+        ReviewItem(
+            id="pr-1",
+            user_id=user_id,
+            chapter_id="01-philosophy-guide/01-introduction",
+            guide_id="01-philosophy-guide",
+            question="What questions does philosophy try to answer?",
+            expected_answer="",
+            bloom_level=BloomLevel.REMEMBER,
+            item_type=ReviewItemType.PRE_READING,
+            next_review=None,
+            created_at=now,
+        ),
+        ReviewItem(
+            id="pr-2",
+            user_id=user_id,
+            chapter_id="01-philosophy-guide/01-introduction",
+            guide_id="01-philosophy-guide",
+            question="Why is philosophy still relevant?",
+            expected_answer="",
+            bloom_level=BloomLevel.REMEMBER,
+            item_type=ReviewItemType.PRE_READING,
+            next_review=None,
+            created_at=now,
+        ),
+    ]
+    store.add_review_items(items)
+
+    prs = store.get_pre_reading_questions(user_id, "01-philosophy-guide/01-introduction")
+    assert len(prs) == 2
+    assert all(p["item_type"] == "pre_reading" for p in prs)
+
+
+def test_pre_reading_excluded_from_due_reviews(store, sample_guide, sample_chapters):
+    """Pre-reading items never appear in due reviews."""
+    store.sync_catalog([sample_guide], sample_chapters)
+    user_id = "test-user"
+    now = datetime.utcnow()
+
+    items = [
+        ReviewItem(
+            id="quiz-due",
+            user_id=user_id,
+            chapter_id="01-philosophy-guide/01-introduction",
+            guide_id="01-philosophy-guide",
+            question="Quiz Q",
+            expected_answer="A",
+            bloom_level=BloomLevel.REMEMBER,
+            item_type=ReviewItemType.QUIZ,
+            next_review=now,
+            created_at=now,
+        ),
+        ReviewItem(
+            id="tb-due",
+            user_id=user_id,
+            chapter_id="01-philosophy-guide/01-introduction",
+            guide_id="01-philosophy-guide",
+            question="Teach-back Q",
+            expected_answer="A",
+            bloom_level=BloomLevel.CREATE,
+            item_type=ReviewItemType.TEACHBACK,
+            next_review=now,
+            created_at=now,
+        ),
+        ReviewItem(
+            id="pr-not-due",
+            user_id=user_id,
+            chapter_id="01-philosophy-guide/01-introduction",
+            guide_id="01-philosophy-guide",
+            question="Pre-reading Q",
+            expected_answer="",
+            bloom_level=BloomLevel.REMEMBER,
+            item_type=ReviewItemType.PRE_READING,
+            next_review=now,
+            created_at=now,
+        ),
+    ]
+    store.add_review_items(items)
+
+    due = store.get_due_reviews(user_id)
+    due_ids = [d["id"] for d in due]
+    assert "quiz-due" in due_ids
+    assert "tb-due" in due_ids
+    assert "pr-not-due" not in due_ids

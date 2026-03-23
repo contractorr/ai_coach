@@ -23,6 +23,12 @@ class DifficultyLevel(str, Enum):
     ADVANCED = "advanced"
 
 
+class ReviewItemType(str, Enum):
+    QUIZ = "quiz"
+    TEACHBACK = "teachback"
+    PRE_READING = "pre_reading"
+
+
 class BloomLevel(str, Enum):
     REMEMBER = "remember"
     UNDERSTAND = "understand"
@@ -103,6 +109,7 @@ class ReviewItem(BaseModel):
     question: str = ""
     expected_answer: str = ""
     bloom_level: BloomLevel = BloomLevel.REMEMBER
+    item_type: ReviewItemType = ReviewItemType.QUIZ
     easiness_factor: float = 2.5
     interval_days: int = 1
     repetitions: int = 0

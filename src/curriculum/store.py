@@ -19,7 +19,7 @@ from .spaced_repetition import sm2_update
 
 logger = structlog.get_logger()
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 
 class CurriculumStore:
@@ -121,6 +121,19 @@ class CurriculumStore:
                 CREATE INDEX IF NOT EXISTS idx_review_chapter
                 ON review_items(user_id, chapter_id)
             """)
+            # --- v1 → v2 migration: add item_type column ---
+            current_ver = conn.execute("PRAGMA user_version").fetchone()[0]
+            if current_ver < 2:
+                try:
+                    conn.execute(
+                        "ALTER TABLE review_items ADD COLUMN item_type TEXT NOT NULL DEFAULT 'quiz'"
+                    )
+                except sqlite3.OperationalError:
+                    pass  # column already exists
+                conn.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_review_type ON review_items(item_type)"
+                )
+
             ensure_schema_version(conn, SCHEMA_VERSION)
             conn.commit()
 
@@ -528,9 +541,9 @@ class CurriculumStore:
                 conn.execute(
                     """INSERT INTO review_items
                        (id, user_id, chapter_id, guide_id, question, expected_answer,
-                        bloom_level, easiness_factor, interval_days, repetitions,
+                        bloom_level, item_type, easiness_factor, interval_days, repetitions,
                         next_review, last_reviewed, content_hash, created_at)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                        ON CONFLICT(id) DO NOTHING""",
                     (
                         item_id,
@@ -540,6 +553,7 @@ class CurriculumStore:
                         item.question,
                         item.expected_answer,
                         item.bloom_level.value,
+                        item.item_type.value,
                         item.easiness_factor,
                         item.interval_days,
                         item.repetitions,
@@ -564,6 +578,7 @@ class CurriculumStore:
                 rows = conn.execute(
                     """SELECT * FROM review_items
                        WHERE user_id=? AND guide_id=? AND next_review <= ?
+                       AND item_type != 'pre_reading'
                        ORDER BY next_review ASC LIMIT ?""",
                     (user_id, guide_id, now, limit),
                 ).fetchall()
@@ -571,6 +586,7 @@ class CurriculumStore:
                 rows = conn.execute(
                     """SELECT * FROM review_items
                        WHERE user_id=? AND next_review <= ?
+                       AND item_type != 'pre_reading'
                        ORDER BY next_review ASC LIMIT ?""",
                     (user_id, now, limit),
                 ).fetchall()
@@ -621,6 +637,24 @@ class CurriculumStore:
         with wal_connect(self.db_path, row_factory=True) as conn:
             rows = conn.execute(
                 "SELECT * FROM review_items WHERE user_id=? AND chapter_id=?",
+                (user_id, chapter_id),
+            ).fetchall()
+            return [dict(r) for r in rows]
+
+    def get_teachback_for_chapter(self, user_id: str, chapter_id: str) -> dict | None:
+        """Get the teach-back review item for a chapter, if any."""
+        with wal_connect(self.db_path, row_factory=True) as conn:
+            row = conn.execute(
+                "SELECT * FROM review_items WHERE user_id=? AND chapter_id=? AND item_type='teachback'",
+                (user_id, chapter_id),
+            ).fetchone()
+            return dict(row) if row else None
+
+    def get_pre_reading_questions(self, user_id: str, chapter_id: str) -> list[dict]:
+        """Get pre-reading question items for a chapter."""
+        with wal_connect(self.db_path, row_factory=True) as conn:
+            rows = conn.execute(
+                "SELECT * FROM review_items WHERE user_id=? AND chapter_id=? AND item_type='pre_reading'",
                 (user_id, chapter_id),
             ).fetchall()
             return [dict(r) for r in rows]

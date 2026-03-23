@@ -81,6 +81,54 @@ Learn is a structured study workspace that turns a corpus of markdown guides int
 | No LLM available for quiz | Keyword matching fallback for grading |
 | Industry guide naming | `Industries/Healthcare/` → guide ID `industry-healthcare` |
 
+### Teach-back / Feynman prompts
+- After completing a chapter, user sees a "Teach-back" card prompting them to explain the key concept in their own words.
+- Generated lazily on first request: LLM identifies the single most important concept from chapter content.
+- Prompt: "Explain {concept} as if teaching someone with no background."
+- User writes a free-form explanation in a large textarea.
+- On submit, expensive LLM grades on 3 dimensions: accuracy (0-5), completeness (0-5), clarity (0-5), plus overall grade (0-5).
+- Teach-back items enter SM-2 cycle alongside quiz items (bloom_level=CREATE).
+- One teach-back per chapter; cached after first generation.
+- Toggled via `curriculum.teachback_enabled` (default true).
+
+### Pre-reading questions
+- Before reading a chapter, user sees a collapsible "Before you read" card with 2-3 attention-priming questions.
+- Questions cannot be answered without reading the chapter; they direct attention to key concepts.
+- Generated alongside quiz questions in the same LLM call. Stored as review items but never enter SM-2 cycle.
+- After chapter completion, header changes to "Check your understanding" (same questions).
+- No input fields, no grading — read-only priming.
+- Toggled via `curriculum.pre_reading_enabled` (default true).
+
+### Cross-guide chapter connections
+- After quiz section, user sees a "Related from other guides" card with 2-3 links to chapters from other enrolled guides covering similar topics.
+- Uses ChromaDB embeddings to find semantically related chapters, post-filtered to exclude same guide and limit to enrolled guides.
+- Each link shows "{chapter_title} — {guide_title}" and navigates to that chapter.
+- Empty state: renders nothing (e.g., single enrolled guide = no results).
+- Toggled via `curriculum.cross_guide_connections` (default true).
+
+## Acceptance Criteria (Deep Processing Features)
+
+- [ ] Completing a chapter shows teach-back card; user can submit explanation and see 3-dimension grading
+- [ ] Teach-back items appear in SM-2 review sessions with "Teach-back" badge and larger textarea
+- [ ] Pre-reading card appears above chapter content with 2-3 priming questions (collapsed by default)
+- [ ] Pre-reading questions never appear in review sessions
+- [ ] After chapter completion, pre-reading header changes to "Check your understanding"
+- [ ] Related chapters card shows cross-guide connections below quiz section
+- [ ] Related chapters only shows results from other enrolled guides
+- [ ] All three features respect their config toggles
+
+## Edge Cases (Deep Processing Features)
+
+| Scenario | Expected Behavior |
+|----------|-------------------|
+| Chapter not completed | Teach-back card not shown |
+| Teach-back already generated | Returns cached item |
+| No LLM for teach-back grading | Keyword fallback grading |
+| Pre-reading with no LLM | No pre-reading card shown |
+| Single enrolled guide | Related chapters card renders nothing |
+| Glossary chapter | No pre-reading or teach-back generated |
+| Hash-based fallback embedder | Higher distance threshold (0.5) for related chapters |
+
 ## Out of Scope
 
 - Cross-domain synthesis questions — requires 3+ active guides
@@ -92,7 +140,7 @@ Learn is a structured study workspace that turns a corpus of markdown guides int
 - `web/src/app/(dashboard)/learn/[guideId]/[chapterId]/page.tsx` — chapter reader
 - `web/src/app/(dashboard)/learn/review/page.tsx` — review session
 - `web/src/components/curriculum/` — GuideCard, ChapterList, CurriculumRenderer, ReviewCard, etc.
-- `src/web/routes/curriculum.py` — 12 API endpoints
+- `src/web/routes/curriculum.py` — 16 API endpoints
 - `src/curriculum/` — scanner, store, spaced_repetition, question_generator, models
 - `src/coach_mcp/tools/curriculum.py` — 5 MCP tools
 - `content/curriculum/` — 327 markdown chapters

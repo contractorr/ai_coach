@@ -11,6 +11,7 @@ from curriculum.models import (
     ProgressUpdate,
     QuizSubmission,
     ReviewGradeRequest,
+    ReviewItemType,
 )
 from curriculum.question_generator import QuestionGenerator
 from curriculum.scanner import CurriculumScanner
@@ -274,10 +275,19 @@ async def update_progress(
         except Exception as exc:
             logger.debug("curriculum_memory_extraction_failed", error=str(exc))
 
+    teachback_available = False
+    if body.status == ChapterStatus.COMPLETED:
+        try:
+            config = get_config()
+            teachback_available = config.curriculum.teachback_enabled
+        except Exception:
+            pass
+
     return {
         **(result if isinstance(result, dict) else {"status": "updated"}),
         "reflection_prompt": reflection_prompt,
         "memory_facts_extracted": memory_facts_extracted,
+        "teachback_available": teachback_available,
     }
 
 
@@ -447,6 +457,241 @@ async def submit_quiz(
         },
     )
     return {"results": results}
+
+
+@router.post("/teachback/{chapter_id:path}/generate")
+async def generate_teachback(
+    chapter_id: str,
+    user: dict = Depends(get_current_user),
+):
+    """Generate a teach-back prompt for a completed chapter."""
+    config = get_config()
+    if not config.curriculum.teachback_enabled:
+        raise HTTPException(status_code=400, detail="Teach-back disabled")
+
+    user_id = user["id"]
+    store = _get_store(user_id)
+    chapter = store.get_chapter(chapter_id)
+    if not chapter:
+        raise HTTPException(status_code=404, detail="Chapter not found")
+
+    # Must be completed
+    progress = store.get_chapter_progress(user_id, chapter_id)
+    if not progress or progress.get("status") != "completed":
+        raise HTTPException(status_code=400, detail="Chapter not completed")
+
+    # Return cached
+    existing = store.get_teachback_for_chapter(user_id, chapter_id)
+    if existing:
+        return {
+            "concept": existing["question"].removeprefix("Explain ").split(" as if ")[0],
+            "prompt": existing["question"],
+            "review_item_id": existing["id"],
+        }
+
+    # Generate
+    content_path = _chapter_content_path(chapter_id)
+    if not content_path:
+        raise HTTPException(status_code=404, detail="Chapter content not found")
+    content = content_path.read_text(encoding="utf-8")
+
+    guide = store.get_guide(chapter["guide_id"])
+    guide_title = guide["title"] if guide else ""
+
+    gen = QuestionGenerator()
+    item = await gen.generate_teachback(
+        content=content,
+        chapter_title=chapter["title"],
+        guide_title=guide_title,
+        content_hash=chapter["content_hash"],
+        chapter_id=chapter_id,
+        guide_id=chapter["guide_id"],
+        user_id=user_id,
+    )
+
+    if not item:
+        raise HTTPException(status_code=500, detail="Failed to generate teach-back")
+
+    store.add_review_items([item])
+    return {
+        "concept": item.question.removeprefix("Explain ").split(" as if ")[0],
+        "prompt": item.question,
+        "review_item_id": item.id,
+    }
+
+
+@router.post("/teachback/{review_id}/grade")
+async def grade_teachback(
+    review_id: str,
+    body: ReviewGradeRequest,
+    user: dict = Depends(get_current_user),
+):
+    """Grade a teach-back response."""
+    user_id = user["id"]
+    store = _get_store(user_id)
+    item = store.get_review_item(review_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="Review item not found")
+    if item.get("item_type") != "teachback":
+        raise HTTPException(status_code=400, detail="Not a teach-back item")
+
+    # Extract concept from question
+    concept = item["question"].removeprefix("Explain ").split(" as if ")[0]
+
+    chapter = store.get_chapter(item["chapter_id"])
+    guide = store.get_guide(item["guide_id"]) if chapter else None
+
+    gen = QuestionGenerator()
+    result = await gen.grade_teachback(
+        concept=concept,
+        expected_answer=item["expected_answer"],
+        student_answer=body.answer,
+        chapter_title=chapter["title"] if chapter else "",
+        guide_title=guide["title"] if guide else "",
+    )
+
+    # SM-2 scheduling
+    store.grade_review(review_id, result.grade)
+
+    log_event(
+        "teachback_graded",
+        user_id,
+        {"review_id": review_id, "grade": result.grade},
+    )
+    return {
+        "grade": result.grade,
+        "feedback": result.feedback,
+        "correct_points": result.correct_points,
+        "missing_points": result.missing_points,
+    }
+
+
+@router.get("/chapters/{chapter_id:path}/pre-reading")
+async def get_pre_reading(
+    chapter_id: str,
+    user: dict = Depends(get_current_user),
+):
+    """Get or generate pre-reading priming questions for a chapter."""
+    config = get_config()
+    if not config.curriculum.pre_reading_enabled:
+        return {"questions": []}
+
+    user_id = user["id"]
+    store = _get_store(user_id)
+    chapter = store.get_chapter(chapter_id)
+    if not chapter:
+        raise HTTPException(status_code=404, detail="Chapter not found")
+
+    # Return cached
+    existing = store.get_pre_reading_questions(user_id, chapter_id)
+    if existing:
+        return {"questions": existing}
+
+    # Generate (includes both quiz + pre-reading items)
+    content_path = _chapter_content_path(chapter_id)
+    if not content_path:
+        return {"questions": []}
+    content = content_path.read_text(encoding="utf-8")
+
+    guide = store.get_guide(chapter["guide_id"])
+    guide_title = guide["title"] if guide else ""
+
+    gen = QuestionGenerator()
+    items = await gen.generate_questions(
+        content=content,
+        chapter_title=chapter["title"],
+        guide_title=guide_title,
+        count=config.curriculum.questions_per_chapter,
+        content_hash=chapter["content_hash"],
+        chapter_id=chapter_id,
+        guide_id=chapter["guide_id"],
+        user_id=user_id,
+        include_pre_reading=True,
+        pre_reading_count=config.curriculum.pre_reading_count,
+    )
+
+    if items:
+        store.add_review_items(items)
+
+    pre_reading = [i.model_dump() for i in items if i.item_type == ReviewItemType.PRE_READING]
+    return {"questions": pre_reading}
+
+
+@router.get("/chapters/{chapter_id:path}/related")
+async def get_related_chapters(
+    chapter_id: str,
+    limit: int = Query(3, ge=1, le=10),
+    user: dict = Depends(get_current_user),
+):
+    """Find related chapters from other enrolled guides."""
+    config = get_config()
+    if not config.curriculum.cross_guide_connections:
+        return {"related": []}
+
+    user_id = user["id"]
+    store = _get_store(user_id)
+    chapter = store.get_chapter(chapter_id)
+    if not chapter:
+        raise HTTPException(status_code=404, detail="Chapter not found")
+
+    # Get enrolled guide IDs
+    enrollments = store.get_enrollments(user_id)
+    enrolled_ids = [e["guide_id"] for e in enrollments]
+    if len(enrolled_ids) < 2:
+        return {"related": []}
+
+    # Read current chapter content
+    content_path = _chapter_content_path(chapter_id)
+    if not content_path:
+        return {"related": []}
+    content = content_path.read_text(encoding="utf-8")
+
+    try:
+        emb = _get_chapter_embeddings(user_id, store)
+        results = emb.find_related(
+            chapter_content=content,
+            current_guide_id=chapter["guide_id"],
+            enrolled_guide_ids=enrolled_ids,
+            n_results=limit,
+        )
+
+        # Enrich with guide titles
+        for r in results:
+            guide = store.get_guide(r["guide_id"])
+            r["guide_title"] = guide["title"] if guide else r["guide_id"]
+
+        return {"related": results}
+    except Exception:
+        logger.exception("related_chapters_failed")
+        return {"related": []}
+
+
+def _get_chapter_embeddings(user_id: str, store: CurriculumStore):
+    """Lazy-init chapter embeddings, syncing all chapters if empty."""
+    from curriculum.embeddings import ChapterEmbeddingManager
+
+    paths = get_user_paths(user_id)
+    chroma_dir = Path(paths["data_dir"]) / "chroma"
+    emb = ChapterEmbeddingManager(chroma_dir)
+
+    if emb.count() == 0:
+        # Bulk sync all chapters
+        all_guides = store.list_guides()
+        all_chapters = []
+        for g in all_guides:
+            guide_detail = store.get_guide(g["id"])
+            if guide_detail and guide_detail.get("chapters"):
+                all_chapters.extend(guide_detail["chapters"])
+
+        def reader(ch_id: str) -> str | None:
+            p = _chapter_content_path(ch_id)
+            if p and p.is_file():
+                return p.read_text(encoding="utf-8")
+            return None
+
+        emb.sync_from_chapters(all_chapters, reader)
+
+    return emb
 
 
 @router.get("/stats")
