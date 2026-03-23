@@ -2,7 +2,6 @@
 
 import asyncio
 import json
-import os
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -16,43 +15,36 @@ from apscheduler.triggers.cron import CronTrigger
 
 from graceful import graceful_context
 from observability import metrics
-from storage_paths import get_coach_home
 
-from .health import RSSFeedHealthTracker, ScraperHealthTracker
+from .health import ScraperHealthTracker
+from .job_registry import build_job_specs, register_jobs
+from .runners import (
+    RecommendationRunner,
+    ResearchRunner,
+    RunnerContext,
+    refresh_capability_model,
+    run_autonomous_actions,
+    run_github_repo_poll,
+    run_goal_intel_matching,
+    run_heartbeat,
+    run_memory_consolidation,
+    run_signal_detection,
+    run_trending_radar,
+    run_weekly_summary,
+)
 from .scraper import IntelStorage
-from .sources import (
-    AICapabilitiesScraper,
-    AIIndexScraper,
-    ARCEvalsScraper,
-    ArxivScraper,
-    CrunchbaseScraper,
-    EpochAIScraper,
-    EventScraper,
-    FrontierEvalsGitHubScraper,
-    GitHubIssuesScraper,
-    GitHubTrendingScraper,
-    GooglePatentsScraper,
-    GoogleTrendsScraper,
-    HackerNewsScraper,
-    IndeedHiringLabScraper,
-    METRScraper,
-    ProductHuntScraper,
-    RedditScraper,
-    RSSFeedScraper,
-    XListScraper,
-    YCJobsScraper,
+from .scraper_factory import ScraperFactory
+from .watchlist_pipeline import (
+    create_company_movement_pipeline,
+    create_hiring_pipeline,
+    create_regulatory_pipeline,
 )
 
 logger = structlog.get_logger().bind(source="scheduler")
 
 
 def _parse_cron(expr: str, defaults: Optional[dict] = None) -> CronTrigger:
-    """Parse cron expression string into CronTrigger.
-
-    Args:
-        expr: 5-field cron expression (min hour day month dow)
-        defaults: Optional dict of default values for missing fields
-    """
+    """Parse cron expression string into CronTrigger."""
     d = defaults or {"minute": "0", "hour": "6", "day": "*", "month": "*", "day_of_week": "*"}
     parts = expr.split()
     return CronTrigger(
@@ -64,148 +56,8 @@ def _parse_cron(expr: str, defaults: Optional[dict] = None) -> CronTrigger:
     )
 
 
-class ResearchRunner:
-    """Handles deep research agent initialization and execution."""
-
-    def __init__(self, storage: IntelStorage, journal_storage, embeddings, config: dict):
-        self.storage = storage
-        self.journal_storage = journal_storage
-        self.embeddings = embeddings
-        self.config = config
-
-    def _init_agent(self):
-        """Initialize research agent for manual or scheduled research operations."""
-
-        if not self.journal_storage or not self.embeddings:
-            logger.warning("Research agent requires journal_storage and embeddings")
-            return None
-
-        try:
-            from research.agent import DeepResearchAgent
-
-            return DeepResearchAgent(
-                journal_storage=self.journal_storage,
-                intel_storage=self.storage,
-                embeddings=self.embeddings,
-                config=self.config,
-            )
-        except ImportError as e:
-            logger.error("Failed to import research agent: %s", e)
-            return None
-
-    def run(self, topic: Optional[str] = None, dossier_id: Optional[str] = None) -> list[dict]:
-        """Run deep research immediately."""
-        agent = self._init_agent()
-        if not agent:
-            logger.warning("Research agent not available")
-            return []
-
-        try:
-            return agent.run(specific_topic=topic, dossier_id=dossier_id)
-        finally:
-            agent.close()
-
-    def list_dossiers(self, include_archived: bool = False, limit: int = 50) -> list[dict]:
-        agent = self._init_agent()
-        if not agent:
-            return []
-        try:
-            return agent.list_dossiers(include_archived=include_archived, limit=limit)
-        finally:
-            agent.close()
-
-    def create_dossier(self, **kwargs) -> dict | None:
-        agent = self._init_agent()
-        if not agent:
-            return None
-        try:
-            return agent.create_dossier(**kwargs)
-        finally:
-            agent.close()
-
-    def get_dossier(self, dossier_id: str) -> dict | None:
-        agent = self._init_agent()
-        if not agent:
-            return None
-        try:
-            return agent.get_dossier(dossier_id)
-        finally:
-            agent.close()
-
-    def get_topics(self) -> list[dict]:
-        """Get suggested research topics."""
-        agent = self._init_agent()
-        if not agent:
-            return []
-
-        try:
-            return agent.get_suggested_topics()
-        finally:
-            agent.close()
-
-
-class RecommendationRunner:
-    """Handles recommendation generation and action brief saving."""
-
-    def __init__(self, storage: IntelStorage, journal_storage, config: dict):
-        self.storage = storage
-        self.journal_storage = journal_storage
-        self.config = config
-
-    def run(self) -> dict:
-        """Generate recommendations and save action brief."""
-        rec_config = self.config.get("recommendations", {})
-        if not rec_config.get("enabled", False):
-            logger.warning("Recommendations not enabled")
-            return {"error": "not_enabled"}
-
-        if not self.journal_storage:
-            logger.warning("Journal storage required for recommendations")
-            return {"error": "no_journal_storage"}
-
-        try:
-            from advisor.engine import AdvisorEngine
-            from advisor.rag import RAGRetriever
-            from journal import EmbeddingManager, JournalSearch
-            from journal.fts import JournalFTSIndex
-
-            paths_config = self.config.get("paths", {})
-            chroma_dir = Path(paths_config.get("chroma_dir", "~/coach/chroma")).expanduser()
-            journal_dir = Path(paths_config.get("journal_dir", "~/coach/journal")).expanduser()
-            embeddings = EmbeddingManager(chroma_dir)
-            fts_index = JournalFTSIndex(journal_dir)
-            search = JournalSearch(self.journal_storage, embeddings, fts_index=fts_index)
-            rag = RAGRetriever(search, self.storage.db_path)
-
-            advisor = AdvisorEngine(rag)
-
-            rec_db = self.storage.db_path.parent / "recommendations"
-
-            max_per_cat = rec_config.get("scoring", {}).get("max_per_category", 3)
-            recs = advisor.generate_recommendations(
-                "all", rec_db, rec_config, max_items=max_per_cat
-            )
-
-            delivery = rec_config.get("delivery", {})
-            brief_saved = False
-            if "journal" in delivery.get("methods", ["journal"]):
-                advisor.generate_action_brief(
-                    rec_db,
-                    journal_storage=self.journal_storage,
-                    save=True,
-                )
-                brief_saved = True
-                logger.info("Action brief saved to journal")
-
-            return {"recommendations": len(recs), "brief_saved": brief_saved}
-
-        except Exception as e:
-            logger.error("Failed to generate recommendations: %s", e)
-            return {"error": str(e)}
-
-
 class IntelScheduler:
-    """Manages scheduled intelligence gathering jobs. Delegates research/recs to runners."""
+    """Manages scheduled intelligence gathering jobs. Delegates to extracted modules."""
 
     def __init__(
         self,
@@ -225,292 +77,39 @@ class IntelScheduler:
         self.scheduler = BackgroundScheduler()
         self._scrapers: list = []
         self._entity_extraction_runner = None
+        self.intel_embedding_mgr = None
 
         self._health = ScraperHealthTracker(storage.db_path)
         self._research = ResearchRunner(storage, journal_storage, embeddings, self.full_config)
         self._recommendations = RecommendationRunner(storage, journal_storage, self.full_config)
 
+        self._ctx = RunnerContext(
+            storage=storage,
+            full_config=self.full_config,
+            journal_storage=journal_storage,
+            embeddings=embeddings,
+        )
+
+        # Lazy-init pipeline instances
+        self._company_pipeline = None
+        self._hiring_pipeline = None
+        self._regulatory_pipeline = None
+
+    # --- Scraper init + async execution (stays here: tightly coupled to _health/metrics) ---
+
     def _init_scrapers(self):
-        """Initialize async scrapers from config."""
-        self._scrapers = []
-
-        enabled = self.config.get("enabled", ["hn_top", "rss_feeds"])
-
-        # Shared per-feed health tracker for all RSS scrapers
-        self._feed_health = RSSFeedHealthTracker(self.storage.db_path)
-
-        # Semantic dedup: create shared embedding manager if configured
-        intel_embedding_mgr = None
-        if self.config.get("semantic_dedup", False):
-            try:
-                from coach_config import get_paths
-                from intelligence.embeddings import IntelEmbeddingManager
-
-                paths = get_paths(self.full_config)
-                intel_embedding_mgr = IntelEmbeddingManager(paths["chroma_dir"])
-                logger.info("semantic_dedup.enabled")
-            except Exception as e:
-                logger.warning("semantic_dedup.init_failed", error=str(e))
-
-        # Detect which sources are covered by RSS feeds for dedup
-        rss_covered_sources = set()
-        if self.config.get("deduplicate_rss_sources", True):
-            from intelligence.sources.rss import _detect_source_tag
-
-            for url in self.config.get("rss_feeds", []):
-                tag = _detect_source_tag(url)
-                if tag:
-                    rss_covered_sources.add(tag)
-
-        if "hn_top" in enabled and "hn" not in rss_covered_sources:
-            self._scrapers.append(HackerNewsScraper(self.storage))
-
-        config_rss_urls: set[str] = set()
-        if "rss_feeds" in enabled:
-            for url in self.config.get("rss_feeds", []):
-                self._scrapers.append(
-                    RSSFeedScraper(self.storage, url, feed_health_tracker=self._feed_health)
-                )
-                config_rss_urls.add(url)
-
-        # Merge user-added RSS feeds with per-user ownership tagging
-        with graceful_context("graceful.scheduler.rss_merge", log_level="debug"):
-            from user_state_store import get_all_user_rss_feeds
-
-            # Build feed_url → set[user_id] mapping for ownership
-            feed_user_map: dict[str, set[str]] = {}
-            for feed in get_all_user_rss_feeds():
-                feed_user_map.setdefault(feed["url"], set()).add(feed["user_id"])
-
-            for url, user_ids in feed_user_map.items():
-                if url not in config_rss_urls:
-                    # Single user → tag items; multiple users → shared (None)
-                    owner = next(iter(user_ids)) if len(user_ids) == 1 else None
-                    self._scrapers.append(
-                        RSSFeedScraper(
-                            self.storage,
-                            url,
-                            name=None,
-                            feed_health_tracker=self._feed_health,
-                            default_user_id=owner,
-                        )
-                    )
-                    config_rss_urls.add(url)
-
-        if "custom_blogs" in enabled:
-            for url in self.config.get("custom_blogs", []):
-                self._scrapers.append(
-                    RSSFeedScraper(self.storage, url, feed_health_tracker=self._feed_health)
-                )
-
-        # GitHub trending
-        gh_config = self.config.get("github_trending", {})
-        if gh_config.get("enabled", False):
-            self._scrapers.append(
-                GitHubTrendingScraper(
-                    self.storage,
-                    languages=gh_config.get("languages", ["python"]),
-                    timeframe=gh_config.get("timeframe", "daily"),
-                )
-            )
-
-        # arXiv (skip if covered by RSS feeds)
-        arxiv_config = self.config.get("arxiv", {})
-        if (
-            "arxiv" in enabled or arxiv_config.get("enabled", False)
-        ) and "arxiv" not in rss_covered_sources:
-            self._scrapers.append(
-                ArxivScraper(
-                    self.storage,
-                    categories=arxiv_config.get("categories"),
-                    max_results=arxiv_config.get("max_results", 30),
-                )
-            )
-
-        # Reddit (skip if covered by RSS feeds)
-        reddit_config = self.config.get("reddit", {})
-        if (
-            "reddit" in enabled or reddit_config.get("enabled", False)
-        ) and "reddit" not in rss_covered_sources:
-            self._scrapers.append(
-                RedditScraper(
-                    self.storage,
-                    subreddits=reddit_config.get("subreddits"),
-                    limit=reddit_config.get("limit", 25),
-                    timeframe=reddit_config.get("timeframe", "day"),
-                )
-            )
-
-        # Events (confs.tech + RSS)
-        events_config = self.full_config.get("events", {})
-        if events_config.get("enabled", False):
-            # Load profile for location filter
-            location = ""
-            if events_config.get("location_filter", False):
-                with graceful_context("graceful.scheduler.event_location"):
-                    from profile.storage import ProfileStorage
-
-                    profile_path = self.full_config.get("profile", {}).get(
-                        "path", "~/coach/profile.yaml"
-                    )
-                    ps = ProfileStorage(profile_path)
-                    p = ps.load()
-                    if p:
-                        location = p.location
-            self._scrapers.append(
-                EventScraper(
-                    self.storage,
-                    topics=events_config.get("topics"),
-                    location_filter=location,
-                    rss_feeds=events_config.get("rss_feeds", []),
-                )
-            )
-
-        # Product Hunt
-        ph_config = self.config.get("producthunt", {})
-        if "producthunt" in enabled or ph_config.get("enabled", False):
-            self._scrapers.append(
-                ProductHuntScraper(
-                    self.storage,
-                    max_items=ph_config.get("max_items", 20),
-                )
-            )
-
-        # YC Jobs
-        yc_config = self.config.get("yc_jobs", {})
-        if "yc_jobs" in enabled or yc_config.get("enabled", False):
-            self._scrapers.append(
-                YCJobsScraper(
-                    self.storage,
-                    max_items=yc_config.get("max_items", 30),
-                )
-            )
-
-        # Google Patents
-        patents_config = self.config.get("google_patents", {})
-        if "google_patents" in enabled or patents_config.get("enabled", False):
-            self._scrapers.append(
-                GooglePatentsScraper(
-                    self.storage,
-                    feeds=patents_config.get("feeds"),
-                    max_per_feed=patents_config.get("max_per_feed", 15),
-                )
-            )
-
-        # AI Capabilities (METR, Chatbot Arena, HELM)
-        ai_cap_config = self.config.get("ai_capabilities", {})
-        if "ai_capabilities" in enabled or ai_cap_config.get("enabled", False):
-            self._scrapers.append(
-                AICapabilitiesScraper(
-                    self.storage,
-                    sources=ai_cap_config.get("sources", ["metr", "chatbot_arena", "helm"]),
-                    max_items_per_source=ai_cap_config.get("max_items_per_source", 10),
-                )
-            )
-
-        # GitHub Issues (good-first-issue / help-wanted)
-        gh_issues_config = self.full_config.get("projects", {}).get("github_issues", {})
-        if gh_issues_config.get("enabled", False):
-            langs = gh_issues_config.get("languages")
-            if not langs:
-                with graceful_context("graceful.scheduler.gh_issues_langs"):
-                    from profile.storage import ProfileStorage
-
-                    profile_path = self.full_config.get("profile", {}).get(
-                        "path", "~/coach/profile.yaml"
-                    )
-                    ps = ProfileStorage(profile_path)
-                    p = ps.load()
-                    if p:
-                        langs = p.languages_frameworks[:5]
-            self._scrapers.append(
-                GitHubIssuesScraper(
-                    self.storage,
-                    languages=langs or ["python"],
-                    labels=gh_issues_config.get("labels", ["good-first-issue", "help-wanted"]),
-                    token=gh_issues_config.get("token"),
-                )
-            )
-
-        # Capability horizon scrapers (always enabled alongside ai_capabilities)
-        cap_config = self.config.get("capability_horizon", {})
-        if cap_config.get("enabled", False) or (
-            "ai_capabilities" in enabled or ai_cap_config.get("enabled", False)
-        ):
-            self._scrapers.append(METRScraper(self.storage))
-            self._scrapers.append(EpochAIScraper(self.storage))
-            self._scrapers.append(AIIndexScraper(self.storage))
-            self._scrapers.append(ARCEvalsScraper(self.storage))
-            gh_token = self.full_config.get("projects", {}).get("github_issues", {}).get("token")
-            self._scrapers.append(FrontierEvalsGitHubScraper(self.storage, token=gh_token))
-
-        # Indeed Hiring Lab
-        indeed_config = self.config.get("indeed_hiring_lab", {})
-        if "indeed_hiring_lab" in enabled or indeed_config.get("enabled", False):
-            self._scrapers.append(
-                IndeedHiringLabScraper(
-                    self.storage,
-                    change_threshold=indeed_config.get("change_threshold", 5.0),
-                    max_items=indeed_config.get("max_items", 8),
-                )
-            )
-
-        # Google Trends
-        trends_config = self.config.get("google_trends", {})
-        if "google_trends" in enabled or trends_config.get("enabled", False):
-            self._scrapers.append(
-                GoogleTrendsScraper(
-                    self.storage,
-                    keywords=trends_config.get("keywords"),
-                    spike_threshold=trends_config.get("spike_threshold", 20.0),
-                    timeframe=trends_config.get("timeframe", "today 1-m"),
-                )
-            )
-
-        # Crunchbase
-        cb_config = self.config.get("crunchbase", {})
-        if "crunchbase" in enabled or cb_config.get("enabled", False):
-            self._scrapers.append(
-                CrunchbaseScraper(
-                    self.storage,
-                    api_key=cb_config.get("api_key"),
-                    categories=cb_config.get("categories"),
-                    days_back=cb_config.get("days_back", 7),
-                    max_items=cb_config.get("max_items", 20),
-                )
-            )
-
-        # X/Twitter List
-        x_list_config = self.config.get("x_list", {})
-        if "x_list" in enabled or x_list_config.get("enabled", False):
-            bearer = x_list_config.get("bearer_token") or os.environ.get("X_BEARER_TOKEN")
-            list_id = x_list_config.get("list_id")
-            if bearer and list_id:
-                self._scrapers.append(
-                    XListScraper(
-                        self.storage,
-                        bearer_token=bearer,
-                        list_id=list_id,
-                        max_tweets=x_list_config.get("max_tweets", 100),
-                    )
-                )
-
-        # Store + attach shared embedding manager for semantic dedup + goal matching
-        self.intel_embedding_mgr = intel_embedding_mgr
-        if intel_embedding_mgr:
-            for scraper in self._scrapers:
-                scraper.embedding_manager = intel_embedding_mgr
+        factory = ScraperFactory(self.storage, self.config, self.full_config)
+        self._scrapers, self.intel_embedding_mgr, self._feed_health = factory.create_all()
+        self._ctx.intel_embedding_mgr = self.intel_embedding_mgr
 
     async def _run_async(self) -> dict:
         """Run all scrapers concurrently."""
-        # Generate correlation ID and bind to structlog
         run_id = uuid.uuid4().hex[:8]
         structlog.contextvars.bind_contextvars(run_id=run_id)
 
         try:
             self._init_scrapers()
             results = {}
-
             dedup_threshold = self.config.get("semantic_dedup_threshold", 0.92)
 
             async def run_scraper(scraper):
@@ -586,7 +185,7 @@ class IntelScheduler:
                     metrics.counter("scraper_failure")
                     results["unknown"] = {"error": str(result)}
 
-            # Invalidate all greeting caches after scrape batch
+            # Invalidate greeting caches after scrape batch
             try:
                 from advisor.context_cache import ContextCache
 
@@ -603,6 +202,8 @@ class IntelScheduler:
     def run_now(self) -> dict:
         """Run async scrapers from sync context."""
         return asyncio.run(self._run_async())
+
+    # --- Entity extraction (coupled to scheduler lifecycle) ---
 
     def _get_entity_scheduler(self):
         if self._entity_extraction_runner is False:
@@ -643,7 +244,6 @@ class IntelScheduler:
         return self._entity_extraction_runner
 
     def run_entity_extraction(self):
-        """Run entity extraction for the oldest unprocessed intel items."""
         runner = self._get_entity_scheduler()
         if not runner:
             return {"status": "disabled"}
@@ -651,37 +251,15 @@ class IntelScheduler:
         logger.info("entity_extraction.complete", **result.__dict__)
         return result.__dict__
 
-    def _schedule_entity_extraction_job(self) -> None:
-        entity_config = self.full_config.get("entity_extraction", {})
-        if entity_config.get("enabled", True) is False:
-            return
-
-        from apscheduler.triggers.interval import IntervalTrigger
-
-        self.scheduler.add_job(
-            self.run_entity_extraction,
-            trigger=IntervalTrigger(minutes=entity_config.get("schedule_minutes", 30)),
-            id="entity_extraction",
-            replace_existing=True,
-            coalesce=True,
-            max_instances=1,
-            misfire_grace_time=300,
-        )
-        logger.info(
-            "entity_extraction.scheduled",
-            interval_minutes=entity_config.get("schedule_minutes", 30),
-        )
+    # --- Error handler ---
 
     def _default_error_handler(self, event):
-        """Default error handler for APScheduler job failures."""
         logger.error(
             "job_error",
             job_id=event.job_id,
             exception=str(event.exception),
             traceback=event.traceback,
         )
-
-        # Write status file
         status_path = Path("~/.coach/last_run_status.json").expanduser()
         status_path.parent.mkdir(parents=True, exist_ok=True)
         status_data = {
@@ -692,140 +270,106 @@ class IntelScheduler:
         }
         status_path.write_text(json.dumps(status_data, indent=2))
 
-        # Call custom handler if provided
         if self.on_error:
             try:
                 self.on_error(event)
             except Exception as e:
                 logger.error("Error in custom on_error callback: %s", e)
 
-    def _load_pipeline_watchlists(self) -> list[dict]:
-        from .watchlist import list_all_watchlist_items
-
-        return list_all_watchlist_items()
+    # --- Watchlist pipeline delegates ---
 
     def run_company_movement_pipeline(self) -> dict:
-        from .company_watch import (
-            CompanyMovementCollector,
-            CompanyMovementStore,
-            WatchedCompanyResolver,
-        )
-
-        company_config = self.full_config.get("company_movement", {})
-        watchlist_items = self._load_pipeline_watchlists()
-        companies = WatchedCompanyResolver().from_watchlist_items(watchlist_items)
-        by_key: dict[str, dict] = {}
-        for company in companies:
-            key = company.get("company_key") or ""
-            if key and (
-                key not in by_key or company.get("priority", 0) > by_key[key].get("priority", 0)
-            ):
-                by_key[key] = company
-        companies = list(by_key.values())
-        if not companies:
-            return {"watched_companies": 0, "events_detected": 0, "saved": 0}
-
-        lookback_days = int(company_config.get("lookback_days", 14) or 14)
-        min_significance = float(company_config.get("min_significance", 0.45) or 0.45)
-        recent_items = self.storage.get_recent(
-            days=lookback_days,
-            limit=max(200, len(companies) * 25),
-            include_duplicates=True,
-        )
-        collector = CompanyMovementCollector()
-        events = [
-            event
-            for event in collector.collect(companies, recent_items)
-            if float(event.get("significance") or 0.0) >= min_significance
-        ]
-        saved = CompanyMovementStore(self.storage.db_path).save_many(events)
-        logger.info(
-            "company_movement.complete",
-            watched_companies=len(companies),
-            events_detected=len(events),
-            saved=saved,
-        )
-        return {"watched_companies": len(companies), "events_detected": len(events), "saved": saved}
+        if not self._company_pipeline:
+            self._company_pipeline = create_company_movement_pipeline(
+                self.storage, self.full_config
+            )
+        return self._company_pipeline.run()
 
     def run_hiring_activity_pipeline(self) -> dict:
-        from .company_watch import WatchedCompanyResolver
-        from .hiring_signals import HiringSignalAnalyzer, HiringSignalStore
-
-        hiring_config = self.full_config.get("hiring", {})
-        watchlist_items = self._load_pipeline_watchlists()
-        entities = WatchedCompanyResolver().from_watchlist_items(watchlist_items)
-        by_key: dict[str, dict] = {}
-        for entity in entities:
-            key = entity.get("company_key") or entity.get("entity_key") or ""
-            if key and (
-                key not in by_key or entity.get("priority", 0) > by_key[key].get("priority", 0)
-            ):
-                by_key[key] = entity
-        entities = list(by_key.values())
-        if not entities:
-            return {"watched_entities": 0, "signals_detected": 0, "saved": 0}
-
-        lookback_days = int(hiring_config.get("lookback_days", 14) or 14)
-        recent_items = self.storage.get_recent(
-            days=lookback_days,
-            limit=max(200, len(entities) * 25),
-            include_duplicates=True,
-        )
-        signals = HiringSignalAnalyzer().analyze_mentions(entities, recent_items)
-        saved = HiringSignalStore(self.storage.db_path).save_many(signals)
-        logger.info(
-            "hiring_pipeline.complete",
-            watched_entities=len(entities),
-            signals_detected=len(signals),
-            saved=saved,
-        )
-        return {"watched_entities": len(entities), "signals_detected": len(signals), "saved": saved}
+        if not self._hiring_pipeline:
+            self._hiring_pipeline = create_hiring_pipeline(self.storage, self.full_config)
+        return self._hiring_pipeline.run()
 
     def run_regulatory_pipeline(self) -> dict:
-        from .regulatory import RegulatoryAlertStore, RegulatoryClassifier, RegulatoryWatchResolver
+        if not self._regulatory_pipeline:
+            self._regulatory_pipeline = create_regulatory_pipeline(self.storage, self.full_config)
+        return self._regulatory_pipeline.run()
 
-        reg_config = self.full_config.get("regulatory", {})
-        watchlist_items = self._load_pipeline_watchlists()
-        targets = RegulatoryWatchResolver().from_watchlist_items(watchlist_items)
-        by_key: dict[str, dict] = {}
-        for target in targets:
-            key = target.get("target_key") or ""
-            if key and (
-                key not in by_key or target.get("priority", 0) > by_key[key].get("priority", 0)
-            ):
-                by_key[key] = target
-        targets = list(by_key.values())
-        if not targets:
-            return {"targets": 0, "alerts_detected": 0, "saved": 0}
+    # --- Runner delegates ---
 
-        lookback_days = int(reg_config.get("lookback_days", 30) or 30)
-        min_relevance = float(reg_config.get("min_relevance", 0.5) or 0.5)
-        recent_items = self.storage.get_recent(
-            days=lookback_days,
-            limit=max(250, len(targets) * 30),
-            include_duplicates=True,
+    def run_signal_detection(self) -> list:
+        return run_signal_detection(self._ctx)
+
+    def run_autonomous_actions(self) -> list:
+        return run_autonomous_actions(self._ctx)
+
+    def refresh_capability_model(self) -> dict:
+        return refresh_capability_model(self._ctx)
+
+    def run_github_repo_poll(self) -> dict:
+        return run_github_repo_poll(self._ctx)
+
+    def run_goal_intel_matching(self):
+        return run_goal_intel_matching(self._ctx)
+
+    def run_heartbeat(self):
+        return run_heartbeat(self._ctx)
+
+    def run_trending_radar(self):
+        return run_trending_radar(self._ctx)
+
+    def run_weekly_summary(self):
+        return run_weekly_summary(self._ctx)
+
+    def run_memory_consolidation(self):
+        return run_memory_consolidation(self._ctx)
+
+    # --- Research + recommendation delegates ---
+
+    def run_research_now(
+        self, topic: Optional[str] = None, dossier_id: Optional[str] = None
+    ) -> list[dict]:
+        return self._research.run(topic=topic, dossier_id=dossier_id)
+
+    def get_research_topics(self) -> list[dict]:
+        return self._research.get_topics()
+
+    def list_research_dossiers(self, include_archived: bool = False, limit: int = 50) -> list[dict]:
+        return self._research.list_dossiers(include_archived=include_archived, limit=limit)
+
+    def create_research_dossier(self, **kwargs) -> dict | None:
+        return self._research.create_dossier(**kwargs)
+
+    def get_research_dossier(self, dossier_id: str) -> dict | None:
+        return self._research.get_dossier(dossier_id)
+
+    def run_recommendations_now(self) -> dict:
+        return self._recommendations.run()
+
+    # --- Scheduling ---
+
+    def start(self, cron_expr: str = "0 6 * * *"):
+        trigger = _parse_cron(cron_expr)
+        self.scheduler.add_job(
+            self.run_now, trigger=trigger, id="intel_gather", replace_existing=True
         )
-        classifier = RegulatoryClassifier()
-        alerts: list[dict] = []
-        seen: set[tuple[str, str]] = set()
-        for target in targets:
-            for intel_item in recent_items:
-                alert = classifier.classify(intel_item, target)
-                if not alert or float(alert.get("relevance") or 0.0) < min_relevance:
-                    continue
-                dedupe_key = (alert.get("target_key") or "", alert.get("source_url") or "")
-                if dedupe_key in seen:
-                    continue
-                seen.add(dedupe_key)
-                alerts.append(alert)
-        saved = RegulatoryAlertStore(self.storage.db_path).save_many(alerts)
-        logger.info(
-            "regulatory_pipeline.complete",
-            targets=len(targets),
-            alerts_detected=len(alerts),
-            saved=saved,
-        )
-        return {"targets": len(targets), "alerts_detected": len(alerts), "saved": saved}
+        self._schedule_extended_jobs()
+        self._schedule_entity_extraction_job()
+        self.scheduler.add_listener(self._default_error_handler, EVENT_JOB_ERROR)
+        self.scheduler.start()
+
+    def start_with_research(
+        self,
+        scrape_cron: str = "0 6 * * *",
+        research_cron: str = "0 21 * * 0",
+    ):
+        specs = build_job_specs(self, scrape_cron, research_cron)
+        register_jobs(self.scheduler, specs)
+        self.scheduler.add_listener(self._default_error_handler, EVENT_JOB_ERROR)
+        self.scheduler.start()
+
+    def stop(self):
+        self.scheduler.shutdown()
 
     def _schedule_extended_jobs(self) -> None:
         company_config = self.full_config.get("company_movement", {})
@@ -861,586 +405,23 @@ class IntelScheduler:
             )
             logger.info("regulatory_pipeline.scheduled", cron=cron)
 
-    def start(self, cron_expr: str = "0 6 * * *"):
-        """Start scheduled gathering."""
-        trigger = _parse_cron(cron_expr)
-        self.scheduler.add_job(
-            self.run_now,
-            trigger=trigger,
-            id="intel_gather",
-            replace_existing=True,
-        )
-        self._schedule_extended_jobs()
-        self._schedule_entity_extraction_job()
-        self.scheduler.add_listener(self._default_error_handler, EVENT_JOB_ERROR)
-        self.scheduler.start()
-
-    def stop(self):
-        """Stop scheduler."""
-        self.scheduler.shutdown()
-
-    # Delegate research methods
-    def run_research_now(
-        self,
-        topic: Optional[str] = None,
-        dossier_id: Optional[str] = None,
-    ) -> list[dict]:
-        """Run deep research immediately."""
-        return self._research.run(topic=topic, dossier_id=dossier_id)
-
-    def get_research_topics(self) -> list[dict]:
-        """Get suggested research topics."""
-        return self._research.get_topics()
-
-    def list_research_dossiers(self, include_archived: bool = False, limit: int = 50) -> list[dict]:
-        """List persistent research dossiers."""
-        return self._research.list_dossiers(include_archived=include_archived, limit=limit)
-
-    def create_research_dossier(self, **kwargs) -> dict | None:
-        """Create a persistent research dossier."""
-        return self._research.create_dossier(**kwargs)
-
-    def get_research_dossier(self, dossier_id: str) -> dict | None:
-        """Get a persistent research dossier with updates."""
-        return self._research.get_dossier(dossier_id)
-
-    # Delegate recommendation methods
-    def run_recommendations_now(self) -> dict:
-        """Run recommendation generation and save action brief."""
-        return self._recommendations.run()
-
-    # --- Signal detection + autonomous actions ---
-
-    def run_signal_detection(self) -> list:
-        """Run signal detection across all data sources."""
-        if not self.journal_storage:
-            logger.warning("Signal detection requires journal_storage")
-            return []
-        try:
-            from advisor.signals import SignalDetector
-
-            db_path = self.storage.db_path
-            repo_store = None
-            gh_config = self.full_config.get("github_monitoring", {})
-            if gh_config.get("enabled", False):
-                try:
-                    from .github_repo_store import GitHubRepoStore
-
-                    repo_store = GitHubRepoStore(db_path)
-                except Exception:
-                    pass
-            detector = SignalDetector(
-                self.journal_storage, db_path, self.full_config, repo_store=repo_store
-            )
-            signals = detector.detect_all()
-            logger.info("signal_detection_complete", count=len(signals))
-            return signals
-        except Exception as e:
-            logger.error("signal_detection_failed", error=str(e))
-            return []
-
-    def run_autonomous_actions(self) -> list:
-        """Run autonomous actions based on current signals."""
-        if not self.journal_storage:
-            logger.warning("Autonomous actions require journal_storage")
-            return []
-        try:
-            from advisor.autonomous import AutonomousActionEngine
-            from advisor.signals import SignalStore
-
-            db_path = self.storage.db_path
-            store = SignalStore(db_path)
-            active_signals = store.get_active(limit=20)
-
-            # Reconstruct Signal objects from stored data
-            from advisor.signals import Signal, SignalType
-
-            signals = []
-            for s in active_signals:
-                try:
-                    signals.append(
-                        Signal(
-                            type=SignalType(s["type"]),
-                            severity=s["severity"],
-                            title=s["title"],
-                            detail=s.get("detail", ""),
-                            suggested_actions=s.get("suggested_actions", []),
-                            evidence=s.get("evidence", []),
-                        )
-                    )
-                except (ValueError, KeyError):
-                    continue
-
-            engine = AutonomousActionEngine(
-                self.journal_storage, db_path, self.full_config, self.embeddings
-            )
-            results = engine.process_signals(signals)
-            logger.info("autonomous_actions_complete", count=len(results))
-            return results
-        except Exception as e:
-            logger.error("autonomous_actions_failed", error=str(e))
-            return []
-
-    def refresh_capability_model(self) -> dict:
-        """Run capability scrapers and refresh the CapabilityHorizonModel."""
-        from intelligence.capability_model import CapabilityHorizonModel
-        from intelligence.sources.ai_capabilities import (
-            AIIndexScraper,
-            ARCEvalsScraper,
-            EpochAIScraper,
-            FrontierEvalsGitHubScraper,
-            METRScraper,
-        )
-
-        async def _run():
-            scrapers = [
-                METRScraper(self.storage),
-                EpochAIScraper(self.storage),
-                AIIndexScraper(self.storage),
-                ARCEvalsScraper(self.storage),
-                FrontierEvalsGitHubScraper(self.storage),
-            ]
-            all_items = []
-            for scraper in scrapers:
-                try:
-                    items = await asyncio.wait_for(scraper.scrape(), timeout=60.0)
-                    all_items.extend(items)
-                except Exception as e:
-                    logger.warning("cap_scraper_failed", source=scraper.source_name, error=str(e))
-                finally:
-                    await scraper.close()
-            return all_items
-
-        try:
-            items = asyncio.run(_run())
-        except Exception as e:
-            logger.error("capability_model_scrape_failed", error=str(e))
-            items = []
-
-        model = CapabilityHorizonModel(self.storage.db_path)
-        model.refresh(items)
-
-        updated = sum(1 for d in model.domains if d.last_updated)
-        fallback = len(model.domains) - updated if model.domains else 0
-        logger.info(
-            "capability_model_refreshed",
-            total_items=len(items),
-            domains_updated=len(model.domains),
-            domains_fallback=fallback,
-        )
-        return {"items_scraped": len(items), "domains": len(model.domains)}
-
-    def run_github_repo_poll(self) -> dict:
-        """Poll monitored GitHub repos for all users."""
-        gh_config = self.full_config.get("github_monitoring", {})
-        if not gh_config.get("enabled", False):
-            return {"status": "disabled"}
-
-        try:
-            from .github_repo_poller import GitHubRepoPoller
-            from .github_repo_store import GitHubRepoStore
-            from .github_repos import GitHubRepoClient
-
-            store = GitHubRepoStore(self.storage.db_path)
-            user_ids = store.get_all_user_ids_with_repos()
-            if not user_ids:
-                return {"status": "no_repos"}
-
-            total_snapshots = 0
-            for user_id in user_ids:
-                token = None
-                try:
-                    from user_state_store import get_user_secret
-
-                    fernet_key = os.environ.get("SECRET_KEY", "")
-                    if fernet_key:
-                        token = get_user_secret(user_id, "github_pat", fernet_key)
-                        if not token:
-                            token = get_user_secret(user_id, "github_token", fernet_key)
-                except Exception:
-                    pass  # user_state_store may not be available in CLI mode
-
-                client = GitHubRepoClient(
-                    token=token,
-                    base_url=gh_config.get("api_base_url", "https://api.github.com"),
-                    timeout=gh_config.get("request_timeout_s", 15),
-                )
-                poller = GitHubRepoPoller(client, store)
-                try:
-                    snapshots = asyncio.run(poller.poll_user_repos(user_id))
-                    total_snapshots += len(snapshots)
-                except Exception as e:
-                    logger.warning(
-                        "github_repo_poll.user_failed",
-                        user_id=user_id,
-                        error=str(e),
-                    )
-                finally:
-                    asyncio.run(client.close())
-
-            # Prune old snapshots
-            retention = gh_config.get("snapshot_retention_days", 90)
-            pruned = store.prune_snapshots(retention)
-            logger.info(
-                "github_repo_poll.complete",
-                users=len(user_ids),
-                snapshots=total_snapshots,
-                pruned=pruned,
-            )
-            return {"users": len(user_ids), "snapshots": total_snapshots, "pruned": pruned}
-        except Exception as e:
-            logger.error("github_repo_poll.failed", error=str(e))
-            return {"error": str(e)}
-
-    def start_with_research(
-        self,
-        scrape_cron: str = "0 6 * * *",
-        research_cron: str = "0 21 * * 0",
-    ):
-        """Start scheduler with both scraping and research jobs."""
-        # Add scraping job
-        scrape_trigger = _parse_cron(scrape_cron)
-        self.scheduler.add_job(
-            self.run_now,
-            trigger=scrape_trigger,
-            id="intel_gather",
-            replace_existing=True,
-        )
-
-        # Add capability model refresh on same schedule as scraping
-        cap_config = self.config.get("capability_horizon", {})
-        ai_cap_config = self.config.get("ai_capabilities", {})
-        enabled_sources = self.config.get("enabled", [])
-        if (
-            cap_config.get("enabled", False)
-            or "ai_capabilities" in enabled_sources
-            or ai_cap_config.get("enabled", False)
-        ):
-            self.scheduler.add_job(
-                self.refresh_capability_model,
-                trigger=_parse_cron(scrape_cron),
-                id="refresh_capability_model",
-                replace_existing=True,
-            )
-            logger.info("Capability model refresh job scheduled: %s", scrape_cron)
-
-        # Add research job if enabled
-        research_config = self.full_config.get("research", {})
-        if research_config.get("enabled", False):
-            research_trigger = _parse_cron(
-                research_cron,
-                defaults={
-                    "minute": "0",
-                    "hour": "21",
-                    "day": "*",
-                    "month": "*",
-                    "day_of_week": "0",
-                },
-            )
-            self.scheduler.add_job(
-                self.run_research_now,
-                trigger=research_trigger,
-                id="deep_research",
-                replace_existing=True,
-            )
-            logger.info("Research job scheduled: %s", research_cron)
-
-        # Add recommendations job if enabled
-        rec_config = self.full_config.get("recommendations", {})
-        if rec_config.get("enabled", False):
-            rec_cron = rec_config.get("delivery", {}).get("schedule", "0 8 * * 0")
-            self._add_recommendations_job(rec_cron)
-
-        self._schedule_extended_jobs()
-        self._schedule_entity_extraction_job()
-        self._schedule_memory_consolidation_job()
-
-        # Add signal detection + autonomous actions if agent enabled
-        agent_config = self.full_config.get("agent", {})
-        if agent_config.get("enabled", False):
-            signal_cron = agent_config.get("signals", {}).get("schedule", "0 9 * * *")
-            signal_trigger = _parse_cron(signal_cron)
-            self.scheduler.add_job(
-                self.run_signal_detection,
-                trigger=signal_trigger,
-                id="signal_detection",
-                replace_existing=True,
-            )
-            logger.info("Signal detection job scheduled: %s", signal_cron)
-
-            # Autonomous actions run 1 hour after signal detection
-            auto_trigger = _parse_cron(
-                "0 10 * * *",
-                defaults={
-                    "minute": "0",
-                    "hour": "10",
-                    "day": "*",
-                    "month": "*",
-                    "day_of_week": "*",
-                },
-            )
-            self.scheduler.add_job(
-                self.run_autonomous_actions,
-                trigger=auto_trigger,
-                id="autonomous_actions",
-                replace_existing=True,
-            )
-            logger.info("Autonomous actions job scheduled")
-
-        # Trending Radar — cross-source topic convergence
-        tr_config = self.full_config.get("trending_radar", {})
-        if tr_config.get("enabled", True):
-            from apscheduler.triggers.interval import IntervalTrigger as _ITrigger
-
-            self.scheduler.add_job(
-                self.run_trending_radar,
-                trigger=_ITrigger(hours=tr_config.get("interval_hours", 6)),
-                id="trending_radar",
-                replace_existing=True,
-                coalesce=True,
-                max_instances=1,
-            )
-            logger.info(
-                "trending_radar.scheduled",
-                interval_hours=tr_config.get("interval_hours", 6),
-            )
-
-        # Heartbeat — proactive intel-to-goal matching
-        hb_config = self.full_config.get("heartbeat", {})
-        if hb_config.get("enabled", True):
-            from apscheduler.triggers.interval import IntervalTrigger
-
-            self.scheduler.add_job(
-                self.run_heartbeat,
-                trigger=IntervalTrigger(minutes=hb_config.get("interval_minutes", 30)),
-                id="heartbeat",
-                replace_existing=True,
-                coalesce=True,
-                max_instances=1,
-            )
-            logger.info(
-                "heartbeat.scheduled",
-                interval_minutes=hb_config.get("interval_minutes", 30),
-            )
-
-        # Goal-intel matching — always enabled (zero-cost keyword scoring)
-        self.scheduler.add_job(
-            self.run_goal_intel_matching,
-            trigger=_parse_cron("0 */4 * * *"),
-            id="goal_intel_matching",
-            replace_existing=True,
-        )
-        logger.info("Goal-intel matching job scheduled: every 4h")
-
-        # Weekly usage summary — always enabled
-        self.scheduler.add_job(
-            self.run_weekly_summary,
-            trigger=_parse_cron("0 8 * * 1"),
-            id="weekly_summary",
-            replace_existing=True,
-        )
-        logger.info("Weekly summary job scheduled: Monday 8am")
-
-        # GitHub repo monitoring
-        gh_mon_config = self.full_config.get("github_monitoring", {})
-        if gh_mon_config.get("enabled", False):
-            gh_cron = gh_mon_config.get("poll_cron", "0 */4 * * *")
-            self.scheduler.add_job(
-                self.run_github_repo_poll,
-                trigger=_parse_cron(gh_cron),
-                id="github_repo_poll",
-                replace_existing=True,
-            )
-            logger.info("github_repo_poll.scheduled", cron=gh_cron)
-
-        self.scheduler.add_listener(self._default_error_handler, EVENT_JOB_ERROR)
-        self.scheduler.start()
-
-    def run_goal_intel_matching(self):
-        """Match active goals against recent intel. Keyword scoring + optional LLM eval."""
-        if not self.journal_storage:
-            return
-        try:
-            from advisor.goals import GoalTracker
-
-            from .goal_intel_match import (
-                GoalIntelLLMEvaluator,
-                GoalIntelMatcher,
-                GoalIntelMatchStore,
-            )
-
-            tracker = GoalTracker(self.journal_storage)
-            goals = tracker.get_goals(include_inactive=False)
-            if not goals:
-                return
-
-            store = GoalIntelMatchStore(self.storage.db_path)
-            emb = getattr(self, "intel_embedding_mgr", None)
-            matcher = GoalIntelMatcher(self.storage, match_store=store, embedding_manager=emb)
-            matches = matcher.match_all_goals(goals)
-
-            # Optional LLM refinement — drops false positives, adjusts urgency
-            if matches and GoalIntelLLMEvaluator.is_available():
-                try:
-                    evaluator = GoalIntelLLMEvaluator()
-                    matches = evaluator.evaluate(matches)
-                except Exception as e:
-                    logger.warning("goal_intel_llm_eval.failed", error=str(e))
-            store.save_matches(matches)
-            store.cleanup_old(30)
-        except Exception as e:
-            logger.error("goal_intel_matching_failed", error=str(e))
-
-    def run_heartbeat(self):
-        """Run heartbeat cycle: filter recent intel -> evaluate -> notify."""
-        if not self.journal_storage:
-            return
-        try:
-            from advisor.goals import GoalTracker
-
-            from .heartbeat import HeartbeatPipeline
-
-            tracker = GoalTracker(self.journal_storage)
-            goals = tracker.get_goals(include_inactive=False)
-            if not goals:
-                return
-
-            hb_config = self.full_config.get("heartbeat", {})
-            pipeline = HeartbeatPipeline(
-                intel_storage=self.storage,
-                goals=goals,
-                db_path=self.storage.db_path,
-                config=hb_config,
-            )
-            result = pipeline.run()
-            logger.info("heartbeat.complete", **result)
-        except Exception as e:
-            logger.error("heartbeat.failed", error=str(e))
-
-    def run_weekly_summary(self):
-        """Generate and write a weekly usage summary to logs dir."""
-        try:
-            from user_state_store import get_usage_stats
-        except ImportError:
-            logger.warning("weekly_summary.skip: user_state_store not available")
+    def _schedule_entity_extraction_job(self) -> None:
+        entity_config = self.full_config.get("entity_extraction", {})
+        if entity_config.get("enabled", True) is False:
             return
 
-        try:
-            stats = get_usage_stats(days=7)
-            lines = [
-                f"Weekly Usage Summary ({datetime.now().strftime('%Y-%m-%d')})",
-                "=" * 50,
-                f"Chat queries: {stats['chat_queries']}",
-                f"Avg latency: {stats['avg_latency_ms'] or 'N/A'}ms",
-                f"Active users (7d): {stats['active_users_7d']}",
-            ]
-            for ev, cnt in stats.get("event_counts", {}).items():
-                lines.append(f"{ev}: {cnt}")
-            if stats.get("scraper_health"):
-                lines.append("\nScraper Health:")
-                for s in stats["scraper_health"]:
-                    lines.append(f"  {s['source']}: {s['runs']} runs, avg {s['avg_items']} items")
-            if stats.get("page_views"):
-                lines.append("\nPage Views:")
-                for p in stats["page_views"]:
-                    lines.append(f"  {p['path']}: {p['count']}")
+        from apscheduler.triggers.interval import IntervalTrigger
 
-            log_dir = get_coach_home() / "logs"
-            log_dir.mkdir(parents=True, exist_ok=True)
-            (log_dir / "weekly_summary.txt").write_text("\n".join(lines))
-            logger.info("weekly_summary.written", path=str(log_dir / "weekly_summary.txt"))
-        except Exception as e:
-            logger.error("weekly_summary.failed", error=str(e))
-
-    def run_memory_consolidation(self):
-        """Run full observation consolidation over all memory facts."""
-        memory_config = self.full_config.get("memory", {})
-        consolidation_config = memory_config.get("consolidation", {})
-        if not consolidation_config.get("enabled", True):
-            return {"status": "disabled"}
-
-        try:
-            from memory.consolidator import ObservationConsolidator
-            from memory.store import FactStore
-
-            paths_config = self.full_config.get("paths", {})
-            coach_home = get_coach_home()
-            db_path = Path(
-                paths_config.get("memory_db", str(coach_home / "memory.db"))
-            ).expanduser()
-            if not db_path.exists():
-                return {"status": "no_db"}
-
-            store = FactStore(db_path, chroma_dir=None)
-            consolidator = ObservationConsolidator(
-                store,
-                min_facts_per_group=consolidation_config.get("min_facts_per_group", 2),
-            )
-            observations = consolidator.consolidate_all()
-            logger.info("memory_consolidation.complete", observations=len(observations))
-            return {"observations": len(observations)}
-        except Exception as e:
-            logger.error("memory_consolidation.failed", error=str(e))
-            return {"error": str(e)}
-
-    def _schedule_memory_consolidation_job(self) -> None:
-        memory_config = self.full_config.get("memory", {})
-        consolidation_config = memory_config.get("consolidation", {})
-        if not consolidation_config.get("enabled", True):
-            return
-
-        cron = consolidation_config.get("run_cron", "0 3 * * *")
         self.scheduler.add_job(
-            self.run_memory_consolidation,
-            trigger=_parse_cron(cron),
-            id="memory_consolidation",
+            self.run_entity_extraction,
+            trigger=IntervalTrigger(minutes=entity_config.get("schedule_minutes", 30)),
+            id="entity_extraction",
             replace_existing=True,
             coalesce=True,
             max_instances=1,
+            misfire_grace_time=300,
         )
-        logger.info("memory_consolidation.scheduled", cron=cron)
-
-    def run_trending_radar(self):
-        """Refresh cross-source trending topics snapshot."""
-        try:
-            from intelligence.trending_radar import TrendingRadar
-
-            tr_config = self.full_config.get("trending_radar", {})
-            radar = TrendingRadar(self.storage.db_path)
-
-            # Try to create a cheap LLM for better summarisation
-            llm = None
-            try:
-                from llm import create_cheap_provider
-
-                llm = create_cheap_provider()
-            except Exception:
-                pass
-
-            snapshot = radar.refresh(
-                llm=llm,
-                days=tr_config.get("days", 7),
-                min_sources=tr_config.get("min_sources", 2),
-                max_topics=tr_config.get("max_topics", 10),
-            )
-            logger.info(
-                "trending_radar.complete",
-                topics=len(snapshot.get("topics", [])),
-                method=snapshot.get("method", "nlp"),
-            )
-        except Exception as e:
-            logger.error("trending_radar.failed", error=str(e))
-
-    def _add_recommendations_job(self, cron_expr: str):
-        """Add weekly recommendations/action brief job."""
-        trigger = _parse_cron(
-            cron_expr,
-            defaults={"minute": "0", "hour": "8", "day": "*", "month": "*", "day_of_week": "0"},
+        logger.info(
+            "entity_extraction.scheduled",
+            interval_minutes=entity_config.get("schedule_minutes", 30),
         )
-        self.scheduler.add_job(
-            self.run_recommendations_now,
-            trigger=trigger,
-            id="weekly_recommendations",
-            replace_existing=True,
-        )
-        logger.info("Recommendations job scheduled: %s", cron_expr)
