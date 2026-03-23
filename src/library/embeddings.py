@@ -21,6 +21,13 @@ class LibraryEmbeddingManager:
         self.chroma_dir.mkdir(parents=True, exist_ok=True)
         self.embedding_function = build_embedding_function(config=config)
 
+        if self.embedding_function is None:
+            logger.info("embeddings_disabled", component="library")
+            self.collection = None
+            self.collection_name = None
+            self._model_name = "none"
+            return
+
         if collection_name is not None:
             self.collection_name = collection_name
         else:
@@ -35,6 +42,11 @@ class LibraryEmbeddingManager:
             metadata={"hnsw:space": "cosine", "embedding_model": self._model_name},
         )
 
+    @property
+    def is_available(self) -> bool:
+        """Whether semantic embeddings are available."""
+        return self.collection is not None
+
     def add_item(
         self,
         item_id: str,
@@ -42,6 +54,8 @@ class LibraryEmbeddingManager:
         metadata: Optional[dict] = None,
     ) -> None:
         """Add or update a library item embedding."""
+        if not self.is_available:
+            return
         clean_meta = {}
         if metadata:
             for k, v in metadata.items():
@@ -60,6 +74,8 @@ class LibraryEmbeddingManager:
 
     def remove_item(self, item_id: str) -> None:
         """Remove item from vector store."""
+        if not self.is_available:
+            return
         try:
             self.collection.delete(ids=[item_id])
         except Exception as e:
@@ -72,6 +88,8 @@ class LibraryEmbeddingManager:
         where: Optional[dict] = None,
     ) -> list[dict]:
         """Query similar library items."""
+        if not self.is_available:
+            return []
         results = self.collection.query(
             query_texts=[query_text],
             n_results=n_results,
@@ -102,6 +120,8 @@ class LibraryEmbeddingManager:
         Returns:
             Tuple of (added, removed) counts
         """
+        if not self.is_available:
+            return (0, 0)
         existing = set()
         try:
             existing_data = self.collection.get()
@@ -130,4 +150,6 @@ class LibraryEmbeddingManager:
 
     def count(self) -> int:
         """Get total number of embedded items."""
+        if not self.is_available:
+            return 0
         return self.collection.count()

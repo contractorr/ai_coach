@@ -34,6 +34,40 @@ def pytest_collection_modifyitems(items):
 
 
 @pytest.fixture
+def hash_embedding_config():
+    """Config that explicitly enables hash embeddings for testing."""
+    return {"embeddings": {"provider": "hash"}}
+
+
+@pytest.fixture(autouse=True)
+def _default_hash_embeddings(monkeypatch):
+    """Auto-patch build_embedding_function to return hash embeddings in tests.
+
+    Without real API keys, the factory returns None (semantic search disabled).
+    Tests that need actual embedding operations get hash embeddings automatically.
+    Tests that verify the None/disabled path can override via monkeypatch.
+
+    Patches every module that does ``from chroma_utils import build_embedding_function``.
+    """
+    from chroma_utils import SimpleHashEmbeddingFunction
+
+    _hash_fn = SimpleHashEmbeddingFunction()
+    _factory = lambda config=None: _hash_fn  # noqa: E731
+
+    # Patch the source module + every consumer that does `from chroma_utils import ...`
+    monkeypatch.setattr("chroma_utils.build_embedding_function", _factory)
+    for mod in [
+        "journal.embeddings",
+        "intelligence.embeddings",
+        "library.embeddings",
+    ]:
+        try:
+            monkeypatch.setattr(f"{mod}.build_embedding_function", _factory)
+        except AttributeError:
+            pass
+
+
+@pytest.fixture
 def temp_dirs(tmp_path):
     """Create temp directories for journal, chroma, and intel."""
     journal_dir = tmp_path / "journal"

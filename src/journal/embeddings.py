@@ -26,6 +26,13 @@ class EmbeddingManager:
         self.chroma_dir.mkdir(parents=True, exist_ok=True)
         self.embedding_function = build_embedding_function(config=config)
 
+        if self.embedding_function is None:
+            logger.info("embeddings_disabled", component="journal")
+            self.collection = None
+            self.collection_name = None
+            self._model_name = "none"
+            return
+
         if collection_name is not None:
             # Legacy explicit name — use as-is for backward compat
             self.collection_name = collection_name
@@ -43,6 +50,11 @@ class EmbeddingManager:
             metadata={"hnsw:space": "cosine", "embedding_model": self._model_name},
         )
 
+    @property
+    def is_available(self) -> bool:
+        """Whether semantic embeddings are available."""
+        return self.collection is not None
+
     def add_entry(
         self,
         entry_id: str,
@@ -50,6 +62,8 @@ class EmbeddingManager:
         metadata: Optional[dict] = None,
     ) -> None:
         """Add or update entry embedding."""
+        if not self.is_available:
+            return
         # Sanitize metadata - ChromaDB only accepts str, int, float, bool, None
         clean_meta = {}
         if metadata:
@@ -70,6 +84,8 @@ class EmbeddingManager:
 
     def remove_entry(self, entry_id: str) -> None:
         """Remove entry from vector store."""
+        if not self.is_available:
+            return
         try:
             self.collection.delete(ids=[entry_id])
         except Exception as e:
@@ -91,6 +107,8 @@ class EmbeddingManager:
         Returns:
             List of matching entries with scores
         """
+        if not self.is_available:
+            return []
         results = self.collection.query(
             query_texts=[query_text],
             n_results=n_results,
@@ -121,6 +139,8 @@ class EmbeddingManager:
         Returns:
             Tuple of (added, removed) counts
         """
+        if not self.is_available:
+            return (0, 0)
         # Get existing IDs
         existing = set()
         try:
@@ -150,10 +170,19 @@ class EmbeddingManager:
 
     def count(self) -> int:
         """Get total number of embedded entries."""
+        if not self.is_available:
+            return 0
         return self.collection.count()
 
     def health_check(self) -> dict:
         """Return health info for this collection."""
+        if not self.is_available:
+            return {
+                "status": "disabled",
+                "count": 0,
+                "collection_name": self.collection_name,
+                "model": "none",
+            }
         try:
             count = self.collection.count()
             meta = self.collection.metadata or {}
@@ -174,6 +203,8 @@ class EmbeddingManager:
 
     def delete_collection(self) -> None:
         """Delete and reinitialize the collection."""
+        if not self.is_available:
+            return
         self.collection.delete_collection()
         self.collection = LocalCollection(
             base_dir=self.chroma_dir,

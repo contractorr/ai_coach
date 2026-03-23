@@ -6,6 +6,8 @@ import os
 
 import structlog
 
+from observability import metrics
+
 logger = structlog.get_logger()
 
 _PROVIDER_ENV_KEYS = {
@@ -38,13 +40,26 @@ def create_embedding_function(
     model = model or emb_config.get("model")
     dimensions = dimensions if dimensions is not None else emb_config.get("dimensions")
 
+    # Track whether hash was explicitly configured vs auto-detected
+    explicitly_configured = provider or emb_config.get("provider")
+
     if resolved == "auto":
         resolved = _auto_detect_provider()
 
     if resolved == "hash":
-        from chroma_utils import SimpleHashEmbeddingFunction
+        if explicitly_configured == "hash":
+            # User opted in explicitly
+            from chroma_utils import SimpleHashEmbeddingFunction
 
-        return SimpleHashEmbeddingFunction(dimensions=dimensions or 256)
+            logger.warning("embedding_using_explicit_hash", reason="user configured provider=hash")
+            return SimpleHashEmbeddingFunction(dimensions=dimensions or 256)
+        # Auto-detected: no real provider available — return None
+        logger.warning(
+            "embedding_no_provider",
+            hint="set GOOGLE_API_KEY or OPENAI_API_KEY for semantic search",
+        )
+        metrics.counter("embedding.no_provider")
+        return None
 
     if resolved == "gemini":
         from .gemini import GeminiEmbeddingFunction
@@ -66,11 +81,10 @@ def create_embedding_function(
             kwargs["dimensions"] = dimensions
         return OpenAIEmbeddingFunction(**kwargs)
 
-    # Unknown provider — fall back to hash
+    # Unknown provider — return None
     logger.warning("unknown_embedding_provider", provider=resolved)
-    from chroma_utils import SimpleHashEmbeddingFunction
-
-    return SimpleHashEmbeddingFunction()
+    metrics.counter("embedding.no_provider")
+    return None
 
 
 def _auto_detect_provider() -> str:

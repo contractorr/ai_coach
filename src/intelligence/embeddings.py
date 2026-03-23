@@ -27,6 +27,13 @@ class IntelEmbeddingManager:
         self.similarity_threshold = similarity_threshold
         self.embedding_function = build_embedding_function(config=config)
 
+        if self.embedding_function is None:
+            logger.info("embeddings_disabled", component="intel")
+            self.collection = None
+            self.collection_name = None
+            self._model_name = "none"
+            return
+
         self.collection_name = versioned_name("intel", self.embedding_function)
         auto_migrate_collection(self.chroma_dir, "intel", self.collection_name)
 
@@ -38,6 +45,11 @@ class IntelEmbeddingManager:
             metadata={"hnsw:space": "cosine", "embedding_model": self._model_name},
         )
 
+    @property
+    def is_available(self) -> bool:
+        """Whether semantic embeddings are available."""
+        return self.collection is not None
+
     def add_item(
         self,
         item_id: str,
@@ -45,6 +57,8 @@ class IntelEmbeddingManager:
         metadata: Optional[dict] = None,
     ) -> None:
         """Add or update intel item embedding."""
+        if not self.is_available:
+            return
         self.collection.upsert(
             ids=[item_id],
             documents=[content],
@@ -63,6 +77,8 @@ class IntelEmbeddingManager:
         Returns:
             Number of items added
         """
+        if not self.is_available:
+            return 0
         if not items:
             return 0
 
@@ -79,6 +95,8 @@ class IntelEmbeddingManager:
 
     def remove_item(self, item_id: str) -> None:
         """Remove item from vector store."""
+        if not self.is_available:
+            return
         try:
             self.collection.delete(ids=[item_id])
         except Exception as e:
@@ -100,6 +118,8 @@ class IntelEmbeddingManager:
         Returns:
             List of matching items with scores
         """
+        if not self.is_available:
+            return []
         results = self.collection.query(
             query_texts=[query_text],
             n_results=n_results,
@@ -130,6 +150,8 @@ class IntelEmbeddingManager:
         Returns:
             Tuple of (added, removed) counts
         """
+        if not self.is_available:
+            return (0, 0)
         existing = set()
         try:
             existing_data = self.collection.get()
@@ -159,10 +181,19 @@ class IntelEmbeddingManager:
 
     def count(self) -> int:
         """Get total number of embedded items."""
+        if not self.is_available:
+            return 0
         return self.collection.count()
 
     def health_check(self) -> dict:
         """Return health info for this collection."""
+        if not self.is_available:
+            return {
+                "status": "disabled",
+                "count": 0,
+                "collection_name": self.collection_name,
+                "model": "none",
+            }
         try:
             count = self.collection.count()
             meta = self.collection.metadata or {}
@@ -183,6 +214,8 @@ class IntelEmbeddingManager:
 
     def delete_collection(self) -> None:
         """Delete and reinitialize the collection."""
+        if not self.is_available:
+            return
         self.collection.delete_collection()
         self.collection = LocalCollection(
             base_dir=self.chroma_dir,
@@ -204,6 +237,8 @@ class IntelEmbeddingManager:
         Returns:
             Chroma doc ID of the canonical match, or None. Truthiness preserved.
         """
+        if not self.is_available:
+            return None
         threshold = threshold if threshold is not None else self.similarity_threshold
         if self.collection.count() == 0:
             return None

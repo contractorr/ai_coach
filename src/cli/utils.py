@@ -68,9 +68,19 @@ def get_components(skip_advisor: bool = False):
             sys.exit(1)
         raise
 
+    if not embeddings.is_available:
+        console.print(
+            "[yellow]No embedding provider available — semantic search disabled.[/]\n"
+            "Set GOOGLE_API_KEY or OPENAI_API_KEY for semantic search."
+        )
+
     fts_index = JournalFTSIndex(paths["journal_dir"])
-    search = JournalSearch(storage, embeddings, fts_index=fts_index)
-    intel_search = IntelSearch(intel_storage, intel_embeddings)
+    search = JournalSearch(
+        storage, embeddings if embeddings.is_available else None, fts_index=fts_index
+    )
+    intel_search = IntelSearch(
+        intel_storage, intel_embeddings if intel_embeddings.is_available else None
+    )
 
     profile_path = get_profile_path(config, storage_paths=storage_paths)
     rag = RAGRetriever(

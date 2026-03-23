@@ -74,13 +74,14 @@ class EmbeddingFunction(ABC):
 
 #### Behavior
 ```
-Detection order: gemini → openai → hash fallback
-1. If provider == "hash" → SimpleHashEmbeddingFunction
+Detection order: gemini → openai → None (no provider)
+1. If provider == "hash" (explicit config) → SimpleHashEmbeddingFunction
 2. If provider == "gemini" or "openai" → instantiate directly
 3. If provider == "auto" or None:
    a. GOOGLE_API_KEY present → GeminiEmbeddingFunction
    b. OPENAI_API_KEY present → OpenAIEmbeddingFunction
-   c. else → SimpleHashEmbeddingFunction (from chroma_utils)
+   c. else → None (log WARNING, increment metric)
+4. Unknown provider → None (log WARNING)
 ```
 
 #### Inputs / Outputs
@@ -90,17 +91,21 @@ def create_embedding_function(
     model: str | None = None,
     dimensions: int | None = None,
     config: dict | None = None,   # reads embeddings.* keys
-) -> EmbeddingFunction | SimpleHashEmbeddingFunction
+) -> EmbeddingFunction | SimpleHashEmbeddingFunction | None
 ```
 
 Reads `config["embeddings"]` if provided, CLI args override config values.
+
+#### Consumer contract
+Embedding managers must handle `None` via an `is_available` property.
+When `is_available` is `False`, all methods return safe defaults (empty lists, zero counts, no-ops).
 
 ---
 
 ### Integration: chroma_utils.py
 **File:** `src/chroma_utils.py`
 
-`build_embedding_function()` delegates to `create_embedding_function()`. `SimpleHashEmbeddingFunction` stays in this file as the zero-dependency fallback. `COACH_USE_ONNX_EMBEDDINGS` env var check removed.
+`build_embedding_function()` delegates to `create_embedding_function()`, returning `None` on ImportError or Exception (no hash fallback). `SimpleHashEmbeddingFunction` stays in this file for explicit `provider="hash"` use. `COACH_USE_ONNX_EMBEDDINGS` env var check removed.
 
 ### Integration: memory/store.py
 **File:** `src/memory/store.py`
@@ -111,10 +116,11 @@ Reads `config["embeddings"]` if provided, CLI args override config values.
 
 ## Test Expectations
 
-- Factory returns hash fallback when no API keys set
+- Factory returns `None` when no API keys set (auto-detect)
 - Factory returns Gemini when `GOOGLE_API_KEY` set
 - Factory returns OpenAI when `OPENAI_API_KEY` set (no Google key)
 - Explicit `provider="hash"` always returns hash regardless of env
 - Config dict values respected when passed
 - Hash fallback produces deterministic, normalized vectors
-- All existing tests pass (they run without API keys → hash fallback)
+- Embedding managers return safe defaults when `is_available` is `False`
+- All existing tests pass (they run without API keys → keyword fallback or explicit hash config)

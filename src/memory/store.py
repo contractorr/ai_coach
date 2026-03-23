@@ -159,6 +159,10 @@ class FactStore:
                 except Exception as e:
                     logger.warning("embedding_factory_failed", error=str(e))
 
+                if embedding_fn is None:
+                    logger.info("memory_chroma_skipped_no_embeddings")
+                    return None
+
                 # Derive versioned collection name
                 coll_name = "steward_facts"
                 try:

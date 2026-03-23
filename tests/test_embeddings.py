@@ -2,19 +2,21 @@
 
 from unittest.mock import patch
 
+from observability import metrics
+
 
 class TestEmbeddingFactory:
     """Test create_embedding_function auto-detection and config."""
 
-    def test_hash_fallback_no_keys(self, monkeypatch):
-        """No API keys → hash fallback."""
+    def test_no_keys_returns_none(self, monkeypatch):
+        """No API keys → returns None (not hash fallback)."""
         monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
         monkeypatch.delenv("OPENAI_API_KEY", raising=False)
 
         from embeddings.factory import create_embedding_function
 
         fn = create_embedding_function()
-        assert fn.name() == "simple-hash-fallback"
+        assert fn is None
 
     def test_explicit_hash_provider(self, monkeypatch):
         """provider='hash' always returns hash regardless of env."""
@@ -77,15 +79,27 @@ class TestEmbeddingFactory:
 
         assert _auto_detect_provider() == "gemini"
 
-    def test_unknown_provider_falls_back(self, monkeypatch):
-        """Unknown provider name → hash fallback."""
+    def test_unknown_provider_returns_none(self, monkeypatch):
+        """Unknown provider name → returns None."""
         monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
         monkeypatch.delenv("OPENAI_API_KEY", raising=False)
 
         from embeddings.factory import create_embedding_function
 
         fn = create_embedding_function(provider="nonexistent")
-        assert fn.name() == "simple-hash-fallback"
+        assert fn is None
+
+    def test_metrics_counter_on_no_provider(self, monkeypatch):
+        """No provider increments embedding.no_provider counter."""
+        monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+        metrics.reset()
+
+        from embeddings.factory import create_embedding_function
+
+        create_embedding_function()
+        summary = metrics.summary()
+        assert summary["counters"].get("embedding.no_provider", 0) >= 1
 
 
 class TestHashEmbeddingFunction:
@@ -138,17 +152,26 @@ class TestHashEmbeddingFunction:
 
 
 class TestBuildEmbeddingFunction:
-    """Test chroma_utils.build_embedding_function delegation."""
+    """Test create_embedding_function None/hash behavior."""
 
-    def test_delegates_to_factory(self, monkeypatch):
-        """build_embedding_function uses the new factory."""
+    def test_returns_none_no_keys(self, monkeypatch):
+        """create_embedding_function returns None when no API keys."""
         monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
         monkeypatch.delenv("OPENAI_API_KEY", raising=False)
 
-        from chroma_utils import build_embedding_function
+        from embeddings.factory import create_embedding_function
 
-        fn = build_embedding_function()
-        # With no API keys, should get hash fallback
+        fn = create_embedding_function()
+        assert fn is None
+
+    def test_explicit_hash_config(self, monkeypatch):
+        """Explicit provider=hash returns working hash function."""
+        monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+
+        from embeddings.factory import create_embedding_function
+
+        fn = create_embedding_function(config={"embeddings": {"provider": "hash"}})
         assert fn is not None
         result = fn(["test"])
         assert len(result) == 1

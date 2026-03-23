@@ -52,22 +52,22 @@ class SimpleHashEmbeddingFunction:
 
 
 def build_embedding_function(config: dict | None = None):
-    """Return the configured embedding function.
+    """Return the configured embedding function, or None when unavailable.
 
     Delegates to the pluggable embedding factory which auto-detects the best
-    available provider (Gemini → OpenAI → hash fallback).
+    available provider (Gemini → OpenAI → None).
     """
     try:
         from embeddings import create_embedding_function
     except ImportError as e:
-        logger.info("embeddings_package_unavailable_fallback_to_hash: %s", e)
-        return SimpleHashEmbeddingFunction()
+        logger.info("embeddings_package_unavailable: %s", e)
+        return None
 
     try:
         return create_embedding_function(config=config)
     except Exception as e:
-        logger.warning("embedding_factory_failed_fallback_to_hash: %s", e)
-        return SimpleHashEmbeddingFunction()
+        logger.warning("embedding_factory_failed: %s", e)
+        return None
 
 
 class LocalCollection:
@@ -84,7 +84,11 @@ class LocalCollection:
         self.base_dir.mkdir(parents=True, exist_ok=True)
         self.name = name
         self.metadata = metadata or {}
-        self.embedding_function = embedding_function or SimpleHashEmbeddingFunction()
+        if embedding_function is None:
+            raise ValueError(
+                "embedding_function is required — no real embedding provider available"
+            )
+        self.embedding_function = embedding_function
         self.path = self.base_dir / f"{name}.json"
         self._records = self._load()
 

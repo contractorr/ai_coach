@@ -16,7 +16,7 @@ All users — improved semantic search in journal, better intel dedup, more rele
 
 1. By default, the system auto-detects the best available embedding provider based on which API keys are present (Gemini → OpenAI → hash fallback)
 2. Users can override the provider in `config.yaml` under `embeddings.provider`
-3. If no API key is available, the system silently falls back to the existing hash-based function — no errors, no degraded UX
+3. If no API key is available, the system logs a WARNING, disables semantic features, and falls back to keyword-only search
 4. After switching providers, users run `coach db rebuild --collection all` to re-embed existing data with the new model
 5. All vector operations (journal, intel, memory, threads) use the same embedding provider for consistency
 
@@ -26,7 +26,8 @@ All users — improved semantic search in journal, better intel dedup, more rele
 - [ ] Falls back to hash function when no embedding API key is present
 - [ ] `embeddings.provider` config accepts: `auto`, `gemini`, `openai`, `hash`
 - [ ] `embeddings.model` and `embeddings.dimensions` are optional overrides
-- [ ] Existing tests pass without API keys (hash fallback activates)
+- [ ] Existing tests pass without API keys (keyword fallback activates)
+- [ ] Semantic search never uses hash embeddings unless user explicitly sets `embeddings.provider: hash`
 - [ ] Memory FactStore uses the shared embedding function instead of ChromaDB's built-in ONNX
 - [ ] Batch size limits respected (Gemini: 100 texts/request)
 
@@ -39,6 +40,7 @@ All users — improved semantic search in journal, better intel dedup, more rele
 | Empty input text | Return zero vector of correct dimensions |
 | Very long input text | Truncate to model's token limit before sending |
 | Network timeout on embed call | Retry with backoff; fall through to error |
+| No API keys, no explicit hash config | Keyword-only search, WARNING logged at startup |
 
 ## Out of Scope
 

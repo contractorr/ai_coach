@@ -1,23 +1,40 @@
 """Tests for journal embeddings operations."""
 
+HASH_CONFIG = {"embeddings": {"provider": "hash"}}
+
 
 class TestEmbeddingManager:
     """Test EmbeddingManager vector operations."""
 
     def test_init_creates_collection(self, temp_dirs):
-        """Test that initialization creates ChromaDB collection."""
+        """Test that initialization creates ChromaDB collection with explicit hash."""
+        from journal.embeddings import EmbeddingManager
+
+        manager = EmbeddingManager(temp_dirs["chroma_dir"], config=HASH_CONFIG)
+
+        assert manager.collection is not None
+        assert manager.is_available
+        assert manager.count() >= 0
+
+    def test_unavailable_without_provider(self, temp_dirs, monkeypatch):
+        """No API keys and no explicit config → is_available=False."""
+        # Override autouse fixture: make build_embedding_function return None
+        monkeypatch.setattr("journal.embeddings.build_embedding_function", lambda config=None: None)
+
         from journal.embeddings import EmbeddingManager
 
         manager = EmbeddingManager(temp_dirs["chroma_dir"])
-
-        assert manager.collection is not None
-        assert manager.count() >= 0
+        assert not manager.is_available
+        assert manager.count() == 0
+        assert manager.query("test") == []
+        assert manager.sync_from_storage([]) == (0, 0)
+        assert manager.health_check()["status"] == "disabled"
 
     def test_add_entry(self, temp_dirs):
         """Test adding an entry to vector store."""
         from journal.embeddings import EmbeddingManager
 
-        manager = EmbeddingManager(temp_dirs["chroma_dir"])
+        manager = EmbeddingManager(temp_dirs["chroma_dir"], config=HASH_CONFIG)
         initial_count = manager.count()
 
         manager.add_entry(
@@ -32,7 +49,7 @@ class TestEmbeddingManager:
         """Test that add_entry upserts existing entries."""
         from journal.embeddings import EmbeddingManager
 
-        manager = EmbeddingManager(temp_dirs["chroma_dir"])
+        manager = EmbeddingManager(temp_dirs["chroma_dir"], config=HASH_CONFIG)
 
         manager.add_entry("test-1", "Original content")
         count_after_add = manager.count()
@@ -45,7 +62,7 @@ class TestEmbeddingManager:
         """Test removing an entry from vector store."""
         from journal.embeddings import EmbeddingManager
 
-        manager = EmbeddingManager(temp_dirs["chroma_dir"])
+        manager = EmbeddingManager(temp_dirs["chroma_dir"], config=HASH_CONFIG)
 
         manager.add_entry("test-remove", "Content to remove")
         count_after_add = manager.count()
@@ -58,7 +75,7 @@ class TestEmbeddingManager:
         """Test that removing non-existent entry doesn't raise."""
         from journal.embeddings import EmbeddingManager
 
-        manager = EmbeddingManager(temp_dirs["chroma_dir"])
+        manager = EmbeddingManager(temp_dirs["chroma_dir"], config=HASH_CONFIG)
 
         # Should not raise
         manager.remove_entry("nonexistent-id")
@@ -67,7 +84,7 @@ class TestEmbeddingManager:
         """Test querying returns relevant results."""
         from journal.embeddings import EmbeddingManager
 
-        manager = EmbeddingManager(temp_dirs["chroma_dir"])
+        manager = EmbeddingManager(temp_dirs["chroma_dir"], config=HASH_CONFIG)
 
         manager.add_entry("prog-1", "Python programming is fun and powerful.")
         manager.add_entry("cooking-1", "Baking bread requires patience and flour.")
@@ -81,7 +98,7 @@ class TestEmbeddingManager:
         """Test querying with metadata filter."""
         from journal.embeddings import EmbeddingManager
 
-        manager = EmbeddingManager(temp_dirs["chroma_dir"])
+        manager = EmbeddingManager(temp_dirs["chroma_dir"], config=HASH_CONFIG)
 
         manager.add_entry("note-1", "A note about work", {"type": "note"})
         manager.add_entry("goal-1", "A goal about work", {"type": "goal"})
@@ -96,7 +113,7 @@ class TestEmbeddingManager:
         """Test syncing from storage entries."""
         from journal.embeddings import EmbeddingManager
 
-        manager = EmbeddingManager(temp_dirs["chroma_dir"])
+        manager = EmbeddingManager(temp_dirs["chroma_dir"], config=HASH_CONFIG)
 
         entries = [
             {"id": "sync-1", "content": "First synced entry"},
@@ -112,7 +129,7 @@ class TestEmbeddingManager:
         """Test that sync removes entries not in storage."""
         from journal.embeddings import EmbeddingManager
 
-        manager = EmbeddingManager(temp_dirs["chroma_dir"])
+        manager = EmbeddingManager(temp_dirs["chroma_dir"], config=HASH_CONFIG)
 
         # Add initial entries
         manager.add_entry("keep-1", "Keep this")

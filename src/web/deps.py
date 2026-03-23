@@ -175,7 +175,9 @@ def get_intel_search(user_id: str | None = None):
 
         paths = get_coach_paths()
         chroma_dir = Path(paths.get("chroma_dir", paths["intel_db"]).parent / "chroma")
-        embedding_manager = IntelEmbeddingManager(chroma_dir)
+        mgr = IntelEmbeddingManager(chroma_dir)
+        if mgr.is_available:
+            embedding_manager = mgr
     except Exception:
         pass
     return IntelSearch(storage, embedding_manager=embedding_manager, user_id=user_id)

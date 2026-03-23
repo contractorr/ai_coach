@@ -20,6 +20,11 @@ class ChapterEmbeddingManager:
             config=config,
         )
 
+    @property
+    def is_available(self) -> bool:
+        """Whether semantic embeddings are available."""
+        return self._emb.is_available
+
     def upsert_chapter(
         self,
         chapter_id: str,
@@ -29,6 +34,8 @@ class ChapterEmbeddingManager:
         content_hash: str,
     ) -> None:
         """Add or update a chapter embedding."""
+        if not self.is_available:
+            return
         # Truncate to ~2000 words
         words = content.split()
         if len(words) > 2000:
@@ -52,6 +59,8 @@ class ChapterEmbeddingManager:
         n_results: int = 3,
     ) -> list[dict]:
         """Find related chapters from other enrolled guides."""
+        if not self.is_available:
+            return []
         # Query more than needed so we can post-filter
         raw = self._emb.query(
             query_text=chapter_content[:3000],
@@ -90,6 +99,8 @@ class ChapterEmbeddingManager:
         content_reader: Callable[[str], str | None],
     ) -> int:
         """Bulk upsert chapters. Skips glossary chapters."""
+        if not self.is_available:
+            return 0
         count = 0
         for ch in chapters:
             if ch.get("is_glossary"):
@@ -108,4 +119,6 @@ class ChapterEmbeddingManager:
         return count
 
     def count(self) -> int:
+        if not self.is_available:
+            return 0
         return self._emb.count()

@@ -252,4 +252,6 @@ Tags: {", ".join(r["tags"]) if r["tags"] else "none"}
         entries = self.storage.get_all_content()
         if self.fts:
             self.fts.sync_from_storage(entries)
+        if self.embeddings is None:
+            return (0, 0)
         return self.embeddings.sync_from_storage(entries)
