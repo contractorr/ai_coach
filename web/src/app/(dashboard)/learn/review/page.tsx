@@ -7,7 +7,7 @@ import { ArrowLeft, CheckCircle } from "lucide-react";
 import { useToken } from "@/hooks/useToken";
 import { apiFetch } from "@/lib/api";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
 import { ReviewCard } from "@/components/curriculum/ReviewCard";
 import type { ReviewItem } from "@/types/curriculum";
 

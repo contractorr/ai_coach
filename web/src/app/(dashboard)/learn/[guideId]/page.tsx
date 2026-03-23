@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
 import { ArrowLeft, BookOpen, Clock, Play } from "lucide-react";
@@ -25,7 +25,6 @@ function formatTime(minutes: number): string {
 export default function GuideDetailPage() {
   const token = useToken();
   const params = useParams();
-  const router = useRouter();
   const guideId = params.guideId as string;
 
   const [guide, setGuide] = useState<GuideDetail | null>(null);

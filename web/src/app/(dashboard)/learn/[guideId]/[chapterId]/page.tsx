@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
 import {
@@ -27,7 +27,6 @@ import type { ChapterDetail, ChapterStatus, ReviewItem } from "@/types/curriculu
 export default function ChapterReaderPage() {
   const token = useToken();
   const params = useParams();
-  const router = useRouter();
   const guideId = params.guideId as string;
   const chapterId = params.chapterId as string;
   const fullChapterId = `${guideId}/${chapterId}`;
