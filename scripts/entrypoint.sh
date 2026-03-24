@@ -11,4 +11,7 @@ if [ ! -f "$CONFIG_PATH" ]; then
     echo "Seeded default config at $CONFIG_PATH"
 fi
 
+# Activate uv-managed venv so uvicorn is on PATH
+export PATH="/app/.venv/bin:$PATH"
+
 exec "$@"
