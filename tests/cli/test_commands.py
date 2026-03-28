@@ -351,6 +351,36 @@ class TestDatabaseCommands:
         assert components["journal"]["source_count"] == 55
 
 
+class TestCurriculumCommands:
+    def test_lint_reports_errors_and_warnings(self, runner, tmp_path):
+        root = tmp_path / "content"
+        guide_dir = root / "01-philosophy-guide"
+        guide_dir.mkdir(parents=True)
+        (guide_dir / "01-introduction.mdx").write_text(
+            """---
+title: Introduction
+summary: Short summary.
+---
+
+# Introduction
+
+Short body.
+""",
+            encoding="utf-8",
+        )
+
+        result = runner.invoke(
+            cli,
+            ["curriculum", "lint", "--path", str(root), "--no-fail-on-issues"],
+        )
+
+        assert result.exit_code == 0
+        assert "errors" in result.output
+        assert "warnings" in result.output
+        assert "missing_objectives" in result.output
+        assert "thin_chapter" in result.output
+
+
 # -- Goals command --
 
 

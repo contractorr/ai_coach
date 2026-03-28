@@ -174,6 +174,35 @@ mastery_score = completion_pct * 0.4 + review_score * 0.6
 
 ---
 
+### Curriculum Content QA
+
+**Files:** `src/curriculum/content_schema.py`, `src/cli/commands/curriculum.py`
+
+#### Responsibilities
+- Parse legacy `.md` and schema-first `.mdx` curriculum files into a normalized `CurriculumDocument`.
+- Prefer `.mdx` over `.md` when both exist for the same chapter stem in a directory.
+- Power `coach curriculum lint`, `coach curriculum migrate`, and `coach curriculum audit`.
+
+#### Lint coverage
+- Frontmatter requirements: `title`, `summary`, `objectives`, `checkpoints`.
+- Content references: validates `curriculum:` references, `/learn/<guide>/<chapter>` paths, and relative `.md` / `.mdx` links. External URLs are ignored.
+- Thin chapter detection: warning when a non-glossary chapter body falls below the configured QA threshold (`500` words).
+- Path coherence: detects reused chapter order numbers and gaps in numbered chapter sequences within a guide.
+- Duplicate concepts: warns when a guide repeats the same normalized chapter title.
+- Manifest graph validation against `skill_tree.yaml`: unknown alias targets, missing guides in tracks, missing prerequisites, duplicate track assignments, missing track assignments for content guides, unknown program references, and prerequisite cycles.
+
+#### Reporting model
+- `CurriculumLintIssue`: `{code, path, message, severity}` where severity is `error` or `warning`.
+- `CurriculumLintReport`: `{documents_scanned, issues}`.
+- `coach curriculum lint --format text` prints a summary with error/warning counts plus one line per issue.
+- `coach curriculum lint --format json` emits the raw report payload for CI or scripted review.
+
+#### Audit coverage
+- `audit_curriculum_root()` scores thin guides for rewrite priority using chapter count, total word count, downstream dependents, and learning-program membership.
+- Industry guides under `content/curriculum/Industries/` are surfaced as applied modules / capstones rather than ranked as normal thin-guide rewrites.
+
+---
+
 ## Routes
 
 **File:** `src/web/routes/curriculum.py`
