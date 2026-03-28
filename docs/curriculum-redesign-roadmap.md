@@ -1,7 +1,8 @@
 # Curriculum Redesign Roadmap
 
 This document is the first-pass design and rewrite plan for the Learn curriculum after the
-transition toward mid-career programs.
+transition toward mid-career programs. It combines the target program architecture, shared
+chapter contract, thin-guide rewrite queue, and industry-capstone conversion plan.
 
 ## Program architecture
 
@@ -63,6 +64,14 @@ conceptual, historical, or aesthetic.
 
 Reference template: `docs/templates/curriculum-chapter-template.mdx`
 
+## Weak chapter patterns to rewrite away from
+
+- Survey-dump chapters that enumerate facts without one governing model.
+- Chapters with no worked example, so the reader never sees how the idea is actually used.
+- Chapters that end without a checkpoint, which makes application invisible.
+- Chapters whose only motivation is generic workplace relevance, even when the subject deserves broader framing.
+- Single-file guides pretending to be complete domains when they are really placeholders for future depth.
+
 ## Thin-guide audit
 
 ### Method
@@ -116,6 +125,9 @@ Recommended capstone shape:
 4. Important metrics, constraints, and regulation
 5. Decision case
 6. Next-step connections
+
+Detailed capstone roles, prerequisite paths, and rewrite scope for the current industry modules
+live in `docs/curriculum-industry-capstones.md`.
 
 ## Rewrite priority ranking
 

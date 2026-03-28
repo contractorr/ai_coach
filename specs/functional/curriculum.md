@@ -172,6 +172,14 @@ recommendations, and authoring QA.
 | Guide has no assessable non-glossary chapters | Placement generation rejects cleanly |
 | Related-chapter search has too little context | Related card returns empty state / no content rather than error |
 
+## Related Design Docs
+
+- `docs/curriculum-authoring.md`
+- `docs/curriculum-redesign-roadmap.md`
+- `docs/curriculum-recommendation-pilot.md`
+- `docs/curriculum-assessments.md`
+- `docs/curriculum-industry-capstones.md`
+
 ## Out of Scope
 
 - Strict prerequisite gating or locking

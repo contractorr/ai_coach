@@ -65,6 +65,13 @@ This spec describes the current shipped architecture rather than the earlier pro
   - unknown program references
   - prerequisite cycles
 
+#### Reporting model
+
+- `CurriculumLintIssue`: `{code, path, message, severity}`
+- `CurriculumLintReport`: `{documents_scanned, issues}`
+- text output is intended for maintainers
+- JSON output is intended for CI and scripted review
+
 #### Audit coverage
 
 `audit_curriculum_root()` produces a rewrite-planning report that:
@@ -73,6 +80,7 @@ This spec describes the current shipped architecture rather than the earlier pro
 - treats industry guides as applied modules / capstones
 - reports superseded aliases
 - incorporates dependency leverage and program membership into ranking
+- aligns with the rewrite and capstone planning docs in `docs/`
 
 ### CurriculumScanner
 
@@ -230,6 +238,13 @@ Current properties:
   - decision brief
   - scenario analysis
   - case memo
+
+#### Roadmap references
+
+- `docs/curriculum-recommendation-pilot.md` defines the current ranking rationale and pilot
+  rollout for personalized next-step guidance.
+- `docs/curriculum-assessments.md` defines the broader applied-assessment expansion beyond the
+  currently shipped pilot payload.
 
 ### Chapter Embeddings and Related Chapters
 
