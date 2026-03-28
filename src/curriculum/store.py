@@ -701,7 +701,7 @@ class CurriculumStore:
                 (user_id,),
             ).fetchone()
             enrolled = enroll_row["enrolled"]
-            guide_completed = enroll_row["completed"]
+            guide_completed = enroll_row["completed"] or 0
 
             # Batch 2: chapter progress (1 query instead of 2)
             progress_row = conn.execute(
