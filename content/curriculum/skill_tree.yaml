@@ -1,4 +1,8 @@
 version: 1
+guide_aliases:
+  "05-game-theory-strategic-interaction-guide": "34-game-theory-strategic-interaction-guide"
+  "32-engineering-guide": "35-engineering-guide"
+
 tracks:
   foundations:
     title: "Foundations"
@@ -13,7 +17,7 @@ tracks:
         prerequisites: []
       - id: "04-statistics-probability-guide"
         prerequisites: ["03-mathematics-pure-applied-guide"]
-      - id: "05-game-theory-strategic-interaction-guide"
+      - id: "34-game-theory-strategic-interaction-guide"
         prerequisites: ["03-mathematics-pure-applied-guide", "04-statistics-probability-guide"]
       - id: "08-information-theory-complex-systems-guide"
         prerequisites: ["03-mathematics-pure-applied-guide"]
@@ -103,7 +107,7 @@ tracks:
         prerequisites: ["36-computer-science-algorithms-guide", "04-statistics-probability-guide"]
       - id: "38-cybersecurity-guide"
         prerequisites: ["36-computer-science-algorithms-guide"]
-      - id: "32-engineering-guide"
+      - id: "35-engineering-guide"
         prerequisites: ["06-physics-fundamentals-guide", "03-mathematics-pure-applied-guide"]
 
   industry:
@@ -114,7 +118,7 @@ tracks:
       - id: "industry-accounting"
         prerequisites: ["28-accounting"]
       - id: "industry-construction"
-        prerequisites: ["32-engineering-guide"]
+        prerequisites: ["35-engineering-guide"]
       - id: "industry-energy"
         prerequisites: ["11-energy-materials-guide"]
       - id: "industry-financialservices"
@@ -132,4 +136,121 @@ tracks:
       - id: "industry-realestate"
         prerequisites: ["26-economics-guide"]
       - id: "industry-supplychain"
-        prerequisites: ["26-economics-guide", "32-engineering-guide"]
+        prerequisites: ["26-economics-guide", "35-engineering-guide"]
+
+programs:
+  - id: "business-acumen"
+    title: "Business Acumen"
+    audience: "Operators and functional leads who need sharper commercial judgment."
+    description: "Read a P&L, understand incentives, and connect daily decisions to business performance."
+    color: "#2563eb"
+    outcomes:
+      - "Interpret core financial statements and operating metrics."
+      - "Reason about pricing, market structure, and growth trade-offs."
+      - "Translate functional work into business model and execution choices."
+    guides:
+      - "28-accounting"
+      - "26-economics-guide"
+      - "30-mba-curriculum"
+    applied_modules:
+      - "industry-accounting"
+      - "industry-financialservices"
+      - "industry-realestate"
+  - id: "ai-for-operators"
+    title: "AI for Operators"
+    audience: "Mid-career managers deploying AI into workflows, products, and teams."
+    description: "Build enough technical judgment to scope AI use cases, manage risk, and drive adoption."
+    color: "#7c3aed"
+    outcomes:
+      - "Identify where automation, copilots, and prediction systems create leverage."
+      - "Evaluate model limits, data requirements, and operational failure modes."
+      - "Pair AI deployment with process design, controls, and security basics."
+    guides:
+      - "30-mba-curriculum"
+      - "36-computer-science-algorithms-guide"
+      - "37-ai-ml-fundamentals-guide"
+      - "38-cybersecurity-guide"
+    applied_modules:
+      - "industry-government"
+      - "industry-healthcare"
+      - "industry-supplychain"
+  - id: "decision-quality"
+    title: "Decision Quality"
+    audience: "Managers and founders making repeated high-stakes decisions under uncertainty."
+    description: "Improve framing, probabilistic reasoning, strategic interaction, and debiasing."
+    color: "#0f766e"
+    outcomes:
+      - "Frame decisions with clear assumptions, base rates, and alternatives."
+      - "Use probabilistic reasoning, incentives, and game dynamics in planning."
+      - "Catch common cognitive and organizational failure modes before they compound."
+    guides:
+      - "01-philosophy-guide"
+      - "02-epistemology-decision-theory-guide"
+      - "03-mathematics-pure-applied-guide"
+      - "04-statistics-probability-guide"
+      - "34-game-theory-strategic-interaction-guide"
+      - "18-behavioral-psychology-guide"
+    applied_modules:
+      - "industry-insurance"
+      - "industry-legal"
+  - id: "policy-regulation"
+    title: "Policy & Regulation"
+    audience: "Operators working near governments, regulated markets, or public-risk domains."
+    description: "Understand institutions, legal structure, and geopolitical context well enough to act early."
+    color: "#dc2626"
+    outcomes:
+      - "Read how institutions, incentives, and legal systems shape real constraints."
+      - "Connect policy change to operating, market, and reputational risk."
+      - "Communicate regulatory implications in plain business terms."
+    guides:
+      - "23-sociology-institutional-design-guide"
+      - "24-government-politics-guide"
+      - "25-law-legal-systems-guide"
+      - "35-geopolitics-guide"
+    applied_modules:
+      - "industry-government"
+      - "industry-legal"
+      - "industry-insurance"
+  - id: "industry-transition"
+    title: "Industry Transition"
+    audience: "Professionals moving into a new sector who need transfer-ready context fast."
+    description: "Learn the shared business toolkit first, then finish with a sector-specific applied module."
+    color: "#ea580c"
+    outcomes:
+      - "Build a portable foundation in business models, incentives, and operating levers."
+      - "Ramp into a target sector through domain vocabulary, constraints, and KPIs."
+      - "Use an applied module as the bridge from generalist capability to sector fluency."
+    guides:
+      - "26-economics-guide"
+      - "28-accounting"
+      - "30-mba-curriculum"
+    applied_modules:
+      - "industry-construction"
+      - "industry-energy"
+      - "industry-financialservices"
+      - "industry-government"
+      - "industry-healthcare"
+      - "industry-hr"
+      - "industry-insurance"
+      - "industry-legal"
+      - "industry-realestate"
+      - "industry-supplychain"
+  - id: "strategy-investing"
+    title: "Strategy / Investing"
+    audience: "Leaders and investors reasoning about market structure, allocation, and long-horizon bets."
+    description: "Combine economics, business strategy, market history, and capital allocation."
+    color: "#1d4ed8"
+    outcomes:
+      - "Evaluate markets with a sharper view of competition, incentives, and cycles."
+      - "Connect firm strategy to capital allocation and investor judgment."
+      - "Use applied modules as sector lenses for diligence and thesis formation."
+    guides:
+      - "26-economics-guide"
+      - "27-economic-history-guide"
+      - "30-mba-curriculum"
+      - "31-private-markets-curriculum"
+      - "35-geopolitics-guide"
+    applied_modules:
+      - "industry-energy"
+      - "industry-financialservices"
+      - "industry-realestate"
