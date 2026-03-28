@@ -2,6 +2,7 @@
 
 from .advisor import ask, goals, opportunities, review, today
 from .capabilities import capabilities
+from .curriculum import curriculum
 from .daemon import daemon
 from .database import db
 from .eval_cmd import eval_cmd
@@ -41,6 +42,7 @@ __all__ = [
     "scraper_health",
     "watchlist",
     "daemon",
+    "curriculum",
     "db",
     "research",
     "recommend",
@@ -62,6 +64,7 @@ __all__ = [
 COMMAND_GROUPS = (
     journal,
     daemon,
+    curriculum,
     db,
     research,
     recommend,
