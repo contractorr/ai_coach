@@ -50,6 +50,12 @@ Learn is a structured study workspace that turns a corpus of markdown guides int
 - Dashboard shows "continue reading" card with last chapter and "reviews due" card with count.
 - `/api/curriculum/next` returns advisor-recommended next chapter based on enrollment and last read.
 
+### Authoring QA
+- Maintainers run `coach curriculum lint --path content/curriculum` before shipping guide changes.
+- The lint report surfaces broken curriculum references, missing frontmatter fields, missing objectives/checkpoints, thin chapters, chapter-order gaps, duplicate chapter concepts inside a guide, and manifest graph issues such as missing guides, missing prerequisites, duplicate track assignments, and prerequisite cycles.
+- Maintainers run `coach curriculum audit --path content/curriculum` to rank thin guides and applied modules for rewrite planning.
+- Lint output is available in text and JSON so CI or scripts can consume it directly.
+
 ## Acceptance Criteria
 
 - [ ] `/learn` lists all guides with correct category, difficulty, chapter count, and reading time
@@ -66,6 +72,9 @@ Learn is a structured study workspace that turns a corpus of markdown guides int
 - [ ] Enrolling in a guide creates a learning goal with chapter milestones
 - [ ] Completing a chapter shows inline reflection prompt; memory facts auto-extracted
 - [ ] Advisor queries include `<curriculum_progress>` context when user has active enrollments
+- [ ] `coach curriculum lint` reports broken references, missing frontmatter metadata, missing objectives/checkpoints, thin chapters, and chapter-order/path coherence problems
+- [ ] `coach curriculum lint` reports manifest graph problems clearly, including missing guide references and prerequisite cycles
+- [ ] `coach curriculum audit` ranks thin guides and applied industry modules for rewrite planning
 
 ## Edge Cases
 
@@ -80,6 +89,10 @@ Learn is a structured study workspace that turns a corpus of markdown guides int
 | Memory extraction fails | Progress update succeeds; extraction is best-effort |
 | No LLM available for quiz | Keyword matching fallback for grading |
 | Industry guide naming | `Industries/Healthcare/` → guide ID `industry-healthcare` |
+
+| External URL in chapter body | Ignored by curriculum lint |
+| Alias in `skill_tree.yaml` | QA resolves alias to canonical guide before graph checks |
+| Guide present in content but absent from tracks | Lint flags missing track assignment |
 
 ### Teach-back / Feynman prompts
 - After completing a chapter, user sees a "Teach-back" card prompting them to explain the key concept in their own words.
