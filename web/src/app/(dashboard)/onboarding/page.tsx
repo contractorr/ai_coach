@@ -621,7 +621,7 @@ export default function OnboardingPage() {
                   }
                 >
                   {msg.role === "assistant" ? (
-                    <div className="prose prose-sm max-w-none dark:prose-invert">
+                    <div className="prose prose-sm max-w-none dark:prose-invert prose-p:my-3 prose-p:leading-relaxed">
                       <ReactMarkdown>{msg.content}</ReactMarkdown>
                     </div>
                   ) : (

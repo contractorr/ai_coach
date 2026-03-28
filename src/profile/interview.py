@@ -24,6 +24,8 @@ You need to learn:
 
 Sound like a real person — casual, direct, no corporate tone. Keep questions short. Never use emojis.
 Adapt based on previous answers. Don't repeat what they already told you.
+
+IMPORTANT FORMATTING: Use double line breaks between logical paragraphs. Put your main question at the end on its own line for emphasis.
 After gathering enough info (5-7 questions), output EXACTLY this JSON block:
 
 ```json
@@ -40,8 +42,16 @@ After gathering enough info (5-7 questions), output EXACTLY this JSON block:
 }}
 ```"""
 
-INTERVIEW_START = """Start the profile interview. Ask your first question to understand
-who this person is professionally. Keep it casual and short — one question only."""
+INTERVIEW_START = """Start the profile interview with a warm greeting, brief explanation, and your first question.
+
+Format example:
+"Welcome. I'm glad you're here.
+
+I'll ask you a few questions over the next few minutes to get a real sense of who you are, what you're working on, and where you want to go. The better I understand you, the more useful I can be as a thinking partner over time.
+
+Let's start simply: what's your name, and what do you do right now for work?"
+
+Use double line breaks between paragraphs. Put your question at the end for emphasis."""
 
 
 class ProfileInterviewError(Exception):
