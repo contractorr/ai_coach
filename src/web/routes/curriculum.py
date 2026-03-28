@@ -775,9 +775,11 @@ async def get_stats(user: dict = Depends(get_current_user)):
 
 @router.post("/sync")
 async def sync_content(user: dict = Depends(get_current_user)):
-    store = _get_store(user["id"])
+    user_id = user["id"]
+    store = _get_store(user_id)
     count = _sync_catalog(store)
-    return {"synced_guides": count}
+    logger.info("curriculum.sync_completed", user_id=user_id, guide_count=count)
+    return {"synced_guides": count, "message": f"Synced {count} guides with latest track data"}
 
 
 @router.get("/ready")

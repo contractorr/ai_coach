@@ -84,9 +84,13 @@ export default function LearnPage() {
     if (!token) return;
     setSyncing(true);
     try {
-      await apiFetch("/api/v1/curriculum/sync", { method: "POST" }, token);
+      const result = await apiFetch<{ synced_guides: number; message?: string }>(
+        "/api/v1/curriculum/sync",
+        { method: "POST" },
+        token
+      );
       await loadData();
-      toast.success("Content synced");
+      toast.success(result.message || `Synced ${result.synced_guides} guides`);
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
