@@ -25,6 +25,7 @@ services:
     restart: unless-stopped
     volumes:
       - coach_data:/data/coach
+      - ./content:/app/content:ro
     env_file: .env
     environment:
       - COACH_HOME=/data/coach
