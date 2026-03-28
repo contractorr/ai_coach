@@ -7,6 +7,7 @@ git clone https://github.com/contractorr/stewardme.git
 cd stewardme
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev,web,all-providers]"
+pre-commit install
 
 # Frontend
 cd web && npm install && cd ..
@@ -14,6 +15,7 @@ cd web && npm install && cd ..
 # Verify
 ANTHROPIC_API_KEY=test-key pytest
 ruff check src tests
+pre-commit run --all-files
 ```
 
 ## Project structure
@@ -44,7 +46,7 @@ tests/              # Mirrors src/ structure
 3. Update or create the **functional spec** in `specs/functional/` (acceptance criteria, edge cases)
 4. Update or create the **technical spec** in `specs/technical/` (component signatures, invariants)
 5. Implement code changes
-6. Run checks: `ruff check src tests && ruff format src tests && ANTHROPIC_API_KEY=test-key pytest`
+6. Run checks: `pre-commit run --all-files && ANTHROPIC_API_KEY=test-key pytest`
 7. Commit with a descriptive message
 8. Open a PR against `main`
 
@@ -54,6 +56,7 @@ tests/              # Mirrors src/ structure
 
 - **Python:** Ruff for linting and formatting (E501 ignored — no line length cap)
 - **TypeScript:** Next.js defaults, Tailwind CSS for styling
+- **Git hooks:** `pre-commit` runs Ruff and frontend ESLint before each commit
 - **Tests:** pytest with `asyncio_mode = "auto"`. Tests use `ANTHROPIC_API_KEY=test-key`
 - **Types:** mypy is advisory (not enforced in CI), but appreciated
 
