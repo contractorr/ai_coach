@@ -252,9 +252,10 @@ export default function AdvisorPage() {
   };
 
   return (
-    <div className="flex h-full gap-4 p-4 md:p-6">
-      {/* Conversation sidebar */}
-      <div className="hidden w-64 flex-col border-r pr-4 md:flex">
+    <div className="mx-auto h-full max-w-7xl p-4 md:p-6">
+      <div className="flex h-full gap-4">
+        {/* Conversation sidebar */}
+        <div className="hidden w-64 flex-col border-r pr-4 md:flex">
         <Button
           variant="outline"
           className="mb-3 w-full justify-start gap-2"
@@ -407,6 +408,7 @@ export default function AdvisorPage() {
           </div>
         </div>
       </div>
+    </div>
     </div>
   );
 }
