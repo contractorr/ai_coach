@@ -176,6 +176,9 @@ Industry modules should stay narrow, practical, and case-oriented. If a sector n
 multi-chapter treatment later, that should be a separate dedicated guide rather than accidental
 scope creep inside a crash course.
 
+Current capstone roles, prerequisite paths, and conversion scope for the existing industry modules
+are documented in `docs/curriculum-industry-capstones.md`.
+
 ## Reference conventions
 
 - Prefer `curriculum:<guide-id>/<chapter-stem>` for stable chapter-to-chapter references, for example `curriculum:01-philosophy-guide/02-logic-reasoning`.

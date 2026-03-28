@@ -94,6 +94,9 @@ Reason: score `0`; 15,725 words and no current dependency bonus, so it is the lo
 All `industry-*` guides should be converted into explicit applied modules before any attempt to
 deepen them into pseudo-textbooks.
 
+Detailed capstone roles, prerequisite paths, and rewrite scope for the current industry modules
+live in `docs/curriculum-industry-capstones.md`.
+
 ## Recommended sequence
 
 ### Phase 1
