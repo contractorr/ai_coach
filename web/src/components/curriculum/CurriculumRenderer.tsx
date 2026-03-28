@@ -1,11 +1,14 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState, type ReactNode } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { BarChart3 } from "lucide-react";
 import { parseChartData, type ParsedChartData } from "@/lib/chart-parser";
+import { getCurriculumVisualLanguage, parseCurriculumVisualBlock } from "@/lib/curriculum-visuals";
 import { ChartOverlay } from "./ChartOverlay";
+import { CurriculumVisualBlockRenderer } from "./CurriculumVisualBlock";
 
 /**
  * Detect if a code block contains an ASCII diagram.
@@ -57,9 +60,39 @@ function extractTextFromChildren(children: ReactNode): string {
 
 interface CurriculumRendererProps {
   content: string;
+  guideId?: string;
 }
 
-export function CurriculumRenderer({ content }: CurriculumRendererProps) {
+function resolveCurriculumHref(href: string | undefined, guideId?: string): string | null {
+  if (!href) return null;
+  if (/^(https?:|mailto:|tel:)/i.test(href) || href.startsWith("#")) return null;
+
+  const [rawPath, rawHash] = href.split("#", 2);
+  const normalizedPath = rawPath.replace(/\\/g, "/").trim();
+  const normalizedLower = normalizedPath.toLowerCase();
+  if (!normalizedLower.endsWith(".md") && !normalizedLower.endsWith(".mdx")) return null;
+
+  const segments = normalizedPath.split("/").filter(Boolean);
+  if (segments.length === 0) return null;
+
+  const chapterSegment = segments[segments.length - 1];
+  const chapterId = chapterSegment.replace(/\.(md|mdx)$/i, "");
+  if (!chapterId) return null;
+
+  let resolvedGuideId: string | undefined;
+  if (segments.length === 1 || normalizedPath.startsWith("./") || normalizedPath.startsWith("../")) {
+    resolvedGuideId = guideId;
+  } else {
+    resolvedGuideId = segments[segments.length - 2];
+  }
+
+  if (!resolvedGuideId) return null;
+
+  const hash = rawHash ? `#${rawHash}` : "";
+  return `/learn/${resolvedGuideId}/${chapterId}${hash}`;
+}
+
+export function CurriculumRenderer({ content, guideId }: CurriculumRendererProps) {
   const components: Components = useMemo(
     () => ({
       // Enhanced code blocks: detect diagrams and style accordingly
@@ -69,6 +102,8 @@ export function CurriculumRenderer({ content }: CurriculumRendererProps) {
 
       code({ children, className }) {
         const text = extractTextFromChildren(children);
+        const visualLanguage = getCurriculumVisualLanguage(className);
+        const visualBlock = parseCurriculumVisualBlock(visualLanguage, text);
         const isInline = !className && !text.includes("\n");
 
         if (isInline) {
@@ -77,6 +112,10 @@ export function CurriculumRenderer({ content }: CurriculumRendererProps) {
               {children}
             </code>
           );
+        }
+
+        if (visualBlock) {
+          return <CurriculumVisualBlockRenderer block={visualBlock} />;
         }
 
         const isDiagram = isAsciiDiagram(text);
@@ -173,6 +212,18 @@ export function CurriculumRenderer({ content }: CurriculumRendererProps) {
         return <li className="leading-relaxed">{children}</li>;
       },
       a({ children, href }) {
+        const internalHref = resolveCurriculumHref(href, guideId);
+        if (internalHref) {
+          return (
+            <Link
+              href={internalHref}
+              className="text-primary underline underline-offset-2 decoration-primary/40 hover:decoration-primary/80 transition-colors"
+            >
+              {children}
+            </Link>
+          );
+        }
+
         return (
           <a href={href} className="text-primary underline underline-offset-2 decoration-primary/40 hover:decoration-primary/80 transition-colors">
             {children}
@@ -189,7 +240,7 @@ export function CurriculumRenderer({ content }: CurriculumRendererProps) {
         return <em className="italic text-foreground/90">{children}</em>;
       },
     }),
-    []
+    [guideId]
   );
 
   return (

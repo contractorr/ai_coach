@@ -70,7 +70,7 @@ If r = 10%, money multiplier = 10
 4. Bank B keeps $90, lends $810
 5. Process continues...
 
-**Total Money Created**: $1,000 × 10 = $10,000
+**Total Money Created**: $1,000 Ã— 10 = $10,000
 
 **Real-World Complications**:
 - Banks may hold excess reserves (especially during crises)
@@ -87,13 +87,13 @@ If r = 10%, money multiplier = 10
 **Expansionary OMO** (increase money supply):
 - Fed buys Treasury securities
 - Pays with newly created reserves
-- Bank reserves increase → lending increases → money supply expands
+- Bank reserves increase â†’ lending increases â†’ money supply expands
 - Interest rates fall
 
 **Contractionary OMO** (decrease money supply):
 - Fed sells Treasury securities
 - Banks pay with reserves
-- Bank reserves decrease → lending contracts → money supply contracts
+- Bank reserves decrease â†’ lending contracts â†’ money supply contracts
 - Interest rates rise
 
 **Real-World Application**: The Fed conducts daily OMOs to keep the federal funds rate (interbank lending rate) within its target range. In 2023-2024, the Fed conducted "quantitative tightening" by allowing its bond holdings to mature without replacement, reducing its balance sheet.
@@ -103,8 +103,8 @@ If r = 10%, money multiplier = 10
 **Definition**: Interest rate central bank charges commercial banks for short-term loans.
 
 **Mechanism**:
-- Higher discount rate → borrowing from Fed less attractive → reduced bank reserves → contractionary
-- Lower discount rate → borrowing from Fed more attractive → increased bank reserves → expansionary
+- Higher discount rate â†’ borrowing from Fed less attractive â†’ reduced bank reserves â†’ contractionary
+- Lower discount rate â†’ borrowing from Fed more attractive â†’ increased bank reserves â†’ expansionary
 
 **Types of Discount Window Lending**:
 - **Primary credit**: For healthy banks, slightly above market rates
@@ -120,8 +120,8 @@ If r = 10%, money multiplier = 10
 **Definition**: Percentage of deposits banks must hold as reserves (cash or central bank deposits).
 
 **Mechanism**:
-- Higher requirement → less money for lending → contractionary
-- Lower requirement → more money for lending → expansionary
+- Higher requirement â†’ less money for lending â†’ contractionary
+- Lower requirement â†’ more money for lending â†’ expansionary
 
 **Current Status**:
 - Fed eliminated reserve requirements in March 2020 (reduced to 0%)
@@ -133,8 +133,8 @@ If r = 10%, money multiplier = 10
 **Definition**: Interest central bank pays on bank reserves held at central bank.
 
 **Mechanism**:
-- Higher IOR → banks hold more reserves (lending less attractive) → contractionary
-- Lower IOR → banks hold fewer reserves (lending more attractive) → expansionary
+- Higher IOR â†’ banks hold more reserves (lending less attractive) â†’ contractionary
+- Lower IOR â†’ banks hold fewer reserves (lending more attractive) â†’ expansionary
 
 **Fed's Interest on Reserve Balances (IORB)**: Primary tool since 2008, sets effective floor for federal funds rate.
 
@@ -161,7 +161,7 @@ If r = 10%, money multiplier = 10
 
 **Mechanism**:
 - Central bank buys long-term securities (government bonds, mortgage-backed securities)
-- Increases prices of these assets → lowers their yields (long-term interest rates)
+- Increases prices of these assets â†’ lowers their yields (long-term interest rates)
 - Signals commitment to keep rates low
 - Increases bank reserves dramatically
 
@@ -185,8 +185,34 @@ How monetary policy affects the real economy:
 
 ### 1. Interest Rate Channel
 
-```
-Money supply ↑ → Interest rates ↓ → Investment ↑, Consumption ↑ → AD ↑ → Output ↑
+```process-flow
+{
+  "title": "Interest rate channel",
+  "note": "Lower policy rates work through financing costs first, then through aggregate demand.",
+  "steps": [
+    {
+      "title": "Money supply expands",
+      "detail": "The central bank injects reserves or otherwise eases policy."
+    },
+    {
+      "title": "Interest rates fall",
+      "detail": "Borrowing costs decline across short-term and eventually broader credit markets."
+    },
+    {
+      "title": "Investment and consumption rise",
+      "detail": "Firms fund more projects and households finance more durable purchases."
+    },
+    {
+      "title": "Aggregate demand rises",
+      "detail": "Higher spending increases total demand in the economy."
+    },
+    {
+      "title": "Output rises",
+      "detail": "Firms respond with more production, hiring, and income creation.",
+      "emphasis": "Lag: 6-18 months"
+    }
+  ]
+}
 ```
 
 - Lower rates reduce cost of borrowing
@@ -197,8 +223,33 @@ Money supply ↑ → Interest rates ↓ → Investment ↑, Consumption ↑ → 
 
 ### 2. Exchange Rate Channel
 
-```
-Interest rates ↓ → Capital outflows → Currency depreciates → Exports ↑, Imports ↓ → AD ↑
+```process-flow
+{
+  "title": "Exchange rate channel",
+  "note": "Lower domestic rates change capital flows and then trade competitiveness.",
+  "steps": [
+    {
+      "title": "Interest rates fall",
+      "detail": "Domestic assets become less attractive relative to foreign alternatives."
+    },
+    {
+      "title": "Capital outflows increase",
+      "detail": "Investors shift funds toward higher-yielding markets."
+    },
+    {
+      "title": "Currency depreciates",
+      "detail": "The weaker currency changes export and import prices."
+    },
+    {
+      "title": "Net exports improve",
+      "detail": "Exports rise while imports become relatively less attractive."
+    },
+    {
+      "title": "Aggregate demand rises",
+      "detail": "Trade demand adds to overall spending in the economy."
+    }
+  ]
+}
 ```
 
 - Lower domestic rates make foreign assets more attractive
@@ -209,8 +260,33 @@ Interest rates ↓ → Capital outflows → Currency depreciates → Exports ↑
 
 ### 3. Asset Price Channel
 
-```
-Money supply ↑ → Stock/housing prices ↑ → Wealth effect → Consumption ↑ → AD ↑
+```process-flow
+{
+  "title": "Asset price channel",
+  "note": "Loose money can raise asset prices before it changes household spending.",
+  "steps": [
+    {
+      "title": "Money supply expands",
+      "detail": "QE and low rates push more liquidity into financial markets."
+    },
+    {
+      "title": "Stock and housing prices rise",
+      "detail": "Investors move toward risk assets and real estate."
+    },
+    {
+      "title": "Household wealth rises",
+      "detail": "Portfolios and home equity increase in value."
+    },
+    {
+      "title": "Consumption rises",
+      "detail": "The wealth effect supports more spending by households."
+    },
+    {
+      "title": "Aggregate demand rises",
+      "detail": "Higher consumption feeds into broader output and employment."
+    }
+  ]
+}
 ```
 
 - QE and low rates push investors into stocks and real estate
@@ -221,8 +297,29 @@ Money supply ↑ → Stock/housing prices ↑ → Wealth effect → Consumption 
 
 ### 4. Credit Channel
 
-```
-Monetary expansion → Bank lending capacity ↑ → Credit availability ↑ → Spending ↑
+```process-flow
+{
+  "title": "Credit channel",
+  "note": "Monetary easing also works through lender balance sheets and credit availability.",
+  "steps": [
+    {
+      "title": "Monetary policy eases",
+      "detail": "Banks hold more reserves and funding conditions improve."
+    },
+    {
+      "title": "Lending capacity rises",
+      "detail": "Banks are more willing and able to extend credit."
+    },
+    {
+      "title": "Credit availability rises",
+      "detail": "Households and firms can access more loans on better terms."
+    },
+    {
+      "title": "Spending rises",
+      "detail": "Borrowers finance purchases, payroll, inventory, and investment."
+    }
+  ]
+}
 ```
 
 - Balance sheet channel: Higher asset prices improve borrowers' collateral, enabling more borrowing
@@ -232,8 +329,29 @@ Monetary expansion → Bank lending capacity ↑ → Credit availability ↑ →
 
 ### 5. Expectations Channel
 
-```
-Forward guidance → Expected future rates → Current long-term rates ↓ → Spending ↑
+```process-flow
+{
+  "title": "Expectations channel",
+  "note": "Forward guidance changes decisions today by shifting beliefs about future policy.",
+  "steps": [
+    {
+      "title": "Central bank issues guidance",
+      "detail": "Officials signal the likely path of future policy rates."
+    },
+    {
+      "title": "Expected future rates adjust",
+      "detail": "Households, firms, and markets revise their forecasts."
+    },
+    {
+      "title": "Current long-term rates move",
+      "detail": "Bond yields and financing conditions respond before the future arrives."
+    },
+    {
+      "title": "Spending adjusts",
+      "detail": "Lower expected financing costs support investment and consumption today."
+    }
+  ]
+}
 ```
 
 - If central bank credibly commits to low future rates, long-term rates fall today
@@ -244,16 +362,16 @@ Forward guidance → Expected future rates → Current long-term rates ↓ → S
 **Guideline for setting interest rates** based on inflation and output gaps:
 
 ```
-Federal Funds Rate = r* + π + 0.5(π - π*) + 0.5(y - y*)
+Federal Funds Rate = r* + Ï€ + 0.5(Ï€ - Ï€*) + 0.5(y - y*)
 ```
 
 Where:
-- r* = Neutral real interest rate (≈2%)
-- π = Current inflation rate
-- π* = Target inflation rate (2%)
+- r* = Neutral real interest rate (â‰ˆ2%)
+- Ï€ = Current inflation rate
+- Ï€* = Target inflation rate (2%)
 - y = Log of real GDP
 - y* = Log of potential GDP
-- (π - π*) = Inflation gap
+- (Ï€ - Ï€*) = Inflation gap
 - (y - y*) = Output gap
 
 **Interpretation**:
@@ -378,7 +496,7 @@ Where:
 - Coordination with fiscal policy difficult
 
 **Real-World Examples**:
-- Turkey (2020s): President Erdoğan fired central bank governors who raised rates, leading to currency collapse and hyperinflation
+- Turkey (2020s): President ErdoÄŸan fired central bank governors who raised rates, leading to currency collapse and hyperinflation
 - Argentina: Long history of central bank financing government deficits, resulting in chronic inflation
 
 ## Recent Monetary Policy Episodes
@@ -428,7 +546,7 @@ Where:
 **Fed Response** (2022-2023):
 - Initially characterized inflation as "transitory" (underestimated persistence)
 - Began raising rates March 2022
-- Most aggressive tightening since early 1980s: 0% → 5.5% in 16 months
+- Most aggressive tightening since early 1980s: 0% â†’ 5.5% in 16 months
 - Started QT (balance sheet reduction)
 
 **Outcome** (as of 2024):

@@ -2,6 +2,8 @@
 
 from pathlib import Path
 
+import yaml
+
 import pytest
 
 from curriculum.models import GuideCategory
@@ -11,6 +13,8 @@ from curriculum.scanner import (
     _extract_title,
     _infer_category,
     build_tree_layout,
+    load_guide_aliases,
+    load_learning_programs,
     load_skill_tree,
 )
 
@@ -142,6 +146,45 @@ def test_content_hash_deterministic(content_dir):
         assert c1.content_hash == c2.content_hash
 
 
+def test_scan_supports_mdx_frontmatter(tmp_path):
+    guide = tmp_path / "01-philosophy-guide"
+    guide.mkdir()
+    (guide / "01-introduction.mdx").write_text(
+        """---
+schema_version: 1
+title: Introduction to Philosophy
+summary: Why philosophy exists.
+objectives:
+  - Understand the major branches.
+checkpoints:
+  - Explain metaphysics versus epistemology.
+references:
+  - curriculum:01-philosophy-guide/02-logic
+content_format: mdx
+---
+
+# Ignored heading
+
+Body text here.
+""",
+        encoding="utf-8",
+    )
+
+    scanner = CurriculumScanner([tmp_path])
+    guides, chapters = scanner.scan()
+
+    assert len(guides) == 1
+    chapter = chapters[0]
+    assert chapter.filename == "01-introduction.mdx"
+    assert chapter.title == "Introduction to Philosophy"
+    assert chapter.summary == "Why philosophy exists."
+    assert chapter.objectives == ["Understand the major branches."]
+    assert chapter.checkpoints == ["Explain metaphysics versus epistemology."]
+    assert chapter.content_references == ["curriculum:01-philosophy-guide/02-logic"]
+    assert chapter.content_format == "mdx"
+    assert chapter.schema_version == 1
+
+
 # --- Skill tree tests ---
 
 
@@ -151,6 +194,8 @@ def content_dir_with_manifest(content_dir):
     manifest = content_dir / "skill_tree.yaml"
     manifest.write_text(
         """version: 1
+guide_aliases:
+  "03-legacy-econ-guide": "02-economics-guide"
 tracks:
   foundations:
     title: "Foundations"
@@ -168,6 +213,19 @@ tracks:
     guides:
       - id: "industry-healthcare"
         prerequisites: ["01-philosophy-guide"]
+programs:
+  - id: "starter"
+    title: "Starter Path"
+    audience: "Generalists"
+    description: "Intro philosophy and economics"
+    color: "#6366f1"
+    outcomes:
+      - "Build a basic foundation"
+    guides:
+      - "01-philosophy-guide"
+      - "03-legacy-econ-guide"
+    applied_modules:
+      - "industry-healthcare"
 """
     )
     return content_dir
@@ -236,6 +294,72 @@ def test_get_track_metadata(content_dir_with_manifest):
     assert meta["foundations"]["title"] == "Foundations"
     assert meta["foundations"]["color"] == "#6366f1"
     assert "industry" in meta
+
+
+def test_load_guide_aliases(content_dir_with_manifest):
+    aliases = load_guide_aliases(content_dir_with_manifest)
+    assert aliases["03-legacy-econ-guide"] == "02-economics-guide"
+
+
+def test_load_learning_programs_canonicalizes_aliases(content_dir_with_manifest):
+    programs = load_learning_programs(content_dir_with_manifest)
+    starter = next(program for program in programs if program["id"] == "starter")
+    assert starter["guide_ids"] == ["01-philosophy-guide", "02-economics-guide"]
+    assert starter["audience"] == "Generalists"
+    assert starter["outcomes"] == ["Build a basic foundation"]
+    assert starter["applied_module_ids"] == ["industry-healthcare"]
+
+
+def test_get_learning_programs(content_dir_with_manifest):
+    scanner = CurriculumScanner([content_dir_with_manifest])
+    programs = scanner.get_learning_programs()
+    assert programs[0]["id"] == "starter"
+    assert programs[0]["guide_ids"] == ["01-philosophy-guide", "02-economics-guide"]
+    assert programs[0]["applied_module_ids"] == ["industry-healthcare"]
+
+
+def test_repo_manifest_has_no_deprecated_alias_references():
+    manifest_path = Path("content/curriculum/skill_tree.yaml")
+    data = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
+    guide_aliases = set(data.get("guide_aliases", {}))
+
+    track_refs: set[str] = set()
+    for track in data.get("tracks", {}).values():
+        for entry in track.get("guides", []):
+            track_refs.add(entry["id"])
+            track_refs.update(entry.get("prerequisites", []))
+
+    program_refs: set[str] = set()
+    for program in data.get("programs", []):
+        program_refs.update(program.get("guides", []))
+        program_refs.update(program.get("applied_modules", []))
+
+    assert track_refs.isdisjoint(guide_aliases)
+    assert program_refs.isdisjoint(guide_aliases)
+
+
+def test_repo_manifest_references_existing_canonical_guides():
+    content_dir = Path("content/curriculum")
+    scanner = CurriculumScanner([content_dir])
+    guides, _ = scanner.scan()
+    scanned_guide_ids = {guide.id for guide in guides}
+
+    skill_tree = load_skill_tree(content_dir)
+    assert skill_tree is not None
+    guide_prereqs, _, _ = skill_tree
+    programs = load_learning_programs(content_dir)
+
+    tracked_guide_ids = set(guide_prereqs)
+    tracked_prereq_ids = {prereq for prereqs in guide_prereqs.values() for prereq in prereqs}
+    program_guide_ids = {
+        guide_id
+        for program in programs
+        for guide_id in [*program["guide_ids"], *program["applied_module_ids"]]
+    }
+
+    assert tracked_guide_ids <= scanned_guide_ids
+    assert tracked_prereq_ids <= scanned_guide_ids
+    assert program_guide_ids <= scanned_guide_ids
 
 
 # --- build_tree_layout tests ---

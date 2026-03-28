@@ -6,6 +6,7 @@ from pathlib import Path
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
+from curriculum.content_schema import load_curriculum_document, resolve_chapter_content_path
 from curriculum.models import (
     BloomLevel,
     ChapterStatus,
@@ -14,11 +15,12 @@ from curriculum.models import (
     ReviewGradeRequest,
     ReviewItemType,
 )
+from curriculum.personalization import build_applied_assessments, score_guide_candidate
 from curriculum.question_generator import QuestionGenerator
 from curriculum.scanner import CurriculumScanner, build_tree_layout
 from curriculum.store import CurriculumStore
 from web.auth import get_current_user
-from web.deps import get_config, get_user_paths
+from web.deps import get_config, get_profile_path, get_user_paths
 from web.user_store import log_event
 
 logger = structlog.get_logger()
@@ -44,36 +46,283 @@ def _get_store(user_id: str) -> CurriculumStore:
     return CurriculumStore(Path(paths["data_dir"]) / "curriculum.db")
 
 
+def _build_program_lookup(programs: list[dict]) -> dict[str, list[dict]]:
+    """Map guide_id -> curated learning programs containing that guide."""
+    lookup: dict[str, list[dict]] = {}
+    for program in programs:
+        summary = {
+            "id": program["id"],
+            "title": program["title"],
+            "audience": program.get("audience", ""),
+            "description": program.get("description", ""),
+            "color": program.get("color", "#6b7280"),
+            "outcomes": list(program.get("outcomes", [])),
+            "guide_ids": list(program.get("guide_ids", [])),
+            "applied_module_ids": list(program.get("applied_module_ids", [])),
+        }
+        for guide_id in [*summary["guide_ids"], *summary["applied_module_ids"]]:
+            lookup.setdefault(guide_id, []).append(summary)
+    return lookup
+
+
+def _load_user_profile(user_id: str):
+    try:
+        from profile.storage import ProfileStorage
+
+        return ProfileStorage(get_profile_path(user_id)).load()
+    except Exception as exc:
+        logger.warning("curriculum.profile_load_failed", user_id=user_id, error=str(exc))
+        return None
+
+
+def _decorate_guide_payload(
+    guide: dict,
+    scanner: CurriculumScanner,
+    program_lookup: dict[str, list[dict]] | None = None,
+    *,
+    profile=None,
+    include_applied_assessments: bool = False,
+    assessment_chapter_title: str | None = None,
+) -> dict:
+    """Attach manifest-driven program metadata to a guide payload."""
+    canonical_guide_id = scanner.canonicalize_guide_id(guide["id"])
+    if program_lookup is None:
+        program_lookup = _build_program_lookup(scanner.get_learning_programs())
+    programs = program_lookup.get(canonical_guide_id, [])
+    payload = {
+        **guide,
+        "canonical_guide_id": canonical_guide_id if canonical_guide_id != guide["id"] else None,
+        "learning_programs": programs,
+    }
+    if include_applied_assessments:
+        payload["applied_assessments"] = build_applied_assessments(
+            payload,
+            programs,
+            profile,
+            chapter_title=assessment_chapter_title,
+        )
+    return payload
+
+
+def _resolve_guide_id(scanner: CurriculumScanner, guide_id: str) -> str:
+    """Resolve manifest aliases to the canonical guide ID."""
+    return scanner.canonicalize_guide_id(guide_id)
+
+
+def _recommendation_reason(stage: str, recommendation_meta: dict, fallback: str) -> str:
+    matched_programs = recommendation_meta.get("matched_programs", [])
+    if matched_programs and stage in {"ready", "entry"}:
+        return f"Best fit right now for {matched_programs[0]['title']}."
+    signals = recommendation_meta.get("signals", [])
+    if stage in {"ready", "entry"}:
+        for signal in signals:
+            if signal.get("kind") in {"context", "industry", "time"}:
+                return signal.get("detail", fallback)
+    return fallback
+
+
+def _build_next_payload(
+    guide: dict,
+    scanner: CurriculumScanner,
+    program_lookup: dict[str, list[dict]],
+    profile,
+    *,
+    stage: str,
+    chapter: dict | None,
+    action: str | None,
+    fallback_reason: str,
+) -> dict:
+    decorated_guide = _decorate_guide_payload(guide, scanner, program_lookup)
+    recommendation_meta = score_guide_candidate(
+        decorated_guide,
+        decorated_guide["learning_programs"],
+        profile,
+        stage=stage,
+    )
+    return {
+        "guide_id": decorated_guide["id"],
+        "guide_title": decorated_guide["title"],
+        "chapter": chapter,
+        "reason": _recommendation_reason(stage, recommendation_meta, fallback_reason),
+        "action": action,
+        "recommendation_type": stage,
+        "signals": recommendation_meta["signals"],
+        "matched_programs": recommendation_meta["matched_programs"],
+        "applied_assessments": build_applied_assessments(
+            decorated_guide,
+            decorated_guide["learning_programs"],
+            profile,
+            chapter_title=chapter["title"] if chapter else None,
+        ),
+    }
+
+
+def _pick_best_candidate(candidates: list[dict]) -> dict | None:
+    if not candidates:
+        return None
+    ranked = sorted(candidates, key=lambda item: (-item["meta"]["score"], item["guide"]["title"]))
+    return ranked[0]
+
+
+def _get_next_recommendation_v2(
+    user_id: str,
+    store: CurriculumStore,
+    scanner: CurriculumScanner,
+    guide_aliases: set[str],
+):
+    import json
+
+    program_lookup = _build_program_lookup(scanner.get_learning_programs())
+    profile = _load_user_profile(user_id)
+
+    last = store.get_last_read_chapter(user_id)
+    if last:
+        next_ch = store.get_next_chapter(user_id, last["guide_id"])
+        if next_ch:
+            guide = store.get_guide(last["guide_id"], user_id=user_id) or store.get_guide(
+                last["guide_id"]
+            )
+            if guide:
+                return _build_next_payload(
+                    guide,
+                    scanner,
+                    program_lookup,
+                    profile,
+                    stage="continue",
+                    chapter=next_ch,
+                    action=None,
+                    fallback_reason="Continue where you left off.",
+                )
+
+    enrolled_candidates = []
+    for enrollment in store.get_enrollments(user_id):
+        if enrollment.get("completed_at"):
+            continue
+        guide = store.get_guide(enrollment["guide_id"], user_id=user_id) or store.get_guide(
+            enrollment["guide_id"]
+        )
+        if not guide:
+            continue
+        next_ch = store.get_next_chapter(user_id, enrollment["guide_id"])
+        if not next_ch:
+            continue
+        decorated = _decorate_guide_payload(guide, scanner, program_lookup)
+        enrolled_candidates.append(
+            {
+                "guide": guide,
+                "chapter": next_ch,
+                "meta": score_guide_candidate(
+                    decorated,
+                    decorated["learning_programs"],
+                    profile,
+                    stage="enrolled",
+                ),
+            }
+        )
+    best_enrolled = _pick_best_candidate(enrolled_candidates)
+    if best_enrolled:
+        return _build_next_payload(
+            best_enrolled["guide"],
+            scanner,
+            program_lookup,
+            profile,
+            stage="enrolled",
+            chapter=best_enrolled["chapter"],
+            action=None,
+            fallback_reason="Continue your current enrolled guide.",
+        )
+
+    ready_candidates = []
+    for ready_guide in store.get_ready_guides(user_id, excluded_guide_ids=guide_aliases):
+        guide = store.get_guide(ready_guide["id"], user_id=user_id) or store.get_guide(
+            ready_guide["id"]
+        )
+        if not guide:
+            continue
+        decorated = _decorate_guide_payload(guide, scanner, program_lookup)
+        ready_candidates.append(
+            {
+                "guide": guide,
+                "meta": score_guide_candidate(
+                    decorated,
+                    decorated["learning_programs"],
+                    profile,
+                    stage="ready",
+                ),
+            }
+        )
+    best_ready = _pick_best_candidate(ready_candidates)
+    if best_ready:
+        return _build_next_payload(
+            best_ready["guide"],
+            scanner,
+            program_lookup,
+            profile,
+            stage="ready",
+            chapter=None,
+            action="enroll",
+            fallback_reason="Prerequisites are complete and this is the strongest next unlocked guide.",
+        )
+
+    entry_candidates = []
+    all_guides = [
+        guide for guide in store.list_guides(user_id=user_id) if guide["id"] not in guide_aliases
+    ]
+    for guide in all_guides:
+        prereqs = guide.get("prerequisites", [])
+        if isinstance(prereqs, str):
+            prereqs = json.loads(prereqs)
+        if prereqs or store.is_enrolled(user_id, guide["id"]):
+            continue
+        decorated = _decorate_guide_payload(guide, scanner, program_lookup)
+        entry_candidates.append(
+            {
+                "guide": guide,
+                "meta": score_guide_candidate(
+                    decorated,
+                    decorated["learning_programs"],
+                    profile,
+                    stage="entry",
+                ),
+            }
+        )
+    best_entry = _pick_best_candidate(entry_candidates)
+    if best_entry:
+        return _build_next_payload(
+            best_entry["guide"],
+            scanner,
+            program_lookup,
+            profile,
+            stage="entry",
+            chapter=None,
+            action="enroll",
+            fallback_reason="Suggested entry point with no prerequisites.",
+        )
+
+    return {
+        "guide_id": None,
+        "chapter": None,
+        "reason": "No active guides - enroll in one to get started.",
+        "recommendation_type": "fallback",
+        "signals": [],
+        "matched_programs": [],
+        "applied_assessments": [],
+    }
+
+
 def _chapter_content_path(chapter_id: str) -> Path | None:
     """Resolve chapter markdown file from content dirs.
 
     chapter_id format: guide_id/chapter_stem
     """
-    parts = chapter_id.split("/", 1)
-    if len(parts) != 2:
-        return None
+    return resolve_chapter_content_path(_content_dirs(), chapter_id)
 
-    guide_id, chapter_stem = parts
-    filename = f"{chapter_stem}.md"
 
-    for content_dir in _content_dirs():
-        # Direct guide dir (e.g., content/curriculum/01-philosophy-guide/)
-        candidate = content_dir / guide_id / filename
-        if candidate.is_file():
-            return candidate
-
-        # Industry guides (content/curriculum/Industries/Name/)
-        if guide_id.startswith("industry-"):
-            industry_name = guide_id[len("industry-") :]
-            # Search Industries/ subdirs case-insensitively
-            industries_dir = content_dir / "Industries"
-            if industries_dir.is_dir():
-                for subdir in industries_dir.iterdir():
-                    if subdir.name.lower() == industry_name.lower():
-                        candidate = subdir / filename
-                        if candidate.is_file():
-                            return candidate
-    return None
+def _load_chapter_document(chapter_id: str, filename: str | None = None):
+    content_path = resolve_chapter_content_path(_content_dirs(), chapter_id, filename=filename)
+    if not content_path:
+        return None, None
+    return content_path, load_curriculum_document(content_path)
 
 
 # --- Endpoints ---
@@ -87,13 +336,14 @@ async def list_tracks(
     store = _get_store(user_id)
     scanner = CurriculumScanner(_content_dirs())
     track_meta = scanner.get_track_metadata()
+    guide_aliases = set(scanner.get_guide_aliases())
     if not track_meta:
         return []
     # Ensure catalog is populated
     guides = store.list_guides()
     if not guides:
         _sync_catalog(store)
-    return store.list_tracks(user_id, track_meta)
+    return store.list_tracks(user_id, track_meta, excluded_guide_ids=guide_aliases)
 
 
 @router.get("/tree")
@@ -104,6 +354,7 @@ async def get_skill_tree(
     user_id = user["id"]
     store = _get_store(user_id)
     scanner = CurriculumScanner(_content_dirs())
+    guide_aliases = set(scanner.get_guide_aliases())
 
     # Ensure catalog populated
     guides_check = store.list_guides()
@@ -121,9 +372,9 @@ async def get_skill_tree(
         track_ids=list(track_meta.keys()),
     )
 
-    tree_data = store.get_tree_data(user_id)
+    tree_data = store.get_tree_data(user_id, excluded_guide_ids=guide_aliases)
 
-    from curriculum.models import SkillTreeEdge, SkillTreeNode, SkillTreeResponse
+    from curriculum.models import LearningProgram, SkillTreeEdge, SkillTreeNode, SkillTreeResponse
 
     nodes = []
     edges = []
@@ -154,7 +405,8 @@ async def get_skill_tree(
         for prereq_id in prereqs:
             edges.append(SkillTreeEdge(source=prereq_id, target=g["id"]))
 
-    return SkillTreeResponse(tracks=track_meta, nodes=nodes, edges=edges)
+    programs = [LearningProgram(**program) for program in scanner.get_learning_programs()]
+    return SkillTreeResponse(tracks=track_meta, programs=programs, nodes=nodes, edges=edges)
 
 
 @router.get("/guides")
@@ -164,6 +416,9 @@ async def list_guides(
 ):
     user_id = user["id"]
     store = _get_store(user_id)
+    scanner = CurriculumScanner(_content_dirs())
+    guide_aliases = set(scanner.get_guide_aliases())
+    program_lookup = _build_program_lookup(scanner.get_learning_programs())
 
     # Auto-sync catalog if empty
     guides = store.list_guides(category=category, user_id=user_id)
@@ -171,7 +426,10 @@ async def list_guides(
         _sync_catalog(store)
         guides = store.list_guides(category=category, user_id=user_id)
 
-    return guides
+    visible_guides = [
+        guide for guide in guides if guide["id"] not in guide_aliases or guide.get("enrolled")
+    ]
+    return [_decorate_guide_payload(guide, scanner, program_lookup) for guide in visible_guides]
 
 
 @router.get("/guides/{guide_id}")
@@ -180,14 +438,26 @@ async def get_guide(
     user: dict = Depends(get_current_user),
 ):
     store = _get_store(user["id"])
-    guide = store.get_guide(guide_id, user_id=user["id"])
+    scanner = CurriculumScanner(_content_dirs())
+    resolved_guide_id = _resolve_guide_id(scanner, guide_id)
+    program_lookup = _build_program_lookup(scanner.get_learning_programs())
+    profile = _load_user_profile(user["id"])
+    guide = store.get_guide(resolved_guide_id, user_id=user["id"])
     if not guide:
         # Try sync first
         _sync_catalog(store)
-        guide = store.get_guide(guide_id, user_id=user["id"])
+        guide = store.get_guide(resolved_guide_id, user_id=user["id"])
     if not guide:
         raise HTTPException(status_code=404, detail="Guide not found")
-    return guide
+    next_chapter = store.get_next_chapter(user["id"], resolved_guide_id)
+    return _decorate_guide_payload(
+        guide,
+        scanner,
+        program_lookup,
+        profile=profile,
+        include_applied_assessments=True,
+        assessment_chapter_title=next_chapter["title"] if next_chapter else None,
+    )
 
 
 @router.get("/guides/{guide_id}/chapters/{chapter_id:path}")
@@ -197,25 +467,25 @@ async def get_chapter(
     user: dict = Depends(get_current_user),
 ):
     store = _get_store(user["id"])
+    scanner = CurriculumScanner(_content_dirs())
+    resolved_guide_id = _resolve_guide_id(scanner, guide_id)
 
     # chapter_id comes in as the part after guide_id, reconstruct full id
-    full_chapter_id = f"{guide_id}/{chapter_id}"
+    full_chapter_id = f"{resolved_guide_id}/{chapter_id}"
     chapter = store.get_chapter(full_chapter_id)
     if not chapter:
         raise HTTPException(status_code=404, detail="Chapter not found")
 
     # Read content
-    content_path = _chapter_content_path(full_chapter_id)
-    if not content_path:
+    _, document = _load_chapter_document(full_chapter_id, chapter.get("filename"))
+    if not document:
         raise HTTPException(status_code=404, detail="Chapter content file not found")
-
-    content = content_path.read_text(encoding="utf-8")
 
     # Get progress
     progress = store.get_chapter_progress(user["id"], full_chapter_id)
 
     # Compute prev/next
-    guide = store.get_guide(guide_id, user_id=user["id"])
+    guide = store.get_guide(resolved_guide_id, user_id=user["id"])
     prev_chapter = None
     next_chapter = None
     if guide and guide.get("chapters"):
@@ -230,7 +500,7 @@ async def get_chapter(
 
     return {
         **chapter,
-        "content": content,
+        "content": document.body,
         "progress": progress,
         "prev_chapter": prev_chapter,
         "next_chapter": next_chapter,
@@ -245,11 +515,13 @@ async def enroll_guide(
 ):
     user_id = user["id"]
     store = _get_store(user_id)
-    guide = store.get_guide(guide_id, user_id=user_id)
+    scanner = CurriculumScanner(_content_dirs())
+    resolved_guide_id = _resolve_guide_id(scanner, guide_id)
+    guide = store.get_guide(resolved_guide_id, user_id=user_id)
     if not guide:
         raise HTTPException(status_code=404, detail="Guide not found")
 
-    store.enroll(user_id, guide_id)
+    store.enroll(user_id, resolved_guide_id)
 
     linked_goal_path: str | None = None
     milestones_added = 0
@@ -279,14 +551,14 @@ async def enroll_guide(
                     milestones_added += 1
 
             # Link goal back to enrollment
-            store.enroll(user_id, guide_id, linked_goal_id=linked_goal_path)
+            store.enroll(user_id, resolved_guide_id, linked_goal_id=linked_goal_path)
         except Exception as exc:
             logger.warning("enroll_goal_creation_failed", guide=guide_id, error=str(exc))
 
-    log_event("curriculum_enrolled", user_id, {"guide_id": guide_id})
+    log_event("curriculum_enrolled", user_id, {"guide_id": resolved_guide_id})
     return {
         "status": "enrolled",
-        "guide_id": guide_id,
+        "guide_id": resolved_guide_id,
         "linked_goal_path": linked_goal_path,
         "milestones_added": milestones_added,
     }
@@ -333,9 +605,9 @@ async def update_progress(
         try:
             config = get_config()
             if config.memory.enabled:
-                content_path = _chapter_content_path(body.chapter_id)
-                if content_path and content_path.is_file():
-                    text = content_path.read_text(encoding="utf-8")[:3000]
+                _, document = _load_chapter_document(body.chapter_id)
+                if document:
+                    text = document.body[:3000]
                     from memory.pipeline import MemoryPipeline
                     from web.deps import get_memory_store
 
@@ -461,15 +733,18 @@ async def generate_quiz(
         raise HTTPException(status_code=404, detail="Chapter not found")
 
     # Check if questions already exist
-    existing = store.get_review_items_for_chapter(user["id"], chapter_id)
+    existing = [
+        item
+        for item in store.get_review_items_for_chapter(user["id"], chapter_id)
+        if item.get("item_type") == ReviewItemType.QUIZ.value
+    ]
     if existing:
         return {"questions": existing, "cached": True}
 
     # Read content
-    content_path = _chapter_content_path(chapter_id)
-    if not content_path:
+    _, document = _load_chapter_document(chapter_id, chapter.get("filename"))
+    if not document:
         raise HTTPException(status_code=404, detail="Chapter content not found")
-    content = content_path.read_text(encoding="utf-8")
 
     # Get guide title
     guide = store.get_guide(chapter["guide_id"])
@@ -477,7 +752,7 @@ async def generate_quiz(
 
     gen = QuestionGenerator()
     items = await gen.generate_questions(
-        content=content,
+        content=document.body,
         chapter_title=chapter["title"],
         guide_title=guide_title,
         count=5,
@@ -490,7 +765,8 @@ async def generate_quiz(
     if items:
         store.add_review_items(items)
 
-    return {"questions": [i.model_dump() for i in items], "cached": False}
+    quiz_items = [i.model_dump() for i in items if i.item_type == ReviewItemType.QUIZ]
+    return {"questions": quiz_items, "cached": False}
 
 
 @router.post("/quiz/{chapter_id:path}/submit")
@@ -569,17 +845,16 @@ async def generate_teachback(
         }
 
     # Generate
-    content_path = _chapter_content_path(chapter_id)
-    if not content_path:
+    _, document = _load_chapter_document(chapter_id, chapter.get("filename"))
+    if not document:
         raise HTTPException(status_code=404, detail="Chapter content not found")
-    content = content_path.read_text(encoding="utf-8")
 
     guide = store.get_guide(chapter["guide_id"])
     guide_title = guide["title"] if guide else ""
 
     gen = QuestionGenerator()
     item = await gen.generate_teachback(
-        content=content,
+        content=document.body,
         chapter_title=chapter["title"],
         guide_title=guide_title,
         content_hash=chapter["content_hash"],
@@ -667,17 +942,16 @@ async def get_pre_reading(
         return {"questions": existing}
 
     # Generate (includes both quiz + pre-reading items)
-    content_path = _chapter_content_path(chapter_id)
-    if not content_path:
+    _, document = _load_chapter_document(chapter_id, chapter.get("filename"))
+    if not document:
         return {"questions": []}
-    content = content_path.read_text(encoding="utf-8")
 
     guide = store.get_guide(chapter["guide_id"])
     guide_title = guide["title"] if guide else ""
 
     gen = QuestionGenerator()
     items = await gen.generate_questions(
-        content=content,
+        content=document.body,
         chapter_title=chapter["title"],
         guide_title=guide_title,
         count=config.curriculum.questions_per_chapter,
@@ -720,15 +994,14 @@ async def get_related_chapters(
         return {"related": []}
 
     # Read current chapter content
-    content_path = _chapter_content_path(chapter_id)
-    if not content_path:
+    _, document = _load_chapter_document(chapter_id, chapter.get("filename"))
+    if not document:
         return {"related": []}
-    content = content_path.read_text(encoding="utf-8")
 
     try:
         emb = _get_chapter_embeddings(user_id, store)
         results = emb.find_related(
-            chapter_content=content,
+            chapter_content=document.body,
             current_guide_id=chapter["guide_id"],
             enrolled_guide_ids=enrolled_ids,
             n_results=limit,
@@ -763,10 +1036,11 @@ def _get_chapter_embeddings(user_id: str, store: CurriculumStore):
                 all_chapters.extend(guide_detail["chapters"])
 
         def reader(ch_id: str) -> str | None:
-            p = _chapter_content_path(ch_id)
-            if p and p.is_file():
-                return p.read_text(encoding="utf-8")
-            return None
+            chapter = store.get_chapter(ch_id)
+            if not chapter:
+                return None
+            _, document = _load_chapter_document(ch_id, chapter.get("filename"))
+            return document.body if document else None
 
         emb.sync_from_chapters(all_chapters, reader)
 
@@ -795,7 +1069,11 @@ async def get_ready_guides(
 ):
     """Return guides whose prerequisites are all completed but not yet enrolled."""
     store = _get_store(user["id"])
-    return store.get_ready_guides(user["id"])
+    scanner = CurriculumScanner(_content_dirs())
+    guide_aliases = set(scanner.get_guide_aliases())
+    program_lookup = _build_program_lookup(scanner.get_learning_programs())
+    ready_guides = store.get_ready_guides(user["id"], excluded_guide_ids=guide_aliases)
+    return [_decorate_guide_payload(guide, scanner, program_lookup) for guide in ready_guides]
 
 
 @router.get("/next")
@@ -805,6 +1083,9 @@ async def get_next_recommendation(
     """Get advisor-recommended next chapter/guide to study (DAG-aware)."""
     user_id = user["id"]
     store = _get_store(user_id)
+    scanner = CurriculumScanner(_content_dirs())
+    guide_aliases = set(scanner.get_guide_aliases())
+    return _get_next_recommendation_v2(user_id, store, scanner, guide_aliases)
 
     # 1. Continue last-read guide
     last = store.get_last_read_chapter(user_id)
@@ -834,7 +1115,7 @@ async def get_next_recommendation(
             }
 
     # 3. Ready-to-start guide (all prereqs completed, not enrolled)
-    ready = store.get_ready_guides(user_id)
+    ready = store.get_ready_guides(user_id, excluded_guide_ids=guide_aliases)
     if ready:
         g = ready[0]
         return {
@@ -848,7 +1129,7 @@ async def get_next_recommendation(
     # 4. Entry-point guide (no prereqs, not enrolled)
     import json
 
-    all_guides = store.list_guides()
+    all_guides = [g for g in store.list_guides() if g["id"] not in guide_aliases]
     for g in all_guides:
         prereqs = g.get("prerequisites", [])
         if isinstance(prereqs, str):
@@ -889,7 +1170,9 @@ async def generate_placement(
 
     user_id = user["id"]
     store = _get_store(user_id)
-    guide = store.get_guide(guide_id, user_id=user_id)
+    scanner = CurriculumScanner(_content_dirs())
+    resolved_guide_id = _resolve_guide_id(scanner, guide_id)
+    guide = store.get_guide(resolved_guide_id, user_id=user_id)
     if not guide:
         raise HTTPException(status_code=404, detail="Guide not found")
 
@@ -909,16 +1192,15 @@ async def generate_placement(
     for ch in chapters:
         if len(all_questions) >= max_q:
             break
-        content_path = _chapter_content_path(ch["id"])
-        if not content_path:
+        _, document = _load_chapter_document(ch["id"], ch.get("filename"))
+        if not document:
             continue
-        content = content_path.read_text(encoding="utf-8")
         guide_title = guide["title"]
         remaining = max_q - len(all_questions)
         count = min(per_ch, remaining)
 
         questions = await gen.generate_placement_questions(
-            content=content,
+            content=document.body,
             chapter_title=ch["title"],
             guide_title=guide_title,
             count=count,
@@ -931,7 +1213,7 @@ async def generate_placement(
         raise HTTPException(status_code=500, detail="Failed to generate placement questions")
 
     # Cache with answers server-side
-    _placement_cache[(user_id, guide_id)] = {
+    _placement_cache[(user_id, resolved_guide_id)] = {
         "questions": all_questions,
         "created_at": datetime.utcnow(),
     }
@@ -948,9 +1230,11 @@ async def generate_placement(
     ]
 
     log_event(
-        "placement_generated", user_id, {"guide_id": guide_id, "count": len(client_questions)}
+        "placement_generated",
+        user_id,
+        {"guide_id": resolved_guide_id, "count": len(client_questions)},
     )
-    return {"questions": client_questions, "guide_id": guide_id}
+    return {"questions": client_questions, "guide_id": resolved_guide_id}
 
 
 @router.post("/guides/{guide_id}/placement/submit")
@@ -962,8 +1246,10 @@ async def submit_placement(
     """Submit placement answers and grade them."""
     config = get_config()
     user_id = user["id"]
+    scanner = CurriculumScanner(_content_dirs())
+    resolved_guide_id = _resolve_guide_id(scanner, guide_id)
 
-    cache_key = (user_id, guide_id)
+    cache_key = (user_id, resolved_guide_id)
     cached = _placement_cache.get(cache_key)
     if not cached:
         raise HTTPException(status_code=410, detail="Placement session expired or not found")
@@ -1009,11 +1295,19 @@ async def submit_placement(
     completion = None
     if passed:
         store = _get_store(user_id)
-        completion = store.complete_guide_placement(user_id, guide_id)
+        completion = store.complete_guide_placement(user_id, resolved_guide_id)
         _placement_cache.pop(cache_key, None)
-        log_event("placement_passed", user_id, {"guide_id": guide_id, "avg_grade": avg_grade})
+        log_event(
+            "placement_passed",
+            user_id,
+            {"guide_id": resolved_guide_id, "avg_grade": avg_grade},
+        )
     else:
-        log_event("placement_failed", user_id, {"guide_id": guide_id, "avg_grade": avg_grade})
+        log_event(
+            "placement_failed",
+            user_id,
+            {"guide_id": resolved_guide_id, "avg_grade": avg_grade},
+        )
 
     return {
         "results": results,
@@ -1030,4 +1324,5 @@ def _sync_catalog(store: CurriculumStore) -> int:
     guides, chapters = scanner.scan()
     if guides:
         store.sync_catalog(guides, chapters)
+    store.reconcile_guide_aliases(scanner.get_guide_aliases())
     return len(guides)

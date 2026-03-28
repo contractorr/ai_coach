@@ -73,13 +73,13 @@ National Debt = Accumulated deficits over time
 **Goal**: Stimulate economy during recession, reduce unemployment.
 
 **Methods**:
-1. **Increase government spending** (G↑): Infrastructure projects, defense, social programs
-2. **Decrease taxes** (T↓): Tax cuts for individuals/businesses
+1. **Increase government spending** (Gâ†‘): Infrastructure projects, defense, social programs
+2. **Decrease taxes** (Tâ†“): Tax cuts for individuals/businesses
 3. **Combination**: Both spending increases and tax cuts
 
 **Mechanism**:
 ```
-G↑ or T↓ → Disposable income↑ → Consumption↑ → AD↑ → Output↑, Employment↑
+Gâ†‘ or Tâ†“ â†’ Disposable incomeâ†‘ â†’ Consumptionâ†‘ â†’ ADâ†‘ â†’ Outputâ†‘, Employmentâ†‘
 ```
 
 **Real-World Example - American Recovery and Reinvestment Act (2009)**:
@@ -93,13 +93,13 @@ G↑ or T↓ → Disposable income↑ → Consumption↑ → AD↑ → Output↑
 **Goal**: Cool overheated economy, reduce inflation.
 
 **Methods**:
-1. **Decrease government spending** (G↓)
-2. **Increase taxes** (T↑)
+1. **Decrease government spending** (Gâ†“)
+2. **Increase taxes** (Tâ†‘)
 3. **Combination**: Both spending cuts and tax increases
 
 **Mechanism**:
 ```
-G↓ or T↑ → Disposable income↓ → Consumption↓ → AD↓ → Inflation↓
+Gâ†“ or Tâ†‘ â†’ Disposable incomeâ†“ â†’ Consumptionâ†“ â†’ ADâ†“ â†’ Inflationâ†“
 ```
 
 **Real-World Example - UK Austerity (2010-2016)**:
@@ -116,10 +116,10 @@ G↓ or T↑ → Disposable income↓ → Consumption↓ → AD↓ → Inflation
 
 | Stabilizer | Recession Effect | Boom Effect |
 |------------|------------------|-------------|
-| **Unemployment Insurance** | More people qualify → spending increases | Fewer qualify → spending decreases |
-| **Progressive Income Tax** | Incomes fall → tax revenue falls → disposable income cushioned | Incomes rise → tax revenue rises → economy cooled |
-| **Welfare Programs** (SNAP, Medicaid) | Enrollment increases → transfers increase | Enrollment decreases → transfers decrease |
-| **Corporate Taxes** | Profits fall → tax payments fall | Profits rise → tax payments rise |
+| **Unemployment Insurance** | More people qualify â†’ spending increases | Fewer qualify â†’ spending decreases |
+| **Progressive Income Tax** | Incomes fall â†’ tax revenue falls â†’ disposable income cushioned | Incomes rise â†’ tax revenue rises â†’ economy cooled |
+| **Welfare Programs** (SNAP, Medicaid) | Enrollment increases â†’ transfers increase | Enrollment decreases â†’ transfers decrease |
+| **Corporate Taxes** | Profits fall â†’ tax payments fall | Profits rise â†’ tax payments rise |
 
 **Benefits**:
 - No recognition or implementation lag (immediate)
@@ -144,7 +144,7 @@ Where MPC = Marginal Propensity to Consume (fraction of additional income spent)
 **Example**:
 - If MPC = 0.8 (people spend 80% of additional income)
 - Multiplier = 1 / (1 - 0.8) = 1 / 0.2 = 5
-- $100 billion in government spending → $500 billion increase in GDP
+- $100 billion in government spending â†’ $500 billion increase in GDP
 
 **Round-by-Round**:
 1. Government spends $100B on infrastructure
@@ -203,8 +203,8 @@ Government borrowing to finance deficits may reduce private investment, partiall
 
 **Mechanism**:
 ```
-Government borrows → Demand for loanable funds ↑ → Interest rates ↑ →
-Private investment ↓, Net exports ↓ (stronger currency)
+Government borrows â†’ Demand for loanable funds â†‘ â†’ Interest rates â†‘ â†’
+Private investment â†“, Net exports â†“ (stronger currency)
 ```
 
 ### Types of Crowding Out
@@ -235,9 +235,9 @@ Private investment ↓, Net exports ↓ (stronger currency)
 **Theory** (Robert Barro): Tax cuts don't stimulate economy because people save the tax cut to pay for future tax increases.
 
 **Logic**:
-- Government deficit today → future taxes to repay debt
+- Government deficit today â†’ future taxes to repay debt
 - Rational people anticipate this and save now
-- Consumption unchanged → no multiplier effect
+- Consumption unchanged â†’ no multiplier effect
 
 **Criticisms**:
 1. People aren't perfectly rational/forward-looking
@@ -254,14 +254,14 @@ Private investment ↓, Net exports ↓ (stronger currency)
 **Debt-to-GDP Ratio**: Most meaningful measure (ability to service debt depends on income)
 
 ```
-Debt-to-GDP Ratio = (Total National Debt / Annual GDP) × 100
+Debt-to-GDP Ratio = (Total National Debt / Annual GDP) Ã— 100
 ```
 
 **Historical US Debt-to-GDP**:
 - WWII Peak (1946): 119%
 - Post-War Decline (1970s): ~30%
-- Reagan Era (1980s): 40% → 50%
-- Post-2008 Crisis: 60% → 100%
+- Reagan Era (1980s): 40% â†’ 50%
+- Post-2008 Crisis: 60% â†’ 100%
 - COVID-19 (2020): 128%
 - Current (2024): ~125%
 
@@ -279,7 +279,7 @@ Debt-to-GDP Ratio = (Total National Debt / Annual GDP) × 100
 
 **Debt Dynamics Equation**:
 ```
-Δ(Debt/GDP) = (r - g) × (Debt/GDP) - Primary surplus/GDP
+Î”(Debt/GDP) = (r - g) Ã— (Debt/GDP) - Primary surplus/GDP
 ```
 
 Where:
@@ -343,22 +343,33 @@ Focuses on increasing aggregate supply (productive capacity) rather than aggrega
 
 **Theory**: Relationship between tax rates and tax revenue is inverted U-shape.
 
-```
-       Revenue
-          ↑
-          |     /\
-          |    /  \
-          |   /    \
-          |  /      \
-          | /        \
-          |/          \___
-          +-------------------→ Tax Rate (%)
-          0           ?    100
+```chart
+{
+  "title": "Illustrative Laffer curve",
+  "note": "The curve is conceptual: revenue is low at both 0% and 100% tax rates, with a debated peak somewhere in between.",
+  "chartType": "line",
+  "xLabel": "Tax Rate",
+  "yLabel": "Tax Revenue",
+  "series": ["Revenue"],
+  "data": [
+    { "Tax Rate": "0%", "Revenue": 0 },
+    { "Tax Rate": "10%", "Revenue": 18 },
+    { "Tax Rate": "20%", "Revenue": 38 },
+    { "Tax Rate": "30%", "Revenue": 58 },
+    { "Tax Rate": "40%", "Revenue": 76 },
+    { "Tax Rate": "50%", "Revenue": 88 },
+    { "Tax Rate": "60%", "Revenue": 82 },
+    { "Tax Rate": "70%", "Revenue": 64 },
+    { "Tax Rate": "80%", "Revenue": 40 },
+    { "Tax Rate": "90%", "Revenue": 16 },
+    { "Tax Rate": "100%", "Revenue": 0 }
+  ]
+}
 ```
 
 **Logic**:
-- 0% tax rate → zero revenue
-- 100% tax rate → zero revenue (no one works)
+- 0% tax rate â†’ zero revenue
+- 100% tax rate â†’ zero revenue (no one works)
 - Optimal rate somewhere in between maximizes revenue
 
 **Policy Implication**: If tax rate above optimal point, cutting rates can increase revenue (controversial).
@@ -380,11 +391,11 @@ Focuses on increasing aggregate supply (productive capacity) rather than aggrega
 | **Trade liberalization** | Increase competition, efficiency | NAFTA, WTO agreements |
 
 **Real-World Example - Reagan Tax Cuts (1981)**:
-- Top marginal rate: 70% → 28%
+- Top marginal rate: 70% â†’ 28%
 - Supply-siders predicted massive growth and revenue increases
 - **Outcome**:
   - Growth accelerated (3-4% annually)
-  - But deficits exploded ($79B in 1981 → $221B in 1986)
+  - But deficits exploded ($79B in 1981 â†’ $221B in 1986)
   - Revenue fell short of predictions
   - Mixed verdict: Some supply-side effects but not self-financing
 
@@ -441,7 +452,7 @@ Focuses on increasing aggregate supply (productive capacity) rather than aggrega
 |-----------|-------------|---------|
 | **Debt Rule** | Limit debt to % of GDP | EU: 60% of GDP (often violated) |
 | **Deficit Rule** | Limit annual deficit | EU: 3% of GDP |
-| **Expenditure Rule** | Cap spending growth | Netherlands: real spending growth ≤ 0% |
+| **Expenditure Rule** | Cap spending growth | Netherlands: real spending growth â‰¤ 0% |
 | **Revenue Rule** | Tie spending to revenue | Chile: structural balance rule |
 | **Balanced Budget** | Require balance annually | US states (49/50 have some version) |
 
