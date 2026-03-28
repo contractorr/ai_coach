@@ -3,6 +3,7 @@
 import hashlib
 import re
 from pathlib import Path
+from typing import Any
 
 import structlog
 import yaml
@@ -146,13 +147,8 @@ def _guide_order(dir_name: str) -> int:
     return int(m.group(1)) if m else 99
 
 
-def load_skill_tree(
-    content_dir: Path,
-) -> tuple[dict[str, list[str]], dict[str, str], dict[str, dict]] | None:
-    """Load skill_tree.yaml from content_dir.
-
-    Returns (guide_prereqs, guide_tracks, track_metadata) or None.
-    """
+def _load_manifest_data(content_dir: Path) -> dict[str, Any] | None:
+    """Load and validate skill_tree.yaml root data."""
     manifest = content_dir / "skill_tree.yaml"
     if not manifest.is_file():
         return None
@@ -163,6 +159,30 @@ def load_skill_tree(
         return None
     if not isinstance(data, dict) or "tracks" not in data:
         return None
+    return data
+
+
+def _canonicalize_guide_id(guide_id: str, guide_aliases: dict[str, str]) -> str:
+    """Resolve a guide ID through manifest alias mappings."""
+    current = guide_id
+    seen = {current}
+    while current in guide_aliases and guide_aliases[current] not in seen:
+        current = guide_aliases[current]
+        seen.add(current)
+    return current
+
+
+def load_skill_tree(
+    content_dir: Path,
+) -> tuple[dict[str, list[str]], dict[str, str], dict[str, dict]] | None:
+    """Load skill_tree.yaml from content_dir.
+
+    Returns (guide_prereqs, guide_tracks, track_metadata) or None.
+    """
+    data = _load_manifest_data(content_dir)
+    if data is None:
+        return None
+    guide_aliases = load_guide_aliases(content_dir)
 
     guide_prereqs: dict[str, list[str]] = {}
     guide_tracks: dict[str, str] = {}
@@ -175,11 +195,98 @@ def load_skill_tree(
             "color": track_data.get("color", "#6b7280"),
         }
         for entry in track_data.get("guides", []):
-            gid = entry["id"]
-            guide_prereqs[gid] = entry.get("prerequisites", [])
+            gid = _canonicalize_guide_id(entry["id"], guide_aliases)
+            prereqs = [
+                _canonicalize_guide_id(prereq, guide_aliases)
+                for prereq in entry.get("prerequisites", [])
+            ]
+            guide_prereqs[gid] = list(dict.fromkeys(prereqs))
             guide_tracks[gid] = track_id
 
     return guide_prereqs, guide_tracks, track_metadata
+
+
+def load_guide_aliases(content_dir: Path) -> dict[str, str]:
+    """Load alias -> canonical guide mappings from the manifest."""
+    data = _load_manifest_data(content_dir)
+    if data is None:
+        return {}
+
+    raw_aliases = data.get("guide_aliases", {})
+    if not isinstance(raw_aliases, dict):
+        return {}
+
+    aliases: dict[str, str] = {}
+    for alias, canonical in raw_aliases.items():
+        if not isinstance(alias, str) or not isinstance(canonical, str):
+            continue
+        aliases[alias] = canonical
+
+    resolved: dict[str, str] = {}
+    for alias, canonical in aliases.items():
+        final_canonical = _canonicalize_guide_id(canonical, aliases)
+        if alias != final_canonical:
+            resolved[alias] = final_canonical
+    return resolved
+
+
+def load_learning_programs(content_dir: Path) -> list[dict]:
+    """Load curated learning programs from the manifest."""
+    data = _load_manifest_data(content_dir)
+    if data is None:
+        return []
+
+    guide_aliases = load_guide_aliases(content_dir)
+    raw_programs = data.get("programs", [])
+    if not isinstance(raw_programs, list):
+        return []
+
+    programs: list[dict] = []
+    for entry in raw_programs:
+        if not isinstance(entry, dict):
+            continue
+        program_id = entry.get("id")
+        if not isinstance(program_id, str) or not program_id:
+            continue
+
+        guide_ids: list[str] = []
+        seen_guide_ids: set[str] = set()
+        for raw_guide_id in entry.get("guides", []):
+            if not isinstance(raw_guide_id, str):
+                continue
+            guide_id = _canonicalize_guide_id(raw_guide_id, guide_aliases)
+            if guide_id in seen_guide_ids:
+                continue
+            seen_guide_ids.add(guide_id)
+            guide_ids.append(guide_id)
+
+        applied_module_ids: list[str] = []
+        seen_applied_module_ids: set[str] = set()
+        for raw_guide_id in entry.get("applied_modules", []):
+            if not isinstance(raw_guide_id, str):
+                continue
+            guide_id = _canonicalize_guide_id(raw_guide_id, guide_aliases)
+            if guide_id in seen_applied_module_ids:
+                continue
+            seen_applied_module_ids.add(guide_id)
+            applied_module_ids.append(guide_id)
+
+        programs.append(
+            {
+                "id": program_id,
+                "title": entry.get("title", program_id),
+                "audience": entry.get("audience", ""),
+                "description": entry.get("description", ""),
+                "color": entry.get("color", "#6b7280"),
+                "outcomes": [
+                    outcome for outcome in entry.get("outcomes", []) if isinstance(outcome, str)
+                ],
+                "guide_ids": guide_ids,
+                "applied_module_ids": applied_module_ids,
+            }
+        )
+
+    return programs
 
 
 def build_tree_layout(
@@ -249,10 +356,16 @@ class CurriculumScanner:
     def __init__(self, content_dirs: list[Path]):
         self.content_dirs = [Path(d).expanduser().resolve() for d in content_dirs]
         self._skill_tree: tuple[dict[str, list[str]], dict[str, str], dict[str, dict]] | None = None
+        self._learning_programs: list[dict] = []
+        self._guide_aliases: dict[str, str] = {}
         for d in self.content_dirs:
             result = load_skill_tree(d)
-            if result is not None:
+            programs = load_learning_programs(d)
+            aliases = load_guide_aliases(d)
+            if result is not None or programs or aliases:
                 self._skill_tree = result
+                self._learning_programs = programs
+                self._guide_aliases = aliases
                 break
 
     def get_track_metadata(self) -> dict[str, dict]:
@@ -260,6 +373,24 @@ class CurriculumScanner:
         if self._skill_tree is None:
             return {}
         return self._skill_tree[2]
+
+    def get_manifest_guide_ids(self) -> set[str]:
+        """Return canonical guide IDs explicitly tracked by the manifest."""
+        if self._skill_tree is None:
+            return set()
+        return set(self._skill_tree[1].keys())
+
+    def get_learning_programs(self) -> list[dict]:
+        """Return curated learning programs from the manifest."""
+        return list(self._learning_programs)
+
+    def get_guide_aliases(self) -> dict[str, str]:
+        """Return alias -> canonical guide mappings from the manifest."""
+        return dict(self._guide_aliases)
+
+    def canonicalize_guide_id(self, guide_id: str) -> str:
+        """Resolve a guide ID through manifest aliases when present."""
+        return _canonicalize_guide_id(guide_id, self._guide_aliases)
 
     def scan(self) -> tuple[list[Guide], list[Chapter]]:
         """Scan all content dirs and return (guides, chapters)."""
