@@ -23,6 +23,13 @@ function formatTime(minutes: number): string {
   return m > 0 ? `${h}h ${m}m` : `${h}h`;
 }
 
+const assessmentStageLabels: Record<string, string> = {
+  chapter_completion: "After chapter",
+  review: "Review",
+  scenario_practice: "Scenario",
+  capstone: "Capstone",
+};
+
 export default function GuideDetailPage() {
   const token = useToken();
   const params = useParams();
@@ -152,18 +159,37 @@ export default function GuideDetailPage() {
       {/* Meta + actions */}
       <Card>
         <CardContent className="flex flex-wrap items-center justify-between gap-4 p-5">
-          <div className="flex flex-wrap items-center gap-3">
-            <DifficultyBadge level={guide.difficulty} />
-            <span className="flex items-center gap-1 text-sm text-muted-foreground">
-              <BookOpen className="h-3.5 w-3.5" />
-              {guide.chapter_count} chapters
-            </span>
-            <span className="flex items-center gap-1 text-sm text-muted-foreground">
-              <Clock className="h-3.5 w-3.5" />
-              {formatTime(guide.total_reading_time_minutes)}
-            </span>
-            {guide.has_glossary && (
-              <Badge variant="outline" className="text-[10px]">Glossary</Badge>
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center gap-3">
+              <DifficultyBadge level={guide.difficulty} />
+              <span className="flex items-center gap-1 text-sm text-muted-foreground">
+                <BookOpen className="h-3.5 w-3.5" />
+                {guide.chapter_count} chapters
+              </span>
+              <span className="flex items-center gap-1 text-sm text-muted-foreground">
+                <Clock className="h-3.5 w-3.5" />
+                {formatTime(guide.total_reading_time_minutes)}
+              </span>
+              {guide.has_glossary && (
+                <Badge variant="outline" className="text-[10px]">Glossary</Badge>
+              )}
+            </div>
+
+            {(guide.learning_programs?.length ?? 0) > 0 && (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-medium text-muted-foreground">Programs:</span>
+                {guide.learning_programs?.map((program) => (
+                  <Badge
+                    key={program.id}
+                    variant="outline"
+                    className="text-[10px]"
+                    style={{ borderColor: program.color, color: program.color }}
+                    title={program.description}
+                  >
+                    {program.title}
+                  </Badge>
+                ))}
+              </div>
             )}
           </div>
           <div className="flex items-center gap-3">
@@ -196,6 +222,35 @@ export default function GuideDetailPage() {
           </div>
         </CardContent>
       </Card>
+
+      {(guide.applied_assessments?.length ?? 0) > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Applied Assessment Pilot</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-3 lg:grid-cols-2">
+            {guide.applied_assessments?.map((assessment) => (
+              <div
+                key={`${assessment.stage}-${assessment.type}`}
+                className="space-y-2 rounded-lg border p-3"
+              >
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant="outline" className="text-[10px]">
+                    {assessmentStageLabels[assessment.stage] ?? assessment.stage}
+                  </Badge>
+                  <p className="text-sm font-medium">{assessment.title}</p>
+                </div>
+                <p className="text-sm text-muted-foreground">{assessment.summary}</p>
+                <p className="text-xs text-muted-foreground">{assessment.deliverable}</p>
+                <p className="text-xs">{assessment.prompt}</p>
+                <p className="text-xs text-muted-foreground">
+                  Evaluate on {assessment.evaluation_focus.join(", ").toLowerCase()}.
+                </p>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Placement quiz */}
       {showPlacement && placementQuestions.length > 0 && (

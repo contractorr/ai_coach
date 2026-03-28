@@ -7,106 +7,21 @@ import { useToken } from "@/hooks/useToken";
 import { apiFetch } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
 import type {
-  SkillTreeResponse,
-  SkillTreeNode,
+  LearningProgram,
   SkillTreeEdge,
+  SkillTreeNode,
+  SkillTreeResponse,
   Track,
 } from "@/types/curriculum";
 import { SkillTreeNodeCard } from "./SkillTreeNode";
 import { SkillTreeEdges } from "./SkillTreeEdges";
-
-interface LearningPath {
-  id: string;
-  name: string;
-  description: string;
-  guideIds: string[];
-  color: string;
-}
-
-const LEARNING_PATHS: LearningPath[] = [
-  {
-    id: "cognitive-science",
-    name: "🧠 Cognitive Science",
-    description: "Philosophy → Neuroscience → Psychology → Sociology",
-    guideIds: [
-      "01-philosophy-guide",
-      "16-cognitive-neuroscience-guide",
-      "18-behavioral-psychology-guide",
-      "23-sociology-institutional-design-guide",
-    ],
-    color: "#f59e0b",
-  },
-  {
-    id: "business-analytics",
-    name: "💼 Business Analytics",
-    description: "Math → Stats → Economics → MBA → Financial Services",
-    guideIds: [
-      "03-mathematics-pure-applied-guide",
-      "04-statistics-probability-guide",
-      "26-economics-guide",
-      "30-mba-curriculum",
-      "industry-financialservices",
-    ],
-    color: "#3b82f6",
-  },
-  {
-    id: "ai-ml",
-    name: "🤖 AI & Machine Learning",
-    description: "Math → Stats → Computer Science → AI/ML",
-    guideIds: [
-      "03-mathematics-pure-applied-guide",
-      "04-statistics-probability-guide",
-      "36-computer-science-algorithms-guide",
-      "37-ai-ml-fundamentals-guide",
-    ],
-    color: "#8b5cf6",
-  },
-  {
-    id: "policy-governance",
-    name: "🌍 Policy & Governance",
-    description: "Philosophy → Sociology → Government → Geopolitics",
-    guideIds: [
-      "01-philosophy-guide",
-      "18-behavioral-psychology-guide",
-      "23-sociology-institutional-design-guide",
-      "24-government-politics-guide",
-      "35-geopolitics-guide",
-    ],
-    color: "#ef4444",
-  },
-  {
-    id: "healthcare",
-    name: "🏥 Healthcare",
-    description: "Chemistry → Biology → Medicine → Healthcare Industry",
-    guideIds: [
-      "07-chemistry-biochemistry-guide",
-      "13-evolutionary-biology-guide",
-      "17-medicine-human-physiology-guide",
-      "industry-healthcare",
-    ],
-    color: "#10b981",
-  },
-  {
-    id: "data-science",
-    name: "📊 Data Science",
-    description: "Math → Stats → Info Theory → CS → AI/ML",
-    guideIds: [
-      "03-mathematics-pure-applied-guide",
-      "04-statistics-probability-guide",
-      "08-information-theory-complex-systems-guide",
-      "36-computer-science-algorithms-guide",
-      "37-ai-ml-fundamentals-guide",
-    ],
-    color: "#6366f1",
-  },
-];
 
 export function SkillTree() {
   const token = useToken();
   const [data, setData] = useState<SkillTreeResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedTracks, setSelectedTracks] = useState<Set<string>>(new Set());
-  const [selectedPath, setSelectedPath] = useState<string | null>(null);
+  const [selectedProgramId, setSelectedProgramId] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const nodeRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const [nodePositions, setNodePositions] = useState<Map<string, DOMRect>>(new Map());
@@ -117,20 +32,11 @@ export function SkillTree() {
     if (!token) return;
     setLoading(true);
     apiFetch<SkillTreeResponse>("/api/v1/curriculum/tree", {}, token)
-      .then((data) => {
-        console.log("Skill tree data:", {
-          trackCount: Object.keys(data.tracks).length,
-          trackIds: Object.keys(data.tracks),
-          nodeCount: data.nodes.length,
-          sampleNodes: data.nodes.slice(0, 3).map((n) => ({ id: n.id, track: n.track })),
-        });
-        setData(data);
-      })
+      .then(setData)
       .catch((e) => toast.error((e as Error).message))
       .finally(() => setLoading(false));
   }, [token]);
 
-  // Measure node positions after render
   useEffect(() => {
     if (!data || !containerRef.current) return;
     const cRect = containerRef.current.getBoundingClientRect();
@@ -142,7 +48,6 @@ export function SkillTree() {
     setNodePositions(positions);
   }, [data, selectedTracks, measureTick]);
 
-  // ResizeObserver for re-measurement
   useEffect(() => {
     if (!containerRef.current) return;
     const observer = new ResizeObserver(() => setMeasureTick((t) => t + 1));
@@ -159,58 +64,61 @@ export function SkillTree() {
     });
   };
 
-  // Split into core curriculum vs industry applications
   const { coreNodes, industryNodes } = useMemo(() => {
     if (!data) return { coreNodes: [], industryNodes: [] };
     const core: SkillTreeNode[] = [];
     const industry: SkillTreeNode[] = [];
     for (const node of data.nodes) {
-      if (node.id.startsWith("industry-")) {
-        industry.push(node);
-      } else {
-        core.push(node);
-      }
+      if (node.id.startsWith("industry-")) industry.push(node);
+      else core.push(node);
     }
     return { coreNodes: core, industryNodes: industry };
   }, [data]);
 
-  // Get active learning path guide IDs
-  const pathGuideIds = useMemo(() => {
-    if (!selectedPath) return null;
-    const path = LEARNING_PATHS.find((p) => p.id === selectedPath);
-    return path ? new Set(path.guideIds) : null;
-  }, [selectedPath]);
+  const programs = useMemo(() => data?.programs ?? [], [data]);
+
+  const selectedProgram = useMemo<LearningProgram | null>(() => {
+    if (!selectedProgramId) return null;
+    return programs.find((program) => program.id === selectedProgramId) ?? null;
+  }, [programs, selectedProgramId]);
+
+  const selectedProgramGuideIds = useMemo(() => {
+    if (!selectedProgram) return null;
+    return new Set(selectedProgram.guide_ids);
+  }, [selectedProgram]);
 
   const filteredNodes = useMemo((): SkillTreeNode[] => {
     let nodes = coreNodes;
 
-    // Filter by track if tracks are selected
     if (selectedTracks.size > 0) {
-      nodes = nodes.filter((n) => selectedTracks.has(n.track));
+      nodes = nodes.filter((node) => selectedTracks.has(node.track));
     }
 
-    // Filter by learning path if path is selected
-    if (pathGuideIds) {
-      nodes = nodes.filter((n) => pathGuideIds.has(n.id));
+    if (selectedProgramGuideIds) {
+      nodes = nodes.filter((node) => selectedProgramGuideIds.has(node.id));
     }
 
     return nodes;
-  }, [coreNodes, selectedTracks, pathGuideIds]);
+  }, [coreNodes, selectedProgramGuideIds, selectedTracks]);
 
   const filteredEdges = useMemo((): SkillTreeEdge[] => {
     if (!data) return [];
-    const nodeIds = new Set(filteredNodes.map((n) => n.id));
-    return data.edges.filter((e) => nodeIds.has(e.source) && nodeIds.has(e.target));
+    const nodeIds = new Set(filteredNodes.map((node) => node.id));
+    return data.edges.filter((edge) => nodeIds.has(edge.source) && nodeIds.has(edge.target));
   }, [data, filteredNodes]);
+
+  const filteredIndustryNodes = useMemo(() => {
+    if (!selectedProgramGuideIds) return industryNodes;
+    return industryNodes.filter((node) => selectedProgramGuideIds.has(node.id));
+  }, [industryNodes, selectedProgramGuideIds]);
 
   const depthRows = useMemo(() => {
     const groups = new Map<number, SkillTreeNode[]>();
     for (const node of filteredNodes) {
-      const d = node.position.depth;
-      if (!groups.has(d)) groups.set(d, []);
-      groups.get(d)!.push(node);
+      const depth = node.position.depth;
+      if (!groups.has(depth)) groups.set(depth, []);
+      groups.get(depth)!.push(node);
     }
-    // Sort within each row by x position
     for (const row of groups.values()) {
       row.sort((a, b) => a.position.x - b.position.x);
     }
@@ -220,7 +128,7 @@ export function SkillTree() {
   const getTrackColor = useCallback(
     (nodeId: string): string => {
       if (!data) return "#888";
-      const node = data.nodes.find((n) => n.id === nodeId);
+      const node = data.nodes.find((entry) => entry.id === nodeId);
       if (!node) return "#888";
       return data.tracks[node.track]?.color ?? "#888";
     },
@@ -248,13 +156,11 @@ export function SkillTree() {
     );
   }
 
-  // Filter tracks to exclude industry track from main tree filters
-  const coreTrackIds = Object.keys(data.tracks).filter((tid) => tid !== "industry");
-  const coreTracks = coreTrackIds.map((tid) => data.tracks[tid] as Track);
+  const coreTrackIds = Object.keys(data.tracks).filter((trackId) => trackId !== "industry");
+  const coreTracks = coreTrackIds.map((trackId) => data.tracks[trackId] as Track);
 
   return (
     <div className="space-y-6">
-      {/* Core Curriculum Section */}
       <div className="space-y-4">
         <div>
           <h3 className="text-sm font-semibold text-foreground">Core Curriculum</h3>
@@ -263,52 +169,50 @@ export function SkillTree() {
           </p>
         </div>
 
-        {/* Learning Path Selector */}
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center gap-2">
-            <Route className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className="text-xs font-medium text-muted-foreground">Learning Path:</span>
-          </div>
-          <select
-            value={selectedPath ?? ""}
-            onChange={(e) => {
-              const val = e.target.value;
-              setSelectedPath(val === "" ? null : val);
-              if (val) setSelectedTracks(new Set()); // Clear track filters when path selected
-            }}
-            className="h-8 rounded-md border bg-background px-2 text-xs"
-          >
-            <option value="">All guides (no path)</option>
-            {LEARNING_PATHS.map((path) => (
-              <option key={path.id} value={path.id}>
-                {path.name}
-              </option>
-            ))}
-          </select>
-          {selectedPath && (
-            <Badge variant="outline" className="text-xs">
-              {LEARNING_PATHS.find((p) => p.id === selectedPath)?.guideIds.length ?? 0} guides
-            </Badge>
-          )}
-        </div>
+        {programs.length > 0 && (
+          <>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-2">
+                <Route className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="text-xs font-medium text-muted-foreground">Learning Path:</span>
+              </div>
+              <select
+                value={selectedProgramId ?? ""}
+                onChange={(e) => {
+                  const nextProgramId = e.target.value;
+                  setSelectedProgramId(nextProgramId === "" ? null : nextProgramId);
+                  if (nextProgramId) setSelectedTracks(new Set());
+                }}
+                className="h-8 rounded-md border bg-background px-2 text-xs"
+              >
+                <option value="">All guides</option>
+                {programs.map((program) => (
+                  <option key={program.id} value={program.id}>
+                    {program.title}
+                  </option>
+                ))}
+              </select>
+              {selectedProgram && (
+                <Badge variant="outline" className="text-xs">
+                  {selectedProgram.guide_ids.length} guides
+                </Badge>
+              )}
+            </div>
 
-        {selectedPath && (
-          <div className="rounded-lg border bg-muted/30 p-3">
-            <p className="text-xs text-muted-foreground">
-              {LEARNING_PATHS.find((p) => p.id === selectedPath)?.description}
-            </p>
-          </div>
+            {selectedProgram && (
+              <div className="rounded-lg border bg-muted/30 p-3">
+                <p className="text-xs text-muted-foreground">{selectedProgram.description}</p>
+              </div>
+            )}
+          </>
         )}
 
-        {/* Track filter bar */}
         <div className="flex flex-wrap gap-1.5 px-1">
           {coreTracks.map((track) => (
             <Badge
               key={track.id}
               variant={
-                selectedTracks.size === 0 || selectedTracks.has(track.id)
-                  ? "default"
-                  : "outline"
+                selectedTracks.size === 0 || selectedTracks.has(track.id) ? "default" : "outline"
               }
               className="cursor-pointer text-xs"
               style={
@@ -333,17 +237,17 @@ export function SkillTree() {
           )}
         </div>
 
-        {/* Tree container */}
         <div ref={containerRef} className="relative overflow-x-auto pb-4 pt-8">
           {filteredNodes.length === 0 ? (
             <div className="rounded-lg border border-dashed p-8 text-center">
-              <p className="text-sm text-muted-foreground">
-                No guides match the selected filters
-              </p>
+              <p className="text-sm text-muted-foreground">No guides match the selected filters</p>
               <Badge
                 variant="outline"
-                className="cursor-pointer text-xs mt-3"
-                onClick={() => setSelectedTracks(new Set())}
+                className="mt-3 cursor-pointer text-xs"
+                onClick={() => {
+                  setSelectedProgramId(null);
+                  setSelectedTracks(new Set());
+                }}
               >
                 Clear filters
               </Badge>
@@ -376,18 +280,17 @@ export function SkillTree() {
         </div>
       </div>
 
-      {/* Industry Applications Section */}
-      {industryNodes.length > 0 && (
+      {filteredIndustryNodes.length > 0 && (
         <div className="space-y-4">
           <div>
             <h3 className="text-sm font-semibold text-foreground">Industry Applications</h3>
             <p className="text-xs text-muted-foreground">
-              Sector-specific guides for practitioners — {industryNodes.length} industries
+              Sector-specific guides for practitioners - {filteredIndustryNodes.length} industries
             </p>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {industryNodes.map((node) => (
+            {filteredIndustryNodes.map((node) => (
               <SkillTreeNodeCard
                 key={node.id}
                 node={node}

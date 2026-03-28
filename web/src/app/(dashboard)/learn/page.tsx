@@ -46,6 +46,21 @@ const difficultyOrder: Record<string, number> = {
   advanced: 2,
 };
 
+const recommendationLabels: Record<string, string> = {
+  continue: "Continue",
+  enrolled: "Enrolled",
+  ready: "Unlocked",
+  entry: "Entry point",
+  fallback: "Next step",
+};
+
+const assessmentStageLabels: Record<string, string> = {
+  chapter_completion: "After chapter",
+  review: "Review",
+  scenario_practice: "Scenario",
+  capstone: "Capstone",
+};
+
 export default function LearnPage() {
   const token = useToken();
   const [guides, setGuides] = useState<Guide[]>([]);
@@ -140,6 +155,14 @@ export default function LearnPage() {
     return h > 0 ? `${h}h ${m}m` : `${m}m`;
   };
 
+  const nextHref = next?.guide_id
+    ? next.chapter
+      ? `/learn/${next.guide_id}/${next.chapter.id.split("/").pop()}`
+      : `/learn/${next.guide_id}`
+    : null;
+  const nextCta = next?.chapter ? "Continue reading" : next?.action === "enroll" ? "View guide" : "Open";
+  const nextTitle = next?.chapter?.title ?? next?.guide_title ?? "No recommendation yet";
+
   return (
     <div className="mx-auto max-w-7xl space-y-6 p-4 md:p-6">
       <WorkspacePageHeader
@@ -200,25 +223,90 @@ export default function LearnPage() {
         </div>
       )}
 
-      {/* Continue reading + Reviews due */}
-      <div className="grid gap-3 sm:grid-cols-2">
-        {next?.chapter && (
-          <Link href={`/learn/${next.guide_id}/${next.chapter.id.split("/").pop()}`}>
-            <Card className="transition-colors hover:border-primary/40">
-              <CardHeader className="pb-2">
+      {/* Recommendation + reviews */}
+      <div className="grid gap-3 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
+        {next && (
+          <Card>
+            <CardHeader className="space-y-3 pb-3">
+              <div className="flex flex-wrap items-center gap-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Continue reading
+                  Next up
                 </CardTitle>
-              </CardHeader>
-              <CardContent className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">{next.chapter.title}</p>
+                <Badge variant="outline" className="text-[10px]">
+                  {recommendationLabels[next.recommendation_type ?? "fallback"] ?? "Next step"}
+                </Badge>
+              </div>
+              <div className="space-y-1">
+                <p className="text-lg font-semibold">{nextTitle}</p>
+                {next.chapter && (
                   <p className="text-xs text-muted-foreground">{next.guide_title}</p>
+                )}
+                <p className="text-sm text-muted-foreground">{next.reason}</p>
+              </div>
+              {(next.matched_programs?.length ?? 0) > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {next.matched_programs?.map((program) => (
+                    <Badge
+                      key={program.id}
+                      variant="outline"
+                      className="text-[10px]"
+                      style={{ borderColor: program.color, color: program.color }}
+                      title={program.match_reason || program.description}
+                    >
+                      {program.title}
+                    </Badge>
+                  ))}
                 </div>
-                <ArrowRight className="h-4 w-4 text-muted-foreground" />
-              </CardContent>
-            </Card>
-          </Link>
+              )}
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {(next.signals?.length ?? 0) > 0 && (
+                <div className="space-y-2">
+                  {next.signals?.slice(0, 3).map((signal) => (
+                    <div key={`${signal.kind}-${signal.label}`} className="rounded-md border p-3">
+                      <p className="text-sm font-medium">{signal.label}</p>
+                      <p className="text-xs text-muted-foreground">{signal.detail}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {(next.applied_assessments?.length ?? 0) > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
+                    Applied assessment pilot
+                  </p>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {next.applied_assessments?.slice(0, 4).map((assessment) => (
+                      <div
+                        key={`${assessment.stage}-${assessment.type}`}
+                        className="rounded-md border p-3"
+                      >
+                        <div className="mb-1 flex flex-wrap items-center gap-2">
+                          <Badge variant="outline" className="text-[10px]">
+                            {assessmentStageLabels[assessment.stage] ?? assessment.stage}
+                          </Badge>
+                          <p className="text-sm font-medium">{assessment.title}</p>
+                        </div>
+                        <p className="text-xs text-muted-foreground">{assessment.summary}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {nextHref && (
+                <div className="flex justify-start">
+                  <Link href={nextHref}>
+                    <Button size="sm">
+                      {nextCta}
+                      <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+                    </Button>
+                  </Link>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         )}
         {stats && stats.reviews_due > 0 && (
           <Link href="/learn/review">

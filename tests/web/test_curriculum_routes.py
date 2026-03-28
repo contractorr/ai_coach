@@ -27,7 +27,7 @@ def test_tree_endpoint(client, auth_headers):
     assert "32-engineering-guide" not in node_ids
     assert "34-game-theory-strategic-interaction-guide" in node_ids
     assert "35-engineering-guide" in node_ids
-    assert any(program["id"] == "data-science" for program in data["programs"])
+    assert any(program["id"] == "business-acumen" for program in data["programs"])
 
     # If nodes exist, check structure
     if data["nodes"]:
