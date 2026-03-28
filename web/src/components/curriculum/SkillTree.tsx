@@ -326,7 +326,7 @@ export function SkillTree() {
         </div>
 
         {/* Tree container */}
-        <div ref={containerRef} className="relative overflow-x-auto pb-4">
+        <div ref={containerRef} className="relative overflow-x-auto pb-4 pt-8">
           {filteredNodes.length === 0 ? (
             <div className="rounded-lg border border-dashed p-8 text-center">
               <p className="text-sm text-muted-foreground">
