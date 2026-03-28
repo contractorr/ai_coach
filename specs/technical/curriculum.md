@@ -335,6 +335,13 @@ Priority: (1) continue last-read, (2) next enrolled incomplete, (3) first from `
 
 Module-level dict: `_placement_cache: dict[tuple[str, str], dict]` keyed by `(user_id, guide_id)`. Value: `{questions: list[dict], created_at: datetime}`. TTL: 1 hour. Checked on submit; stale entries return 410.
 
+### Applied assessments (planned)
+
+- The current system supports `quiz`, `teachback`, and `pre_reading`; future applied modes should add `scenario_analysis`, `decision_brief`, and `case_memo` without hard-coding separate route/component stacks for each one.
+- Teach-back generation and grading are the natural implementation base: generalize them into reusable assessment generation/grading endpoints plus shared rubric metadata.
+- Only compact assessment types should participate in SM-2 review. Longform submissions should be persisted for feedback and history, but not scheduled like flashcards.
+- The mode definitions, flow placement, and pilot rollout for these additions live in `docs/curriculum-assessments.md`.
+
 ---
 
 ## Configuration

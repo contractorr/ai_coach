@@ -241,6 +241,13 @@ Learn is a structured study workspace that turns a corpus of markdown guides int
 | Cache expired on submit | 410 Gone response |
 | No LLM available | 500 with error message |
 
+### Applied assessments (planned)
+
+- Learn should expand beyond quizzes and short teach-back prompts into applied modes such as extended teach-back, scenario analysis, decision briefs, and case memos.
+- Chapter completions can use short applied tasks; guide endings and industry capstones should use heavier decision-oriented submissions.
+- Normal SM-2 review should keep only compact items; longform memos should remain outside the standard review queue.
+- The current design and pilot scope live in `docs/curriculum-assessments.md`.
+
 ## Out of Scope
 
 - Cross-domain synthesis questions — requires 3+ active guides
