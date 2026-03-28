@@ -1,0 +1,61 @@
+name: Validate Deployment Config
+
+on:
+  pull_request:
+    paths:
+      - 'docker-compose*.yml'
+      - 'Dockerfile'
+      - '.github/workflows/validate-deploy.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'docker-compose*.yml'
+      - 'Dockerfile'
+
+jobs:
+  validate-compose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate docker-compose files
+        run: |
+          echo "Validating docker-compose.yml..."
+          docker compose -f docker-compose.yml config > /dev/null
+
+          echo "Validating docker-compose.prod.yml..."
+          docker compose -f docker-compose.prod.yml config > /dev/null
+
+      - name: Check curriculum content mount
+        run: |
+          for file in docker-compose.yml docker-compose.prod.yml; do
+            echo "Checking $file for content mount..."
+            if ! grep -q "./content:/app/content" "$file"; then
+              echo "ERROR: $file missing curriculum content mount"
+              echo "Backend service must include: - ./content:/app/content:ro"
+              exit 1
+            fi
+            echo "✓ $file has content mount"
+          done
+
+      - name: Check volume mount consistency
+        run: |
+          # Extract backend volumes from both files and compare
+          dev_vols=$(grep -A 10 "backend:" docker-compose.yml | grep "volumes:" -A 5 | grep "^      -" | sort)
+          prod_vols=$(grep -A 10 "backend:" docker-compose.prod.yml | grep "volumes:" -A 5 | grep "^      -" | sort)
+
+          echo "Dev volumes:"
+          echo "$dev_vols"
+          echo ""
+          echo "Prod volumes:"
+          echo "$prod_vols"
+
+          # Check if content mount exists in both
+          if ! echo "$dev_vols" | grep -q "content"; then
+            echo "ERROR: Dev compose missing content mount"
+            exit 1
+          fi
+          if ! echo "$prod_vols" | grep -q "content"; then
+            echo "ERROR: Prod compose missing content mount"
+            exit 1
+          fi

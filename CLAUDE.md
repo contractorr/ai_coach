@@ -137,6 +137,24 @@ Notable config: `llm.extended_thinking`, `sources.deduplicate_rss_sources` (auto
 - **test.yml** — Python 3.11 + 3.12 matrix, `pytest --cov-fail-under=50`, Codecov on 3.12
 - **lint.yml** — `ruff check` + `ruff format --check` + `mypy` (continue-on-error). Separate job: `npm ci && npm run lint && npm run build` in `web/`
 - **deploy.yml** — push to main triggers test then SSH docker compose deploy
+- **validate-deploy.yml** — validates docker-compose files have required volume mounts (curriculum content, etc.)
+
+## Deployment
+
+**Pre-deployment validation:**
+```bash
+./scripts/validate-deployment.sh
+```
+
+**Critical docker-compose requirements:**
+- Backend MUST mount `./content:/app/content:ro` for curriculum guides
+- Both `docker-compose.yml` and `docker-compose.prod.yml` must have identical backend volume mounts
+- Run validation script before any deployment to catch missing mounts
+
+**Remote deployment:**
+```bash
+ssh root@<server> "cd /root/stewardme && git pull && docker compose -f docker-compose.prod.yml up -d --build"
+```
 
 ## Output Conventions
 

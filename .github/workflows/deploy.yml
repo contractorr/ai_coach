@@ -13,8 +13,11 @@ jobs:
   test:
     uses: ./.github/workflows/test.yml
 
+  validate:
+    uses: ./.github/workflows/validate-deploy.yml
+
   deploy:
-    needs: test
+    needs: [test, validate]
     runs-on: ubuntu-latest
     environment: production
 
@@ -30,6 +33,25 @@ jobs:
             cd ~/stewardme
             git checkout -- .
             git pull origin main
+
+            # Validate configuration before deploying
+            echo "Validating docker-compose configuration..."
+            docker compose -f docker-compose.prod.yml config > /dev/null
+
+            # Check curriculum content mount exists
+            if ! grep -q "./content:/app/content" docker-compose.prod.yml; then
+              echo "ERROR: docker-compose.prod.yml missing curriculum content mount"
+              exit 1
+            fi
+
+            # Verify content directory exists
+            if [ ! -d "content/curriculum" ]; then
+              echo "ERROR: content/curriculum directory not found"
+              exit 1
+            fi
+
+            echo "✓ Configuration validated"
+
             docker compose -f docker-compose.prod.yml build --no-cache
             docker compose -f docker-compose.prod.yml up -d --force-recreate --remove-orphans
             docker image prune -f
