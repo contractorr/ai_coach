@@ -65,6 +65,10 @@ tracks:
         prerequisites: ["20-history-of-science-guide"]
       - id: "23-sociology-institutional-design-guide"
         prerequisites: ["18-behavioral-psychology-guide"]
+      - id: "24-government-politics-guide"
+        prerequisites: ["23-sociology-institutional-design-guide"]
+      - id: "25-law-legal-systems-guide"
+        prerequisites: ["24-government-politics-guide"]
       - id: "34-demography-urbanization-infrastructure-guide"
         prerequisites: ["23-sociology-institutional-design-guide", "04-statistics-probability-guide"]
       - id: "35-geopolitics-guide"
@@ -107,10 +111,6 @@ tracks:
     description: "Sector-specific deep dives and applied knowledge"
     color: "#ef4444"
     guides:
-      - id: "24-government-politics-guide"
-        prerequisites: ["23-sociology-institutional-design-guide"]
-      - id: "25-law-legal-systems-guide"
-        prerequisites: ["24-government-politics-guide"]
       - id: "industry-accounting"
         prerequisites: ["28-accounting"]
       - id: "industry-construction"
