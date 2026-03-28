@@ -1,9 +1,15 @@
 """Tests for curriculum routes: tree, ready, next (DAG-aware), placement."""
 
+from pathlib import Path
 from profile.storage import ProfileStorage, UserProfile
 from unittest.mock import AsyncMock, patch
 
+from curriculum.store import CurriculumStore
 from web.deps import get_user_paths
+
+
+def _curriculum_store(user_id: str = "user-123") -> CurriculumStore:
+    return CurriculumStore(Path(get_user_paths(user_id)["data_dir"]) / "curriculum.db")
 
 
 def test_tree_endpoint(client, auth_headers):
@@ -97,6 +103,29 @@ def test_next_returns_entry_point_when_no_enrollment(client, auth_headers):
     # Should return either an entry point or fallback
     assert "reason" in data
     assert "guide_id" in data
+
+
+def test_stats_auto_syncs_catalog_when_empty(client, auth_headers):
+    store = _curriculum_store()
+    assert store.list_guides() == []
+
+    resp = client.get("/api/curriculum/stats", headers=auth_headers)
+
+    assert resp.status_code == 200
+    assert store.list_guides()
+
+
+def test_next_auto_syncs_catalog_when_empty(client, auth_headers):
+    store = _curriculum_store()
+    assert store.list_guides() == []
+
+    resp = client.get("/api/curriculum/next", headers=auth_headers)
+
+    assert resp.status_code == 200
+    assert store.list_guides()
+    data = resp.json()
+    assert "reason" in data
+    assert "recommendation_type" in data
 
 
 def test_next_continues_enrolled_guide(client, auth_headers):

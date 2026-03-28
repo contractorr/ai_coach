@@ -1,5 +1,10 @@
 import { test, expect } from "@playwright/test";
-import { installApiMocks, MOCK_STATS, MOCK_GUIDE_DETAIL } from "../fixtures/api-mocks";
+import {
+  installApiMocks,
+  MOCK_GUIDE_DETAIL,
+  MOCK_STATS,
+  MOCK_TREE,
+} from "../fixtures/api-mocks";
 
 test.describe("Curriculum / Learn", () => {
   test.beforeEach(async ({ page }) => {
@@ -36,5 +41,21 @@ test.describe("Curriculum / Learn", () => {
     await expect(page.getByText("Chapters", { exact: true })).toBeVisible({ timeout: 10_000 });
     await expect(page.getByText(MOCK_GUIDE_DETAIL.chapters[0].title)).toBeVisible();
     await expect(page.getByText(MOCK_GUIDE_DETAIL.chapters[2].title)).toBeVisible();
+  });
+
+  test("tree program filter keeps applied modules visible", async ({ page }) => {
+    await page.goto("/learn");
+    await page.getByRole("tab", { name: "Tree" }).click();
+
+    await expect(page.getByText("Core Curriculum")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText("Industry Applications")).toBeVisible();
+
+    const learningPathControl = page.locator("div").filter({ hasText: "Learning Path:" }).locator("select");
+    await learningPathControl.selectOption("operator-path");
+
+    await expect(page.getByText("2 guides")).toBeVisible();
+    await expect(page.getByText("Healthcare Industry")).toBeVisible();
+    await expect(page.getByText("Finance Industry")).toHaveCount(0);
+    await expect(page.getByText(MOCK_TREE.programs[0].description)).toBeVisible();
   });
 });

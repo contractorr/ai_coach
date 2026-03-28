@@ -82,10 +82,12 @@ export function SkillTree() {
     return programs.find((program) => program.id === selectedProgramId) ?? null;
   }, [programs, selectedProgramId]);
 
-  const selectedProgramGuideIds = useMemo(() => {
+  const selectedProgramNodeIds = useMemo(() => {
     if (!selectedProgram) return null;
-    return new Set(selectedProgram.guide_ids);
+    return new Set([...selectedProgram.guide_ids, ...selectedProgram.applied_module_ids]);
   }, [selectedProgram]);
+
+  const selectedProgramGuideCount = selectedProgramNodeIds?.size ?? 0;
 
   const filteredNodes = useMemo((): SkillTreeNode[] => {
     let nodes = coreNodes;
@@ -94,12 +96,12 @@ export function SkillTree() {
       nodes = nodes.filter((node) => selectedTracks.has(node.track));
     }
 
-    if (selectedProgramGuideIds) {
-      nodes = nodes.filter((node) => selectedProgramGuideIds.has(node.id));
+    if (selectedProgramNodeIds) {
+      nodes = nodes.filter((node) => selectedProgramNodeIds.has(node.id));
     }
 
     return nodes;
-  }, [coreNodes, selectedProgramGuideIds, selectedTracks]);
+  }, [coreNodes, selectedProgramNodeIds, selectedTracks]);
 
   const filteredEdges = useMemo((): SkillTreeEdge[] => {
     if (!data) return [];
@@ -108,9 +110,9 @@ export function SkillTree() {
   }, [data, filteredNodes]);
 
   const filteredIndustryNodes = useMemo(() => {
-    if (!selectedProgramGuideIds) return industryNodes;
-    return industryNodes.filter((node) => selectedProgramGuideIds.has(node.id));
-  }, [industryNodes, selectedProgramGuideIds]);
+    if (!selectedProgramNodeIds) return industryNodes;
+    return industryNodes.filter((node) => selectedProgramNodeIds.has(node.id));
+  }, [industryNodes, selectedProgramNodeIds]);
 
   const depthRows = useMemo(() => {
     const groups = new Map<number, SkillTreeNode[]>();
@@ -195,7 +197,7 @@ export function SkillTree() {
               </select>
               {selectedProgram && (
                 <Badge variant="outline" className="text-xs">
-                  {selectedProgram.guide_ids.length} guides
+                  {selectedProgramGuideCount} guides
                 </Badge>
               )}
             </div>

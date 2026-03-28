@@ -58,6 +58,116 @@ export const MOCK_NEXT = {
   chapter: { id: "python-basics/ch03", title: "Functions and Scope" },
 };
 
+export const MOCK_TREE = {
+  tracks: {
+    technology: {
+      id: "technology",
+      title: "Technology",
+      description: "Technical foundations",
+      color: "#2563eb",
+      guide_count: 2,
+      guides_completed: 0,
+      average_mastery: 0,
+      completion_pct: 0,
+      guide_ids: ["python-basics", "system-design"],
+    },
+    industry: {
+      id: "industry",
+      title: "Industry",
+      description: "Applied industry modules",
+      color: "#059669",
+      guide_count: 2,
+      guides_completed: 0,
+      average_mastery: 0,
+      completion_pct: 0,
+      guide_ids: ["industry-healthcare", "industry-finance"],
+    },
+  },
+  programs: [
+    {
+      id: "operator-path",
+      title: "Operator Path",
+      audience: "Operators",
+      description: "Core technical guide plus a healthcare capstone.",
+      color: "#2563eb",
+      outcomes: ["Build practical technical judgment"],
+      guide_ids: ["python-basics"],
+      applied_module_ids: ["industry-healthcare"],
+    },
+  ],
+  nodes: [
+    {
+      id: "python-basics",
+      title: "Python Basics",
+      track: "technology",
+      category: "technology",
+      difficulty: "introductory",
+      chapter_count: 5,
+      prerequisites: [],
+      is_entry_point: true,
+      status: "enrolled",
+      enrolled: true,
+      progress_pct: 40,
+      mastery_score: 25,
+      chapters_completed: 2,
+      chapters_total: 5,
+      position: { x: 0, y: 0, depth: 0 },
+    },
+    {
+      id: "system-design",
+      title: "System Design",
+      track: "technology",
+      category: "technology",
+      difficulty: "advanced",
+      chapter_count: 12,
+      prerequisites: ["python-basics"],
+      is_entry_point: false,
+      status: "not_started",
+      enrolled: false,
+      progress_pct: 0,
+      mastery_score: 0,
+      chapters_completed: 0,
+      chapters_total: 12,
+      position: { x: 0, y: 1, depth: 1 },
+    },
+    {
+      id: "industry-healthcare",
+      title: "Healthcare Industry",
+      track: "industry",
+      category: "industry",
+      difficulty: "intermediate",
+      chapter_count: 1,
+      prerequisites: [],
+      is_entry_point: false,
+      status: "not_started",
+      enrolled: false,
+      progress_pct: 0,
+      mastery_score: 0,
+      chapters_completed: 0,
+      chapters_total: 1,
+      position: { x: 0, y: 0, depth: 0 },
+    },
+    {
+      id: "industry-finance",
+      title: "Finance Industry",
+      track: "industry",
+      category: "industry",
+      difficulty: "intermediate",
+      chapter_count: 1,
+      prerequisites: [],
+      is_entry_point: false,
+      status: "not_started",
+      enrolled: false,
+      progress_pct: 0,
+      mastery_score: 0,
+      chapters_completed: 0,
+      chapters_total: 1,
+      position: { x: 1, y: 0, depth: 0 },
+    },
+  ],
+  edges: [{ source: "python-basics", target: "system-design" }],
+};
+
 export const MOCK_GUIDE_DETAIL = {
   id: "python-basics",
   title: "Python Basics",
@@ -142,6 +252,9 @@ export async function installApiMocks(page: Page) {
   );
   await page.route("**/api/v1/curriculum/next", (route) =>
     route.fulfill({ json: MOCK_NEXT }),
+  );
+  await page.route("**/api/v1/curriculum/tree", (route) =>
+    route.fulfill({ json: MOCK_TREE }),
   );
 
   // Fire-and-forget endpoints

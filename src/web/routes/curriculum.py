@@ -1,5 +1,6 @@
 """Curriculum / Learn routes — guides, chapters, progress, reviews, quizzes, placement."""
 
+import json
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -44,6 +45,17 @@ def _content_dirs() -> list[Path]:
 def _get_store(user_id: str) -> CurriculumStore:
     paths = get_user_paths(user_id)
     return CurriculumStore(Path(paths["data_dir"]) / "curriculum.db")
+
+
+def _ensure_catalog_initialized(
+    store: CurriculumStore,
+    scanner: CurriculumScanner | None = None,
+) -> CurriculumScanner:
+    """Populate the curriculum catalog on first use for this user DB."""
+    scanner = scanner or CurriculumScanner(_content_dirs())
+    if not store.list_guides():
+        _sync_catalog(store, scanner)
+    return scanner
 
 
 def _build_program_lookup(programs: list[dict]) -> dict[str, list[dict]]:
@@ -170,7 +182,6 @@ def _get_next_recommendation_v2(
     scanner: CurriculumScanner,
     guide_aliases: set[str],
 ):
-    import json
 
     program_lookup = _build_program_lookup(scanner.get_learning_programs())
     profile = _load_user_profile(user_id)
@@ -334,15 +345,11 @@ async def list_tracks(
 ):
     user_id = user["id"]
     store = _get_store(user_id)
-    scanner = CurriculumScanner(_content_dirs())
+    scanner = _ensure_catalog_initialized(store, CurriculumScanner(_content_dirs()))
     track_meta = scanner.get_track_metadata()
     guide_aliases = set(scanner.get_guide_aliases())
     if not track_meta:
         return []
-    # Ensure catalog is populated
-    guides = store.list_guides()
-    if not guides:
-        _sync_catalog(store)
     return store.list_tracks(user_id, track_meta, excluded_guide_ids=guide_aliases)
 
 
@@ -353,13 +360,8 @@ async def get_skill_tree(
     """Return full DAG: tracks, nodes with layout positions, edges."""
     user_id = user["id"]
     store = _get_store(user_id)
-    scanner = CurriculumScanner(_content_dirs())
+    scanner = _ensure_catalog_initialized(store, CurriculumScanner(_content_dirs()))
     guide_aliases = set(scanner.get_guide_aliases())
-
-    # Ensure catalog populated
-    guides_check = store.list_guides()
-    if not guides_check:
-        _sync_catalog(store)
 
     track_meta = scanner.get_track_metadata()
     skill_tree = scanner._skill_tree
@@ -420,16 +422,11 @@ async def list_guides(
 ):
     user_id = user["id"]
     store = _get_store(user_id)
-    scanner = CurriculumScanner(_content_dirs())
+    scanner = _ensure_catalog_initialized(store, CurriculumScanner(_content_dirs()))
     guide_aliases = set(scanner.get_guide_aliases())
     program_lookup = _build_program_lookup(scanner.get_learning_programs())
 
-    # Auto-sync catalog if empty
     guides = store.list_guides(category=category, user_id=user_id)
-    if not guides:
-        _sync_catalog(store)
-        guides = store.list_guides(category=category, user_id=user_id)
-
     visible_guides = [
         guide for guide in guides if guide["id"] not in guide_aliases or guide.get("enrolled")
     ]
@@ -442,15 +439,11 @@ async def get_guide(
     user: dict = Depends(get_current_user),
 ):
     store = _get_store(user["id"])
-    scanner = CurriculumScanner(_content_dirs())
+    scanner = _ensure_catalog_initialized(store, CurriculumScanner(_content_dirs()))
     resolved_guide_id = _resolve_guide_id(scanner, guide_id)
     program_lookup = _build_program_lookup(scanner.get_learning_programs())
     profile = _load_user_profile(user["id"])
     guide = store.get_guide(resolved_guide_id, user_id=user["id"])
-    if not guide:
-        # Try sync first
-        _sync_catalog(store)
-        guide = store.get_guide(resolved_guide_id, user_id=user["id"])
     if not guide:
         raise HTTPException(status_code=404, detail="Guide not found")
     next_chapter = store.get_next_chapter(user["id"], resolved_guide_id)
@@ -471,7 +464,7 @@ async def get_chapter(
     user: dict = Depends(get_current_user),
 ):
     store = _get_store(user["id"])
-    scanner = CurriculumScanner(_content_dirs())
+    scanner = _ensure_catalog_initialized(store, CurriculumScanner(_content_dirs()))
     resolved_guide_id = _resolve_guide_id(scanner, guide_id)
 
     # chapter_id comes in as the part after guide_id, reconstruct full id
@@ -519,7 +512,7 @@ async def enroll_guide(
 ):
     user_id = user["id"]
     store = _get_store(user_id)
-    scanner = CurriculumScanner(_content_dirs())
+    scanner = _ensure_catalog_initialized(store, CurriculumScanner(_content_dirs()))
     resolved_guide_id = _resolve_guide_id(scanner, guide_id)
     guide = store.get_guide(resolved_guide_id, user_id=user_id)
     if not guide:
@@ -1054,6 +1047,7 @@ def _get_chapter_embeddings(user_id: str, store: CurriculumStore):
 @router.get("/stats")
 async def get_stats(user: dict = Depends(get_current_user)):
     store = _get_store(user["id"])
+    _ensure_catalog_initialized(store)
     stats = store.get_stats(user["id"])
     return stats.model_dump()
 
@@ -1073,7 +1067,7 @@ async def get_ready_guides(
 ):
     """Return guides whose prerequisites are all completed but not yet enrolled."""
     store = _get_store(user["id"])
-    scanner = CurriculumScanner(_content_dirs())
+    scanner = _ensure_catalog_initialized(store, CurriculumScanner(_content_dirs()))
     guide_aliases = set(scanner.get_guide_aliases())
     program_lookup = _build_program_lookup(scanner.get_learning_programs())
     ready_guides = store.get_ready_guides(user["id"], excluded_guide_ids=guide_aliases)
@@ -1087,73 +1081,9 @@ async def get_next_recommendation(
     """Get advisor-recommended next chapter/guide to study (DAG-aware)."""
     user_id = user["id"]
     store = _get_store(user_id)
-    scanner = CurriculumScanner(_content_dirs())
+    scanner = _ensure_catalog_initialized(store, CurriculumScanner(_content_dirs()))
     guide_aliases = set(scanner.get_guide_aliases())
     return _get_next_recommendation_v2(user_id, store, scanner, guide_aliases)
-
-    # 1. Continue last-read guide
-    last = store.get_last_read_chapter(user_id)
-    if last:
-        next_ch = store.get_next_chapter(user_id, last["guide_id"])
-        if next_ch:
-            return {
-                "guide_id": last["guide_id"],
-                "guide_title": last.get("guide_title", ""),
-                "chapter": next_ch,
-                "reason": "Continue where you left off",
-            }
-
-    # 2. Next enrolled incomplete guide
-    enrollments = store.get_enrollments(user_id)
-    for enrollment in enrollments:
-        if enrollment.get("completed_at"):
-            continue
-        next_ch = store.get_next_chapter(user_id, enrollment["guide_id"])
-        if next_ch:
-            guide = store.get_guide(enrollment["guide_id"])
-            return {
-                "guide_id": enrollment["guide_id"],
-                "guide_title": guide["title"] if guide else "",
-                "chapter": next_ch,
-                "reason": "Continue enrolled guide",
-            }
-
-    # 3. Ready-to-start guide (all prereqs completed, not enrolled)
-    ready = store.get_ready_guides(user_id, excluded_guide_ids=guide_aliases)
-    if ready:
-        g = ready[0]
-        return {
-            "guide_id": g["id"],
-            "guide_title": g["title"],
-            "chapter": None,
-            "reason": "Prerequisites complete — ready to start",
-            "action": "enroll",
-        }
-
-    # 4. Entry-point guide (no prereqs, not enrolled)
-    import json
-
-    all_guides = [g for g in store.list_guides() if g["id"] not in guide_aliases]
-    for g in all_guides:
-        prereqs = g.get("prerequisites", [])
-        if isinstance(prereqs, str):
-            prereqs = json.loads(prereqs)
-        if prereqs:
-            continue
-        if not store.is_enrolled(user_id, g["id"]):
-            return {
-                "guide_id": g["id"],
-                "guide_title": g["title"],
-                "chapter": None,
-                "reason": "Suggested entry point — no prerequisites",
-                "action": "enroll",
-            }
-
-    return {
-        "guide_id": None,
-        "chapter": None,
-        "reason": "No active guides — enroll in one to get started",
-    }
 
 
 # --- Placement bypass (test-out) ---
@@ -1322,9 +1252,9 @@ async def submit_placement(
     }
 
 
-def _sync_catalog(store: CurriculumStore) -> int:
+def _sync_catalog(store: CurriculumStore, scanner: CurriculumScanner | None = None) -> int:
     """Run scanner and sync results into store."""
-    scanner = CurriculumScanner(_content_dirs())
+    scanner = scanner or CurriculumScanner(_content_dirs())
     guides, chapters = scanner.scan()
     if guides:
         store.sync_catalog(guides, chapters)
