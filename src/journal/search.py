@@ -4,7 +4,6 @@ from datetime import datetime
 from pathlib import Path
 
 import frontmatter
-
 from services.ranking import rrf_fuse
 
 from .embeddings import EmbeddingManager

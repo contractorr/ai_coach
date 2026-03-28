@@ -3,9 +3,8 @@
 from __future__ import annotations
 
 import re
-from typing import Any
-
 from profile.storage import UserProfile
+from typing import Any
 
 _TOKEN_RE = re.compile(r"[a-z0-9]+")
 _STOP_WORDS = {
@@ -124,7 +123,9 @@ def _collect_profile_terms(profile: UserProfile | None) -> dict[str, Any]:
         "all": all_terms,
         "goal": _tokenize(goal_text),
         "industry": _tokenize(industry_text),
-        "weekly_hours": int(profile.constraints.get("time_per_week", profile.weekly_hours_available) or 0),
+        "weekly_hours": int(
+            profile.constraints.get("time_per_week", profile.weekly_hours_available) or 0
+        ),
         "role": profile.current_role,
         "industry_labels": list(profile.industries_watching),
     }
@@ -269,7 +270,9 @@ def score_guide_candidate(
                 {
                     "kind": "industry",
                     "label": "Industry fit",
-                    "detail": "Maps cleanly to your sector context in " + ", ".join(industry_terms) + ".",
+                    "detail": "Maps cleanly to your sector context in "
+                    + ", ".join(industry_terms)
+                    + ".",
                 }
             )
 

@@ -8,9 +8,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-import frontmatter
 import structlog
 
+import frontmatter
 from db import wal_connect
 
 from .scraper import IntelStorage

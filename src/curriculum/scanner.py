@@ -433,9 +433,7 @@ class CurriculumScanner:
                 continue
             seen.add(name)
 
-            guide, guide_chapters = self._build_guide(
-                entry, name, chapter_files, is_industry=False
-            )
+            guide, guide_chapters = self._build_guide(entry, name, chapter_files, is_industry=False)
             guides.append(guide)
             chapters.extend(guide_chapters)
 

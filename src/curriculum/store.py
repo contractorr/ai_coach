@@ -358,7 +358,7 @@ class CurriculumStore:
     def _replace_guide_prefix(value: str, alias_id: str, canonical_id: str) -> str:
         prefix = f"{alias_id}/"
         if value.startswith(prefix):
-            return f"{canonical_id}/{value[len(prefix):]}"
+            return f"{canonical_id}/{value[len(prefix) :]}"
         return value
 
     @staticmethod
@@ -1216,9 +1216,7 @@ class CurriculumStore:
                 result.append(t)
             return result
 
-    def get_tree_data(
-        self, user_id: str, excluded_guide_ids: set[str] | None = None
-    ) -> list[dict]:
+    def get_tree_data(self, user_id: str, excluded_guide_ids: set[str] | None = None) -> list[dict]:
         """Return per-guide data for skill tree: progress, mastery, status."""
         import json as _json
 

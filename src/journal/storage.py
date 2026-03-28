@@ -6,7 +6,6 @@ from datetime import datetime
 from pathlib import Path
 
 import frontmatter
-
 from shared_types import EntryType
 
 ALLOWED_ENTRY_TYPES = tuple(EntryType)

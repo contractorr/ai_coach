@@ -9,7 +9,6 @@ from pathlib import Path
 from typing import Any
 
 import frontmatter
-
 from shared_types import ActionItemStatus, RecommendationStatus
 
 
