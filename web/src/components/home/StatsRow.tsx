@@ -1,12 +1,13 @@
 "use client";
 
-import { BookOpen, MessageSquare, Target } from "lucide-react";
+import { BookOpen, Flame, RotateCcw, Target } from "lucide-react";
 import { useMemo } from "react";
+import type { LearningStats } from "@/types/curriculum";
 
 interface Props {
   journalEntries: Array<{ created: string | null }>;
   activeGoals: number;
-  threadCount: number;
+  learningStats: LearningStats | null;
   loading: boolean;
 }
 
@@ -19,19 +20,28 @@ function thisWeekCount(entries: Array<{ created: string | null }>): number {
   return entries.filter((e) => e.created && new Date(e.created).getTime() >= mondayTs).length;
 }
 
-export function StatsRow({ journalEntries, activeGoals, threadCount, loading }: Props) {
+export function StatsRow({ journalEntries, activeGoals, learningStats, loading }: Props) {
   const weekCount = useMemo(() => thisWeekCount(journalEntries), [journalEntries]);
 
   const pills = [
-    { icon: BookOpen, label: `${weekCount} this week`, key: "journal" },
-    { icon: Target, label: `${activeGoals} active`, key: "goals" },
-    { icon: MessageSquare, label: `${threadCount} threads`, key: "threads" },
+    { icon: BookOpen, label: `${weekCount} journaled this week`, key: "journal" },
+    { icon: Target, label: `${activeGoals} active goals`, key: "goals" },
+    {
+      icon: Flame,
+      label: `${learningStats?.current_streak_days ?? 0}d learning streak`,
+      key: "learning_streak",
+    },
+    {
+      icon: RotateCcw,
+      label: `${learningStats?.reviews_due ?? 0} reviews due`,
+      key: "reviews_due",
+    },
   ];
 
   if (loading) {
     return (
       <div className="flex flex-wrap gap-2">
-        {Array.from({ length: 3 }).map((_, i) => (
+        {Array.from({ length: 4 }).map((_, i) => (
           <div key={i} className="h-7 w-24 animate-pulse rounded-full bg-muted/40" />
         ))}
       </div>

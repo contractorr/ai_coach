@@ -1,5 +1,6 @@
 """SQLite persistence for curriculum catalog and user progress."""
 
+import json
 import sqlite3
 import uuid
 from datetime import datetime, timedelta
@@ -19,7 +20,7 @@ from .spaced_repetition import sm2_update
 
 logger = structlog.get_logger()
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 
 class CurriculumStore:
@@ -54,6 +55,12 @@ class CurriculumStore:
                     title TEXT NOT NULL,
                     filename TEXT NOT NULL,
                     "order" INTEGER NOT NULL DEFAULT 0,
+                    summary TEXT NOT NULL DEFAULT '',
+                    objectives TEXT NOT NULL DEFAULT '[]',
+                    checkpoints TEXT NOT NULL DEFAULT '[]',
+                    content_references TEXT NOT NULL DEFAULT '[]',
+                    content_format TEXT NOT NULL DEFAULT 'markdown',
+                    schema_version INTEGER NOT NULL DEFAULT 0,
                     word_count INTEGER NOT NULL DEFAULT 0,
                     reading_time_minutes INTEGER NOT NULL DEFAULT 0,
                     has_diagrams INTEGER NOT NULL DEFAULT 0,
@@ -142,14 +149,27 @@ class CurriculumStore:
                 except sqlite3.OperationalError:
                     pass  # column already exists
 
+            # --- v3 -> v4 migration: add schema-aware chapter metadata ---
+            if current_ver < 4:
+                for statement in (
+                    "ALTER TABLE chapters ADD COLUMN summary TEXT NOT NULL DEFAULT ''",
+                    "ALTER TABLE chapters ADD COLUMN objectives TEXT NOT NULL DEFAULT '[]'",
+                    "ALTER TABLE chapters ADD COLUMN checkpoints TEXT NOT NULL DEFAULT '[]'",
+                    "ALTER TABLE chapters ADD COLUMN content_references TEXT NOT NULL DEFAULT '[]'",
+                    "ALTER TABLE chapters ADD COLUMN content_format TEXT NOT NULL DEFAULT 'markdown'",
+                    "ALTER TABLE chapters ADD COLUMN schema_version INTEGER NOT NULL DEFAULT 0",
+                ):
+                    try:
+                        conn.execute(statement)
+                    except sqlite3.OperationalError:
+                        pass
+
             ensure_schema_version(conn, SCHEMA_VERSION)
             conn.commit()
 
     # --- Catalog operations ---
 
     def upsert_guide(self, guide: Guide) -> None:
-        import json
-
         with wal_connect(self.db_path) as conn:
             conn.execute(
                 """INSERT INTO guides (id, title, category, difficulty, source_dir,
@@ -185,12 +205,17 @@ class CurriculumStore:
         with wal_connect(self.db_path) as conn:
             conn.execute(
                 """INSERT INTO chapters (id, guide_id, title, filename, "order",
-                   word_count, reading_time_minutes, has_diagrams, has_tables,
+                   summary, objectives, checkpoints, content_references, content_format,
+                   schema_version, word_count, reading_time_minutes, has_diagrams, has_tables,
                    has_formulas, is_glossary, content_hash)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                    ON CONFLICT(id) DO UPDATE SET
                    title=excluded.title, filename=excluded.filename,
-                   "order"=excluded."order", word_count=excluded.word_count,
+                   "order"=excluded."order", summary=excluded.summary,
+                   objectives=excluded.objectives, checkpoints=excluded.checkpoints,
+                   content_references=excluded.content_references,
+                   content_format=excluded.content_format,
+                   schema_version=excluded.schema_version, word_count=excluded.word_count,
                    reading_time_minutes=excluded.reading_time_minutes,
                    has_diagrams=excluded.has_diagrams, has_tables=excluded.has_tables,
                    has_formulas=excluded.has_formulas, is_glossary=excluded.is_glossary,
@@ -201,6 +226,12 @@ class CurriculumStore:
                     chapter.title,
                     chapter.filename,
                     chapter.order,
+                    chapter.summary,
+                    json.dumps(chapter.objectives),
+                    json.dumps(chapter.checkpoints),
+                    json.dumps(chapter.content_references),
+                    chapter.content_format,
+                    chapter.schema_version,
                     chapter.word_count,
                     chapter.reading_time_minutes,
                     int(chapter.has_diagrams),
@@ -214,8 +245,6 @@ class CurriculumStore:
 
     def sync_catalog(self, guides: list[Guide], chapters: list[Chapter]) -> None:
         """Bulk upsert guides and chapters from a scan."""
-        import json
-
         with wal_connect(self.db_path) as conn:
             for g in guides:
                 conn.execute(
@@ -249,12 +278,17 @@ class CurriculumStore:
             for c in chapters:
                 conn.execute(
                     """INSERT INTO chapters (id, guide_id, title, filename, "order",
-                       word_count, reading_time_minutes, has_diagrams, has_tables,
+                       summary, objectives, checkpoints, content_references, content_format,
+                       schema_version, word_count, reading_time_minutes, has_diagrams, has_tables,
                        has_formulas, is_glossary, content_hash)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                        ON CONFLICT(id) DO UPDATE SET
                        title=excluded.title, filename=excluded.filename,
-                       "order"=excluded."order", word_count=excluded.word_count,
+                       "order"=excluded."order", summary=excluded.summary,
+                       objectives=excluded.objectives, checkpoints=excluded.checkpoints,
+                       content_references=excluded.content_references,
+                       content_format=excluded.content_format,
+                       schema_version=excluded.schema_version, word_count=excluded.word_count,
                        reading_time_minutes=excluded.reading_time_minutes,
                        has_diagrams=excluded.has_diagrams, has_tables=excluded.has_tables,
                        has_formulas=excluded.has_formulas, is_glossary=excluded.is_glossary,
@@ -265,6 +299,12 @@ class CurriculumStore:
                         c.title,
                         c.filename,
                         c.order,
+                        c.summary,
+                        json.dumps(c.objectives),
+                        json.dumps(c.checkpoints),
+                        json.dumps(c.content_references),
+                        c.content_format,
+                        c.schema_version,
                         c.word_count,
                         c.reading_time_minutes,
                         int(c.has_diagrams),
@@ -276,10 +316,224 @@ class CurriculumStore:
                 )
             conn.commit()
 
+    def reconcile_guide_aliases(self, guide_aliases: dict[str, str]) -> dict[str, int]:
+        """Merge stale alias-based catalog and user data into canonical guide IDs."""
+        stats = {
+            "aliases_processed": 0,
+            "enrollments_merged": 0,
+            "progress_rows_migrated": 0,
+            "review_items_migrated": 0,
+            "chapters_deleted": 0,
+            "guides_deleted": 0,
+        }
+        if not guide_aliases:
+            return stats
+
+        with wal_connect(self.db_path, row_factory=True) as conn:
+            for alias_id, canonical_id in guide_aliases.items():
+                if alias_id == canonical_id:
+                    continue
+                stats["aliases_processed"] += 1
+                stats["enrollments_merged"] += self._merge_alias_enrollments(
+                    conn, alias_id, canonical_id
+                )
+                stats["progress_rows_migrated"] += self._merge_alias_progress(
+                    conn, alias_id, canonical_id
+                )
+                stats["review_items_migrated"] += self._migrate_alias_review_items(
+                    conn, alias_id, canonical_id
+                )
+                stats["chapters_deleted"] += conn.execute(
+                    "DELETE FROM chapters WHERE guide_id=?",
+                    (alias_id,),
+                ).rowcount
+                stats["guides_deleted"] += conn.execute(
+                    "DELETE FROM guides WHERE id=?",
+                    (alias_id,),
+                ).rowcount
+            conn.commit()
+        return stats
+
+    @staticmethod
+    def _replace_guide_prefix(value: str, alias_id: str, canonical_id: str) -> str:
+        prefix = f"{alias_id}/"
+        if value.startswith(prefix):
+            return f"{canonical_id}/{value[len(prefix) :]}"
+        return value
+
+    @staticmethod
+    def _pick_earliest_timestamp(*values: str | None) -> str | None:
+        present = [value for value in values if value]
+        return min(present) if present else None
+
+    @staticmethod
+    def _pick_latest_timestamp(*values: str | None) -> str | None:
+        present = [value for value in values if value]
+        return max(present) if present else None
+
+    @staticmethod
+    def _merge_progress_status(current: str | None, incoming: str | None) -> str:
+        priority = {"not_started": 0, "enrolled": 1, "in_progress": 2, "completed": 3}
+        current_status = current or "not_started"
+        incoming_status = incoming or "not_started"
+        return (
+            incoming_status
+            if priority.get(incoming_status, 0) >= priority.get(current_status, 0)
+            else current_status
+        )
+
+    def _merge_alias_enrollments(
+        self,
+        conn: sqlite3.Connection,
+        alias_id: str,
+        canonical_id: str,
+    ) -> int:
+        rows = conn.execute(
+            "SELECT * FROM user_guide_enrollment WHERE guide_id=?",
+            (alias_id,),
+        ).fetchall()
+        merged = 0
+        for row in rows:
+            alias_row = dict(row)
+            existing = conn.execute(
+                "SELECT * FROM user_guide_enrollment WHERE user_id=? AND guide_id=?",
+                (alias_row["user_id"], canonical_id),
+            ).fetchone()
+            if existing:
+                canonical_row = dict(existing)
+                conn.execute(
+                    """UPDATE user_guide_enrollment
+                       SET enrolled_at=?, completed_at=?, linked_goal_id=?
+                       WHERE user_id=? AND guide_id=?""",
+                    (
+                        self._pick_earliest_timestamp(
+                            canonical_row.get("enrolled_at"),
+                            alias_row.get("enrolled_at"),
+                        ),
+                        self._pick_latest_timestamp(
+                            canonical_row.get("completed_at"),
+                            alias_row.get("completed_at"),
+                        ),
+                        canonical_row.get("linked_goal_id") or alias_row.get("linked_goal_id"),
+                        alias_row["user_id"],
+                        canonical_id,
+                    ),
+                )
+                conn.execute(
+                    "DELETE FROM user_guide_enrollment WHERE user_id=? AND guide_id=?",
+                    (alias_row["user_id"], alias_id),
+                )
+            else:
+                conn.execute(
+                    """UPDATE user_guide_enrollment
+                       SET guide_id=?
+                       WHERE user_id=? AND guide_id=?""",
+                    (canonical_id, alias_row["user_id"], alias_id),
+                )
+            merged += 1
+        return merged
+
+    def _merge_alias_progress(
+        self,
+        conn: sqlite3.Connection,
+        alias_id: str,
+        canonical_id: str,
+    ) -> int:
+        rows = conn.execute(
+            "SELECT * FROM user_chapter_progress WHERE guide_id=? OR chapter_id LIKE ?",
+            (alias_id, f"{alias_id}/%"),
+        ).fetchall()
+        migrated = 0
+        for row in rows:
+            alias_row = dict(row)
+            target_chapter_id = self._replace_guide_prefix(
+                alias_row["chapter_id"], alias_id, canonical_id
+            )
+            existing = conn.execute(
+                "SELECT * FROM user_chapter_progress WHERE user_id=? AND chapter_id=?",
+                (alias_row["user_id"], target_chapter_id),
+            ).fetchone()
+            if existing and target_chapter_id != alias_row["chapter_id"]:
+                canonical_row = dict(existing)
+                conn.execute(
+                    """UPDATE user_chapter_progress
+                       SET guide_id=?, status=?, reading_time_seconds=?, scroll_position=?,
+                           started_at=?, completed_at=?, updated_at=?
+                       WHERE user_id=? AND chapter_id=?""",
+                    (
+                        canonical_id,
+                        self._merge_progress_status(
+                            canonical_row.get("status"), alias_row.get("status")
+                        ),
+                        int(canonical_row.get("reading_time_seconds") or 0)
+                        + int(alias_row.get("reading_time_seconds") or 0),
+                        max(
+                            float(canonical_row.get("scroll_position") or 0.0),
+                            float(alias_row.get("scroll_position") or 0.0),
+                        ),
+                        self._pick_earliest_timestamp(
+                            canonical_row.get("started_at"),
+                            alias_row.get("started_at"),
+                        ),
+                        self._pick_latest_timestamp(
+                            canonical_row.get("completed_at"),
+                            alias_row.get("completed_at"),
+                        ),
+                        self._pick_latest_timestamp(
+                            canonical_row.get("updated_at"),
+                            alias_row.get("updated_at"),
+                        ),
+                        alias_row["user_id"],
+                        target_chapter_id,
+                    ),
+                )
+                conn.execute(
+                    "DELETE FROM user_chapter_progress WHERE user_id=? AND chapter_id=?",
+                    (alias_row["user_id"], alias_row["chapter_id"]),
+                )
+            else:
+                conn.execute(
+                    """UPDATE user_chapter_progress
+                       SET guide_id=?, chapter_id=?
+                       WHERE user_id=? AND chapter_id=?""",
+                    (
+                        canonical_id,
+                        target_chapter_id,
+                        alias_row["user_id"],
+                        alias_row["chapter_id"],
+                    ),
+                )
+            migrated += 1
+        return migrated
+
+    def _migrate_alias_review_items(
+        self,
+        conn: sqlite3.Connection,
+        alias_id: str,
+        canonical_id: str,
+    ) -> int:
+        rows = conn.execute(
+            "SELECT id, chapter_id FROM review_items WHERE guide_id=? OR chapter_id LIKE ?",
+            (alias_id, f"{alias_id}/%"),
+        ).fetchall()
+        migrated = 0
+        for row in rows:
+            current = dict(row)
+            conn.execute(
+                """UPDATE review_items
+                   SET guide_id=?, chapter_id=?
+                   WHERE id=?""",
+                (
+                    canonical_id,
+                    self._replace_guide_prefix(current["chapter_id"], alias_id, canonical_id),
+                    current["id"],
+                ),
+            )
+            migrated += 1
+        return migrated
+
     def list_guides(self, category: str | None = None, user_id: str | None = None) -> list[dict]:
         """List guides with optional user progress summary."""
-        import json
-
         with wal_connect(self.db_path, row_factory=True) as conn:
             if category:
                 rows = conn.execute(
@@ -331,8 +585,6 @@ class CurriculumStore:
 
     def get_guide(self, guide_id: str, user_id: str | None = None) -> dict | None:
         """Get guide with chapters and progress."""
-        import json
-
         with wal_connect(self.db_path, row_factory=True) as conn:
             row = conn.execute("SELECT * FROM guides WHERE id=?", (guide_id,)).fetchone()
             if not row:
@@ -346,11 +598,7 @@ class CurriculumStore:
             ).fetchall()
             d["chapters"] = []
             for ch in chapters:
-                cd = dict(ch)
-                cd["has_diagrams"] = bool(cd["has_diagrams"])
-                cd["has_tables"] = bool(cd["has_tables"])
-                cd["has_formulas"] = bool(cd["has_formulas"])
-                cd["is_glossary"] = bool(cd["is_glossary"])
+                cd = self._deserialize_chapter_row(ch)
 
                 if user_id:
                     prog = conn.execute(
@@ -397,12 +645,7 @@ class CurriculumStore:
             row = conn.execute("SELECT * FROM chapters WHERE id=?", (chapter_id,)).fetchone()
             if not row:
                 return None
-            d = dict(row)
-            d["has_diagrams"] = bool(d["has_diagrams"])
-            d["has_tables"] = bool(d["has_tables"])
-            d["has_formulas"] = bool(d["has_formulas"])
-            d["is_glossary"] = bool(d["is_glossary"])
-            return d
+            return self._deserialize_chapter_row(row)
 
     # --- Enrollment ---
 
@@ -899,13 +1142,19 @@ class CurriculumStore:
         review_score = max(0.0, min(100.0, (avg_ef - 1.3) / 1.2 * 100))
         return round(completion_pct * 0.4 + review_score * 0.6, 1)
 
-    def list_tracks(self, user_id: str, track_metadata: dict[str, dict]) -> list[dict]:
+    def list_tracks(
+        self,
+        user_id: str,
+        track_metadata: dict[str, dict],
+        excluded_guide_ids: set[str] | None = None,
+    ) -> list[dict]:
         """List tracks with aggregate stats."""
         with wal_connect(self.db_path, row_factory=True) as conn:
             rows = conn.execute("SELECT * FROM guides ORDER BY id").fetchall()
             chapter_counts, completed_counts, enrollment_map, avg_ef_map = self._batch_guide_data(
                 conn, user_id
             )
+            excluded_guide_ids = excluded_guide_ids or set()
 
             tracks: dict[str, dict] = {}
             # Init from metadata
@@ -923,6 +1172,8 @@ class CurriculumStore:
 
             for row in rows:
                 d = dict(row)
+                if d["id"] in excluded_guide_ids:
+                    continue
                 track_id = d.get("track", "") or ""
                 if not track_id:
                     track_id = "_uncategorized"
@@ -965,7 +1216,7 @@ class CurriculumStore:
                 result.append(t)
             return result
 
-    def get_tree_data(self, user_id: str) -> list[dict]:
+    def get_tree_data(self, user_id: str, excluded_guide_ids: set[str] | None = None) -> list[dict]:
         """Return per-guide data for skill tree: progress, mastery, status."""
         import json as _json
 
@@ -974,11 +1225,14 @@ class CurriculumStore:
             chapter_counts, completed_counts, enrollment_map, avg_ef_map = self._batch_guide_data(
                 conn, user_id
             )
+            excluded_guide_ids = excluded_guide_ids or set()
 
             results = []
             for row in rows:
                 d = dict(row)
                 gid = d["id"]
+                if gid in excluded_guide_ids:
+                    continue
                 prereqs = _json.loads(d.get("prerequisites", "[]"))
 
                 total = chapter_counts.get(gid, 0)
@@ -1018,7 +1272,9 @@ class CurriculumStore:
                 )
             return results
 
-    def get_ready_guides(self, user_id: str) -> list[dict]:
+    def get_ready_guides(
+        self, user_id: str, excluded_guide_ids: set[str] | None = None
+    ) -> list[dict]:
         """Return guides where ALL prereqs are completed and guide is NOT enrolled.
 
         Entry-point guides (no prereqs) are excluded.
@@ -1027,9 +1283,12 @@ class CurriculumStore:
 
         with wal_connect(self.db_path, row_factory=True) as conn:
             rows = conn.execute("SELECT * FROM guides ORDER BY id").fetchall()
+            excluded_guide_ids = excluded_guide_ids or set()
             results = []
             for row in rows:
                 d = dict(row)
+                if d["id"] in excluded_guide_ids:
+                    continue
                 prereqs = json.loads(d.get("prerequisites", "[]"))
                 if not prereqs:
                     continue  # skip entry points
@@ -1117,9 +1376,16 @@ class CurriculumStore:
             ).fetchone()
             if not row:
                 return None
-            d = dict(row)
-            d["has_diagrams"] = bool(d["has_diagrams"])
-            d["has_tables"] = bool(d["has_tables"])
-            d["has_formulas"] = bool(d["has_formulas"])
-            d["is_glossary"] = bool(d["is_glossary"])
-            return d
+            return self._deserialize_chapter_row(row)
+
+    @staticmethod
+    def _deserialize_chapter_row(row: sqlite3.Row | dict) -> dict:
+        chapter = dict(row)
+        chapter["has_diagrams"] = bool(chapter["has_diagrams"])
+        chapter["has_tables"] = bool(chapter["has_tables"])
+        chapter["has_formulas"] = bool(chapter["has_formulas"])
+        chapter["is_glossary"] = bool(chapter["is_glossary"])
+        chapter["objectives"] = json.loads(chapter.get("objectives", "[]"))
+        chapter["checkpoints"] = json.loads(chapter.get("checkpoints", "[]"))
+        chapter["content_references"] = json.loads(chapter.get("content_references", "[]"))
+        return chapter

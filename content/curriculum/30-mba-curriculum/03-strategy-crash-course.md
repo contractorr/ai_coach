@@ -7,7 +7,7 @@
 
 ## Why This Matters for You
 
-Every PM claims to be "strategic." Few actually are. Strategy isn't a roadmap. It's not goals. It's not mission statements. Strategy is a coherent set of choices about where to play and how to win—and critically, what *not* to do.
+Every PM claims to be "strategic." Few actually are. Strategy isn't a roadmap. It's not goals. It's not mission statements. Strategy is a coherent set of choices about where to play and how to winâ€”and critically, what *not* to do.
 
 **What AI can do:** Analyze markets, model scenarios, synthesize competitive data.
 **What you must do:** Make hard tradeoffs, choose what to abandon, commit under uncertainty, align humans around a direction.
@@ -20,18 +20,37 @@ Every PM claims to be "strategic." Few actually are. Strategy isn't a roadmap. I
 
 Richard Rumelt argues most "strategies" are actually goals in disguise. Real strategy has three parts:
 
-```
-1. DIAGNOSIS
-   What's the nature of the challenge?
-   (Not "what do we want" but "what's actually going on")
-
-2. GUIDING POLICY
-   The overall approach to address the challenge
-   (The core choice that rules out alternatives)
-
-3. COHERENT ACTIONS
-   Coordinated moves that execute the policy
-   (Specific, mutually reinforcing actions)
+```framework
+{
+  "title": "Rumelt's kernel of strategy",
+  "note": "Use this to separate a real strategy from a vague goal statement.",
+  "pillars": [
+    {
+      "title": "Diagnosis",
+      "detail": "Describe the challenge clearly before proposing action.",
+      "bullets": [
+        "Name what is actually happening in the market or organization.",
+        "Focus on the obstacle, not the aspiration."
+      ]
+    },
+    {
+      "title": "Guiding Policy",
+      "detail": "Choose the overall approach that responds to the diagnosis.",
+      "bullets": [
+        "Make a directional choice that rules out alternatives.",
+        "State the principle that will guide later decisions."
+      ]
+    },
+    {
+      "title": "Coherent Actions",
+      "detail": "List the reinforcing actions that execute the policy.",
+      "bullets": [
+        "Make sure the actions support each other.",
+        "Tie timelines, resources, and tradeoffs back to the guiding policy."
+      ]
+    }
+  ]
+}
 ```
 
 **Bad "strategy":** "We will be the market leader in AI-powered analytics through innovation and customer focus."
@@ -60,15 +79,45 @@ This is strategy: diagnosis of the real challenge, a clear choice (on-prem vs cl
 
 ### Strategy vs Goals vs Tactics
 
-| Concept | Definition | Example |
-|---------|------------|---------|
-| Vision | Aspirational end state | "Organize the world's information" |
-| Mission | What you do and for whom | "Search engine for everyone" |
-| Goals | Measurable targets | "50% market share by 2025" |
-| **Strategy** | How you'll achieve goals | "Win through superior relevance ranking" |
-| Tactics | Specific actions | "Ship PageRank algorithm" |
+```comparison-table
+{
+  "title": "Strategy vs. goals vs. tactics",
+  "columns": [
+    { "key": "concept", "label": "Concept" },
+    { "key": "definition", "label": "Definition" },
+    { "key": "example", "label": "Example" }
+  ],
+  "rows": [
+    {
+      "concept": "Vision",
+      "definition": "Aspirational end state.",
+      "example": "Organize the world's information."
+    },
+    {
+      "concept": "Mission",
+      "definition": "What you do and for whom.",
+      "example": "Search engine for everyone."
+    },
+    {
+      "concept": "Goals",
+      "definition": "Measurable targets.",
+      "example": "50% market share by 2025."
+    },
+    {
+      "concept": "Strategy",
+      "definition": "How you'll achieve goals.",
+      "example": "Win through superior relevance ranking."
+    },
+    {
+      "concept": "Tactics",
+      "definition": "Specific actions.",
+      "example": "Ship PageRank algorithm."
+    }
+  ]
+}
+```
 
-Most orgs confuse goals for strategy. "Grow revenue 30%" isn't a strategy—it's a goal. Strategy explains *how*.
+Most orgs confuse goals for strategy. "Grow revenue 30%" isn't a strategyâ€”it's a goal. Strategy explains *how*.
 
 ### The Strategy Test
 
@@ -87,18 +136,59 @@ Ask these questions of any "strategy":
 
 Michael Porter's model for analyzing industry attractiveness:
 
-```
-                    THREAT OF
-                   NEW ENTRANTS
-                        │
-                        ▼
-BARGAINING ──────► COMPETITIVE ◄────── BARGAINING
-POWER OF           RIVALRY            POWER OF
-SUPPLIERS                             BUYERS
-                        ▲
-                        │
-                   THREAT OF
-                   SUBSTITUTES
+```diagram
+{
+  "title": "Porter's five forces",
+  "note": "Read the center first, then evaluate how each surrounding force changes industry profit potential.",
+  "nodes": [
+    {
+      "id": "entrants",
+      "title": "Threat of New Entrants",
+      "detail": "New players can enter when barriers are low.",
+      "column": 2,
+      "row": 1,
+      "tone": "muted"
+    },
+    {
+      "id": "suppliers",
+      "title": "Bargaining Power of Suppliers",
+      "detail": "Suppliers capture value when alternatives are limited.",
+      "column": 1,
+      "row": 2,
+      "tone": "muted"
+    },
+    {
+      "id": "rivalry",
+      "title": "Competitive Rivalry",
+      "detail": "Existing competitors pressure pricing, margins, and differentiation.",
+      "column": 2,
+      "row": 2,
+      "tone": "accent"
+    },
+    {
+      "id": "buyers",
+      "title": "Bargaining Power of Buyers",
+      "detail": "Customers gain leverage when switching is easy or concentration is high.",
+      "column": 3,
+      "row": 2,
+      "tone": "muted"
+    },
+    {
+      "id": "substitutes",
+      "title": "Threat of Substitutes",
+      "detail": "Alternative solutions cap pricing power.",
+      "column": 2,
+      "row": 3,
+      "tone": "muted"
+    }
+  ],
+  "edges": [
+    { "from": "entrants", "to": "rivalry", "label": "raises pressure" },
+    { "from": "suppliers", "to": "rivalry", "label": "captures value" },
+    { "from": "buyers", "to": "rivalry", "label": "demands concessions" },
+    { "from": "substitutes", "to": "rivalry", "label": "caps prices" }
+  ]
+}
 ```
 
 ### The Forces Explained
@@ -162,8 +252,8 @@ Use Porter for traditional industry analysis. Use network effects/platform frame
 Competitive advantage = sustainable ability to outperform competitors
 
 Two types (Porter):
-1. **Cost leadership** — Deliver same value at lower cost
-2. **Differentiation** — Deliver superior value at similar cost
+1. **Cost leadership** â€” Deliver same value at lower cost
+2. **Differentiation** â€” Deliver superior value at similar cost
 
 You can't be both (usually). Trying to be creates "stuck in the middle."
 
@@ -213,7 +303,7 @@ Network effects are the most powerful moat in digital:
 
 **Types:**
 - **Direct:** Product improves for me as others join (phone network)
-- **Indirect:** More users attract more complements (iPhone → apps → users)
+- **Indirect:** More users attract more complements (iPhone â†’ apps â†’ users)
 - **Data:** More usage generates data that improves product (Google search)
 - **Platform:** Both sides benefit from the other (Uber riders/drivers)
 
@@ -232,7 +322,7 @@ Network effects are the most powerful moat in digital:
 ### Platform vs Pipeline
 
 **Pipeline business:** Create value, sell it
-- Linear: Supplier → Company → Customer
+- Linear: Supplier â†’ Company â†’ Customer
 - You control supply, compete on efficiency
 - Example: Traditional manufacturing
 
@@ -254,7 +344,7 @@ Network effects are the most powerful moat in digital:
 - Strategy: increase switching costs, exclusive content
 
 **Winner-take-all dynamics:**
-- Strong network effects → market concentration
+- Strong network effects â†’ market concentration
 - But only in specific conditions:
   - High multi-homing costs
   - Low differentiation potential
@@ -294,11 +384,11 @@ Disruption happens when:
 
 Disruption theory is overused. Incumbents win when:
 
-1. **Sustaining innovation** — Improvements along current trajectory
-2. **Integrated value chains** — When you need the whole system
-3. **Regulatory moats** — Government protects incumbents
-4. **High switching costs** — Too painful to leave
-5. **Strong network effects** — Ecosystem loyalty
+1. **Sustaining innovation** â€” Improvements along current trajectory
+2. **Integrated value chains** â€” When you need the whole system
+3. **Regulatory moats** â€” Government protects incumbents
+4. **High switching costs** â€” Too painful to leave
+5. **Strong network effects** â€” Ecosystem loyalty
 
 **Example:** Banks weren't disrupted by fintech as predicted because:
 - Regulatory barriers (fintech can't easily get banking licenses)
@@ -354,7 +444,7 @@ Disruption theory is overused. Incumbents win when:
 **Data moats:**
 - Proprietary data (no one else has it)
 - Data network effects (usage improves product)
-- Data flywheels (better product → more users → more data → better product)
+- Data flywheels (better product â†’ more users â†’ more data â†’ better product)
 
 **AI-era competitive questions:**
 1. What decisions can AI make better than humans?
@@ -390,7 +480,7 @@ The essence of strategy is choosing what NOT to do.
 - Requires tradeoffs
 - Creates uniqueness
 
-**Example:** IKEA isn't just operationally excellent—they made different choices:
+**Example:** IKEA isn't just operationally excellentâ€”they made different choices:
 - Self-assembly (vs delivered assembled)
 - Suburban locations (vs downtown)
 - Limited service (vs consultative)
@@ -510,7 +600,7 @@ Test: Can a competitor easily copy all of these? If yes, not strategic.
 
 ## Next Steps
 
-1. **Read:** *Good Strategy Bad Strategy* by Richard Rumelt — The best modern strategy book. Skip Part II on your first read; focus on Part I and III.
+1. **Read:** *Good Strategy Bad Strategy* by Richard Rumelt â€” The best modern strategy book. Skip Part II on your first read; focus on Part I and III.
 
 2. **Practice:** Do Exercise 1 (Rumelt's Kernel) for a real challenge you're facing. Strategy is a skill built through application.
 

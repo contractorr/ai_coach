@@ -39,7 +39,9 @@ class TestEmbeddingFactory:
         monkeypatch.setenv("GOOGLE_API_KEY", "test-key")
         monkeypatch.delenv("OPENAI_API_KEY", raising=False)
 
-        with patch("google.genai.Client"):
+        with patch("embeddings.gemini.GeminiEmbeddingFunction") as mock_factory:
+            mock_factory.return_value.provider_name = "gemini"
+            mock_factory.return_value.dimensions = 768
             from embeddings.factory import create_embedding_function
 
             fn = create_embedding_function()
@@ -51,7 +53,9 @@ class TestEmbeddingFactory:
         monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
         monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
 
-        with patch("openai.OpenAI"):
+        with patch("embeddings.openai.OpenAIEmbeddingFunction") as mock_factory:
+            mock_factory.return_value.provider_name = "openai"
+            mock_factory.return_value.dimensions = 1536
             from embeddings.factory import create_embedding_function
 
             fn = create_embedding_function()

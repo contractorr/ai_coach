@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { useToken } from "@/hooks/useToken";
+import type { LearningStats, NextRecommendation } from "@/types/curriculum";
 
 interface JournalEntryStub {
   path: string;
@@ -14,14 +15,11 @@ interface GoalStub {
   status: string;
 }
 
-interface ThreadStub {
-  id: string;
-}
-
 export interface HomeStats {
   journalEntries: JournalEntryStub[];
   activeGoals: number;
-  threadCount: number;
+  learningStats: LearningStats | null;
+  nextLearningStep: NextRecommendation | null;
   loading: boolean;
 }
 
@@ -29,7 +27,8 @@ export function useHomeStats(): HomeStats {
   const token = useToken();
   const [journalEntries, setJournalEntries] = useState<JournalEntryStub[]>([]);
   const [activeGoals, setActiveGoals] = useState(0);
-  const [threadCount, setThreadCount] = useState(0);
+  const [learningStats, setLearningStats] = useState<LearningStats | null>(null);
+  const [nextLearningStep, setNextLearningStep] = useState<NextRecommendation | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -38,15 +37,17 @@ export function useHomeStats(): HomeStats {
 
     const fetchAll = async () => {
       try {
-        const [entries, goals, threads] = await Promise.all([
+        const [entries, goals, curriculumStats, curriculumNext] = await Promise.all([
           apiFetch<JournalEntryStub[]>("/api/v1/journal?limit=200", {}, token).catch(() => []),
           apiFetch<GoalStub[]>("/api/v1/goals", {}, token).catch(() => []),
-          apiFetch<ThreadStub[]>("/api/v1/threads/inbox?limit=50", {}, token).catch(() => []),
+          apiFetch<LearningStats>("/api/v1/curriculum/stats", {}, token).catch(() => null),
+          apiFetch<NextRecommendation>("/api/v1/curriculum/next", {}, token).catch(() => null),
         ]);
         if (cancelled) return;
         setJournalEntries(entries);
         setActiveGoals(goals.filter((g) => g.status === "active").length);
-        setThreadCount(threads.length);
+        setLearningStats(curriculumStats);
+        setNextLearningStep(curriculumNext);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -56,5 +57,5 @@ export function useHomeStats(): HomeStats {
     return () => { cancelled = true; };
   }, [token]);
 
-  return { journalEntries, activeGoals, threadCount, loading };
+  return { journalEntries, activeGoals, learningStats, nextLearningStep, loading };
 }

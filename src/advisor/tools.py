@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import frontmatter
 import structlog
 
+import frontmatter
 from graceful import graceful_context
 from services.tool_registry import ToolRegistry
 

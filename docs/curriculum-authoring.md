@@ -3,8 +3,8 @@
 Curriculum chapters now support a schema-first authoring format based on `MDX + frontmatter`.
 Rewrites should converge on a shared chapter contract so they feel consistent instead of
 editorially improvised. The target reader is increasingly a mid-career operator, not a
-full-time student, so chapter design should optimize for transfer into work decisions rather
-than encyclopedic coverage.
+full-time student, but the content should justify itself broadly rather than assuming every
+topic only matters through workplace utility.
 
 ## Chapter format
 
@@ -52,10 +52,18 @@ Every rewrite and net-new chapter should follow the same reader-facing flow:
 6. Checkpoint
 7. Next-step connections
 
-This is a content contract, not just a formatting suggestion. The frontmatter supports indexing
-and tooling; the section shape supports consistent comprehension and applied use. The relevance
-section is optional because some topics are worth learning for intrinsic, conceptual, historical,
-or aesthetic reasons in addition to workplace transfer.
+This is a content contract, not just a formatting suggestion. The frontmatter supports
+indexing and tooling; the section shape supports consistent comprehension and applied use.
+The relevance section is optional because some topics are worth learning for intrinsic,
+conceptual, historical, or aesthetic reasons in addition to workplace transfer.
+
+## Weak chapter patterns to rewrite away from
+
+- Survey-dump chapters that enumerate facts without one governing model.
+- Chapters with no worked example, so the reader never sees how the idea is actually used.
+- Chapters that end without a checkpoint, which makes application invisible.
+- Chapters whose only motivation is generic workplace relevance, even when the subject deserves broader framing.
+- Single-file guides pretending to be complete domains when they are really placeholders for future depth.
 
 ### Section intent
 

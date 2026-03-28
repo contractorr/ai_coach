@@ -8,6 +8,12 @@ from typing import Any
 import structlog
 import yaml
 
+from .content_schema import (
+    build_content_signature,
+    extract_title_from_body,
+    list_curriculum_content_files,
+    load_curriculum_document,
+)
 from .models import Chapter, DifficultyLevel, Guide, GuideCategory
 
 logger = structlog.get_logger()
@@ -99,16 +105,7 @@ def _infer_difficulty(dir_name: str, order: int) -> DifficultyLevel:
 
 def _extract_title(content: str, filename: str) -> str:
     """Extract title from first H1 heading or derive from filename."""
-    for line in content.split("\n", 10):
-        line = line.strip()
-        if line.startswith("# ") and not line.startswith("## "):
-            return line[2:].strip()
-    # Fallback: derive from filename
-    stem = Path(filename).stem
-    m = _ORDER_RE.match(stem)
-    if m:
-        stem = stem[m.end() :]
-    return stem.replace("-", " ").replace("_", " ").title()
+    return extract_title_from_body(content, filename)
 
 
 def _detect_diagrams(content: str) -> bool:
@@ -428,16 +425,15 @@ class CurriculumScanner:
             if name.startswith("."):
                 continue
 
-            # Any dir containing .md files is a guide
-            md_files = sorted(entry.glob("*.md"))
-            if not md_files:
+            chapter_files = list_curriculum_content_files(entry)
+            if not chapter_files:
                 continue
 
             if name in seen:
                 continue
             seen.add(name)
 
-            guide, guide_chapters = self._build_guide(entry, name, md_files, is_industry=False)
+            guide, guide_chapters = self._build_guide(entry, name, chapter_files, is_industry=False)
             guides.append(guide)
             chapters.extend(guide_chapters)
 
@@ -451,8 +447,8 @@ class CurriculumScanner:
         for entry in sorted(industries_dir.iterdir()):
             if not entry.is_dir() or entry.name.startswith("."):
                 continue
-            md_files = sorted(entry.glob("*.md"))
-            if not md_files:
+            chapter_files = list_curriculum_content_files(entry)
+            if not chapter_files:
                 continue
 
             guide_id = f"industry-{entry.name.lower()}"
@@ -460,7 +456,9 @@ class CurriculumScanner:
                 continue
             seen.add(guide_id)
 
-            guide, guide_chapters = self._build_guide(entry, guide_id, md_files, is_industry=True)
+            guide, guide_chapters = self._build_guide(
+                entry, guide_id, chapter_files, is_industry=True
+            )
             guide.title = f"{entry.name} Industry"
             guides.append(guide)
             chapters.extend(guide_chapters)
@@ -469,7 +467,7 @@ class CurriculumScanner:
         self,
         guide_dir: Path,
         guide_id: str,
-        md_files: list[Path],
+        chapter_files: list[Path],
         is_industry: bool,
     ) -> tuple[Guide, list[Chapter]]:
         order = _guide_order(guide_id)
@@ -477,34 +475,40 @@ class CurriculumScanner:
         total_words = 0
         has_glossary = False
 
-        for idx, md_file in enumerate(md_files):
+        for idx, chapter_file in enumerate(chapter_files):
             try:
-                content = md_file.read_text(encoding="utf-8")
+                document = load_curriculum_document(chapter_file)
             except Exception:
-                logger.warning("curriculum.scan.read_error", file=str(md_file))
+                logger.warning("curriculum.scan.read_error", file=str(chapter_file))
                 continue
 
-            words = len(content.split())
+            words = len(document.body.split())
             total_words += words
-            title = _extract_title(content, md_file.name)
-            is_glossary = "glossary" in md_file.stem.lower()
+            is_glossary = "glossary" in chapter_file.stem.lower()
             if is_glossary:
                 has_glossary = True
 
-            chapter_id = f"{guide_id}/{md_file.stem}"
+            chapter_id = f"{guide_id}/{chapter_file.stem}"
+            content_signature = build_content_signature(document)
             chapter = Chapter(
                 id=chapter_id,
                 guide_id=guide_id,
-                title=title,
-                filename=md_file.name,
+                title=document.title,
+                filename=chapter_file.name,
                 order=idx,
+                summary=document.summary,
+                objectives=document.objectives,
+                checkpoints=document.checkpoints,
+                content_references=document.content_references,
+                content_format=document.content_format,
+                schema_version=document.schema_version,
                 word_count=words,
                 reading_time_minutes=max(1, words // _WPM),
-                has_diagrams=_detect_diagrams(content),
-                has_tables=_detect_tables(content),
-                has_formulas=_detect_formulas(content),
+                has_diagrams=_detect_diagrams(document.body),
+                has_tables=_detect_tables(document.body),
+                has_formulas=_detect_formulas(document.body),
                 is_glossary=is_glossary,
-                content_hash=_content_hash(content),
+                content_hash=_content_hash(content_signature),
             )
             guide_chapters.append(chapter)
 

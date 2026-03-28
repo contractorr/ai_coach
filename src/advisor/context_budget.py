@@ -16,13 +16,11 @@ def truncate_lines_to_tokens(text: str, token_budget: int) -> str:
         return text
     lines = text.split("\n")
     kept: list[str] = []
-    tokens_used = 0
     for line in lines:
-        line_tokens = count_tokens(line)
-        if tokens_used + line_tokens > token_budget:
+        candidate = "\n".join([*kept, line]) if kept else line
+        if count_tokens(candidate) > token_budget:
             break
         kept.append(line)
-        tokens_used += line_tokens
     return "\n".join(kept) if kept else ""
 
 

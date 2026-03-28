@@ -37,7 +37,7 @@ export default defineConfig({
   ],
 
   webServer: {
-    command: `npx next start -p ${PORT}`,
+    command: `npx next build && npx next start -p ${PORT}`,
     cwd: WEB_DIR,
     port: PORT,
     reuseExistingServer: !process.env.CI,

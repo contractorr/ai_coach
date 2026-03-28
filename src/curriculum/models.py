@@ -52,6 +52,12 @@ class Chapter(BaseModel):
     title: str
     filename: str
     order: int
+    summary: str = ""
+    objectives: list[str] = Field(default_factory=list)
+    checkpoints: list[str] = Field(default_factory=list)
+    content_references: list[str] = Field(default_factory=list)
+    content_format: str = "markdown"
+    schema_version: int = 0
     word_count: int = 0
     reading_time_minutes: int = 0
     has_diagrams: bool = False
@@ -85,6 +91,17 @@ class Track(BaseModel):
     average_mastery: float = 0.0
     completion_pct: float = 0.0
     guide_ids: list[str] = Field(default_factory=list)
+
+
+class LearningProgram(BaseModel):
+    id: str
+    title: str
+    audience: str = ""
+    description: str = ""
+    color: str = "#6b7280"
+    outcomes: list[str] = Field(default_factory=list)
+    guide_ids: list[str] = Field(default_factory=list)
+    applied_module_ids: list[str] = Field(default_factory=list)
 
 
 # --- User progress models ---
@@ -214,5 +231,6 @@ class SkillTreeEdge(BaseModel):
 
 class SkillTreeResponse(BaseModel):
     tracks: dict[str, dict]  # track_id -> {title, description, color}
+    programs: list[LearningProgram] = Field(default_factory=list)
     nodes: list[SkillTreeNode]
     edges: list[SkillTreeEdge]

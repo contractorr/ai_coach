@@ -62,6 +62,7 @@ web = [
     "python-multipart>=0.0.6,<1",
 ]
 dev = [
+    "pre-commit>=4.0.0,<5",
     "pytest>=7.0.0,<9",
     "pytest-asyncio>=0.21.0,<1",
     "pytest-cov>=4.1.0,<7",

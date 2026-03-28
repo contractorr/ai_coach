@@ -3,9 +3,9 @@
 from datetime import datetime, timedelta
 from pathlib import Path
 
-import frontmatter
 import structlog
 
+import frontmatter
 from shared_types import GoalStatus
 
 logger = structlog.get_logger()

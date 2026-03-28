@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -18,11 +18,12 @@ import { useToken } from "@/hooks/useToken";
 import { apiFetch } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
 import { CurriculumRenderer } from "@/components/curriculum/CurriculumRenderer";
 import { PreReadingCard } from "@/components/curriculum/PreReadingCard";
 import { TeachBackCard } from "@/components/curriculum/TeachBackCard";
 import { RelatedChaptersCard } from "@/components/curriculum/RelatedChaptersCard";
-import type { ChapterDetail, ChapterStatus, ReviewItem } from "@/types/curriculum";
+import type { ChapterDetail, ChapterStatus, QuizResult, ReviewItem } from "@/types/curriculum";
 
 export default function ChapterReaderPage() {
   const token = useToken();
@@ -35,8 +36,12 @@ export default function ChapterReaderPage() {
   const [loading, setLoading] = useState(true);
   const [completing, setCompleting] = useState(false);
   const [quiz, setQuiz] = useState<ReviewItem[] | null>(null);
+  const [quizAnswers, setQuizAnswers] = useState<Record<string, string>>({});
+  const [quizResults, setQuizResults] = useState<QuizResult[] | null>(null);
   const [quizLoading, setQuizLoading] = useState(false);
+  const [quizSubmitting, setQuizSubmitting] = useState(false);
   const [reflectionPrompt, setReflectionPrompt] = useState<string | null>(null);
+  const [reflectionDraft, setReflectionDraft] = useState("");
   const [savingReflection, setSavingReflection] = useState(false);
 
   // Reading time tracker
@@ -125,6 +130,7 @@ export default function ChapterReaderPage() {
       toast.success("Chapter completed!");
       if (progressResult.reflection_prompt) {
         setReflectionPrompt(progressResult.reflection_prompt);
+        setReflectionDraft("");
       }
       // Refresh to get updated status
       const data = await apiFetch<ChapterDetail>(
@@ -141,7 +147,7 @@ export default function ChapterReaderPage() {
   };
 
   const handleSaveReflection = async () => {
-    if (!token || !reflectionPrompt) return;
+    if (!token || !reflectionPrompt || !reflectionDraft.trim()) return;
     setSavingReflection(true);
     try {
       await apiFetch(
@@ -149,16 +155,17 @@ export default function ChapterReaderPage() {
         {
           method: "POST",
           body: JSON.stringify({
-            content: reflectionPrompt,
+            content: reflectionDraft.trim(),
             entry_type: "reflection",
-            title: `Chapter Review: ${chapter?.title ?? chapterId}`,
-            tags: ["curriculum", guideId],
+            title: `Reflection: ${chapter?.title ?? chapterId}`,
+            tags: ["curriculum", guideId, "reflection"],
           }),
         },
         token
       );
       toast.success("Reflection saved");
       setReflectionPrompt(null);
+      setReflectionDraft("");
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
@@ -176,12 +183,60 @@ export default function ChapterReaderPage() {
         token
       );
       setQuiz(data.questions);
+      setQuizResults(null);
+      setQuizAnswers(
+        Object.fromEntries(
+          data.questions.map((question) => [question.id, quizAnswers[question.id] ?? ""])
+        )
+      );
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
       setQuizLoading(false);
     }
   };
+
+  const handleQuizAnswerChange = (questionId: string, value: string) => {
+    setQuizAnswers((prev) => ({ ...prev, [questionId]: value }));
+  };
+
+  const handleSubmitQuiz = async () => {
+    if (!token || !quiz || quiz.length === 0) return;
+
+    setQuizSubmitting(true);
+    try {
+      const answers = Object.fromEntries(
+        quiz.map((question) => [question.id, quizAnswers[question.id]?.trim() ?? ""])
+      );
+      const data = await apiFetch<{ results: QuizResult[] }>(
+        `/api/v1/curriculum/quiz/${fullChapterId}/submit`,
+        {
+          method: "POST",
+          body: JSON.stringify({ answers }),
+        },
+        token
+      );
+      setQuizResults(data.results);
+      toast.success("Quiz graded");
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setQuizSubmitting(false);
+    }
+  };
+
+  const quizResultsById = useMemo(
+    () => new Map((quizResults ?? []).map((result) => [result.question_id, result])),
+    [quizResults]
+  );
+  const quizAverageGrade =
+    quizResults && quizResults.length > 0
+      ? quizResults.reduce((sum, result) => sum + result.grade, 0) / quizResults.length
+      : null;
+  const canSubmitQuiz =
+    !!quiz &&
+    quiz.length > 0 &&
+    quiz.every((question) => (quizAnswers[question.id] ?? "").trim().length > 0);
 
   if (loading) {
     return (
@@ -235,7 +290,7 @@ export default function ChapterReaderPage() {
 
       {/* Content */}
       <article className="max-w-none rounded-xl border bg-card p-6 shadow-sm">
-        <CurriculumRenderer content={chapter.content} />
+        <CurriculumRenderer content={chapter.content} guideId={guideId} />
       </article>
 
       {/* Bottom actions */}
@@ -277,13 +332,35 @@ export default function ChapterReaderPage() {
       {/* Reflection prompt */}
       {reflectionPrompt && (
         <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 space-y-3">
-          <p className="text-sm">{reflectionPrompt}</p>
+          <div className="space-y-2">
+            <p className="text-xs font-medium uppercase tracking-wide text-primary/80">
+              Reflection prompt
+            </p>
+            <p className="text-sm">{reflectionPrompt}</p>
+          </div>
+          <Textarea
+            value={reflectionDraft}
+            onChange={(e) => setReflectionDraft(e.target.value)}
+            placeholder="Write your own reflection on what changed in your understanding, what still feels unclear, or how this applies to your work."
+            rows={6}
+          />
           <div className="flex gap-2">
-            <Button size="sm" onClick={handleSaveReflection} disabled={savingReflection}>
+            <Button
+              size="sm"
+              onClick={handleSaveReflection}
+              disabled={savingReflection || !reflectionDraft.trim()}
+            >
               <PenLine className="mr-1.5 h-3.5 w-3.5" />
-              {savingReflection ? "Saving..." : "Write reflection"}
+              {savingReflection ? "Saving..." : "Save reflection"}
             </Button>
-            <Button size="sm" variant="ghost" onClick={() => setReflectionPrompt(null)}>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                setReflectionPrompt(null);
+                setReflectionDraft("");
+              }}
+            >
               <X className="mr-1.5 h-3.5 w-3.5" /> Dismiss
             </Button>
           </div>
@@ -296,17 +373,127 @@ export default function ChapterReaderPage() {
       {/* Quiz panel (inline) */}
       {quiz && quiz.length > 0 && (
         <div className="space-y-4 border-t pt-4">
-          <h3 className="text-sm font-medium">Quiz — {quiz.length} questions</h3>
-          {quiz.map((q) => (
-            <div key={q.id} className="rounded-lg border p-4 space-y-2">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h3 className="text-sm font-medium">Quiz — {quiz.length} questions</h3>
+            {quizAverageGrade !== null && (
+              <Badge variant="outline" className="text-xs">
+                Average grade: {quizAverageGrade.toFixed(1)} / 5
+              </Badge>
+            )}
+          </div>
+
+          {quizResults && quizResults.length > 0 && (
+            <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge className="text-xs">
+                  Quiz graded
+                </Badge>
+                <p className="text-sm text-muted-foreground">
+                  Review the feedback below, revise any weak answers, and try again if needed.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button size="sm" variant="outline" onClick={() => setQuizResults(null)}>
+                  Try again
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    setQuiz(null);
+                    setQuizResults(null);
+                  }}
+                >
+                  Close quiz
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {quiz.map((q, index) => {
+            const result = quizResultsById.get(q.id);
+            return (
+            <div key={q.id} className="rounded-lg border p-4 space-y-3">
               <div className="flex items-start justify-between gap-2">
-                <p className="text-sm">{q.question}</p>
+                <p className="text-sm">
+                  <span className="font-medium">Q{index + 1}.</span> {q.question}
+                </p>
                 <Badge variant="outline" className="text-[10px] capitalize shrink-0">
                   {q.bloom_level}
                 </Badge>
               </div>
+              <Textarea
+                value={quizAnswers[q.id] ?? ""}
+                onChange={(e) => handleQuizAnswerChange(q.id, e.target.value)}
+                placeholder="Write your answer..."
+                rows={4}
+                className="text-sm"
+              />
+
+              {result && (
+                <div className="rounded-lg border bg-muted/30 p-3 space-y-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant={result.grade >= 4 ? "default" : "outline"} className="text-xs">
+                      Grade: {result.grade} / 5
+                    </Badge>
+                    <p className="text-sm text-muted-foreground">{result.feedback}</p>
+                  </div>
+
+                  {result.correct_points.length > 0 && (
+                    <div className="space-y-1">
+                      <p className="text-xs font-medium uppercase tracking-wide text-foreground/80">
+                        Strong points
+                      </p>
+                      <ul className="ml-5 list-disc space-y-1 text-sm text-muted-foreground">
+                        {result.correct_points.map((point) => (
+                          <li key={point}>{point}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {result.missing_points.length > 0 && (
+                    <div className="space-y-1">
+                      <p className="text-xs font-medium uppercase tracking-wide text-foreground/80">
+                        Missing points
+                      </p>
+                      <ul className="ml-5 list-disc space-y-1 text-sm text-muted-foreground">
+                        {result.missing_points.map((point) => (
+                          <li key={point}>{point}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {q.expected_answer && (
+                    <div className="space-y-1">
+                      <p className="text-xs font-medium uppercase tracking-wide text-foreground/80">
+                        Reference answer
+                      </p>
+                      <p className="text-sm text-muted-foreground">{q.expected_answer}</p>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
-          ))}
+            );
+          })}
+
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={handleSubmitQuiz} disabled={!canSubmitQuiz || quizSubmitting}>
+              <ClipboardList className="mr-1.5 h-3.5 w-3.5" />
+              {quizSubmitting ? "Submitting..." : quizResults ? "Re-submit quiz" : "Submit quiz"}
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setQuiz(null);
+                setQuizResults(null);
+              }}
+            >
+              Hide quiz
+            </Button>
+          </div>
         </div>
       )}
 

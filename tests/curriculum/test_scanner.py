@@ -146,6 +146,45 @@ def test_content_hash_deterministic(content_dir):
         assert c1.content_hash == c2.content_hash
 
 
+def test_scan_supports_mdx_frontmatter(tmp_path):
+    guide = tmp_path / "01-philosophy-guide"
+    guide.mkdir()
+    (guide / "01-introduction.mdx").write_text(
+        """---
+schema_version: 1
+title: Introduction to Philosophy
+summary: Why philosophy exists.
+objectives:
+  - Understand the major branches.
+checkpoints:
+  - Explain metaphysics versus epistemology.
+references:
+  - curriculum:01-philosophy-guide/02-logic
+content_format: mdx
+---
+
+# Ignored heading
+
+Body text here.
+""",
+        encoding="utf-8",
+    )
+
+    scanner = CurriculumScanner([tmp_path])
+    guides, chapters = scanner.scan()
+
+    assert len(guides) == 1
+    chapter = chapters[0]
+    assert chapter.filename == "01-introduction.mdx"
+    assert chapter.title == "Introduction to Philosophy"
+    assert chapter.summary == "Why philosophy exists."
+    assert chapter.objectives == ["Understand the major branches."]
+    assert chapter.checkpoints == ["Explain metaphysics versus epistemology."]
+    assert chapter.content_references == ["curriculum:01-philosophy-guide/02-logic"]
+    assert chapter.content_format == "mdx"
+    assert chapter.schema_version == 1
+
+
 # --- Skill tree tests ---
 
 

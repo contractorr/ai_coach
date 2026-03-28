@@ -7,6 +7,7 @@ import { toast } from "sonner";
 
 import { ChatAttachmentBadges, ChatPdfAttachmentPicker } from "@/components/ChatPdfAttachments";
 import { ActivityHeatmap } from "@/components/home/ActivityHeatmap";
+import { LearningSnapshotCard } from "@/components/home/LearningSnapshotCard";
 import { ReturnBriefCard } from "@/components/home/ReturnBriefCard";
 import { StatsRow } from "@/components/home/StatsRow";
 import { WhyNowChip } from "@/components/shared/WhyNowChip";
@@ -401,7 +402,7 @@ export default function HomePage() {
                   <StatsRow
                     journalEntries={stats.journalEntries}
                     activeGoals={stats.activeGoals}
-                    threadCount={stats.threadCount}
+                    learningStats={stats.learningStats}
                     loading={stats.loading}
                   />
                 </div>
@@ -409,8 +410,13 @@ export default function HomePage() {
             </div>
           ) : null}
 
-          {/* Heatmap card */}
-          <div className="animate-in fade-in-0 slide-in-from-bottom-2 duration-400 fill-mode-both delay-100">
+          <div className="grid animate-in gap-4 fade-in-0 slide-in-from-bottom-2 duration-400 fill-mode-both delay-100 lg:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]">
+            <LearningSnapshotCard
+              stats={stats.learningStats}
+              nextStep={stats.nextLearningStep}
+              loading={stats.loading}
+            />
+
             <div className="rounded-2xl border bg-card/60 p-5 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/70 sm:p-6">
               <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                 Journal activity
@@ -523,7 +529,7 @@ export default function HomePage() {
 
           {!hasConversation && !loading ? (
             <div className="pt-2 text-center text-sm text-muted-foreground">
-              Write a note, ask a question, or jump into your full <Link href="/journal" className="underline underline-offset-4">journal</Link>.
+              Write a note, ask a question, or pick up your next lesson in <Link href="/learn" className="underline underline-offset-4">Learn</Link>.
             </div>
           ) : null}
         </div>

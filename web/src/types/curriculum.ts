@@ -40,6 +40,9 @@ export interface Guide {
   chapters_completed?: number;
   progress_pct?: number;
   mastery_score?: number;
+  canonical_guide_id?: string | null;
+  learning_programs?: LearningProgram[];
+  applied_assessments?: AppliedAssessment[];
 }
 
 export interface Chapter {
@@ -48,6 +51,12 @@ export interface Chapter {
   title: string;
   filename: string;
   order: number;
+  summary?: string;
+  objectives?: string[];
+  checkpoints?: string[];
+  content_references?: string[];
+  content_format?: string;
+  schema_version?: number;
   word_count: number;
   reading_time_minutes: number;
   has_diagrams: boolean;
@@ -70,6 +79,94 @@ export interface ChapterDetail extends Chapter {
   prev_chapter: string | null;
   next_chapter: string | null;
 }
+
+export type CurriculumVisualBlockType =
+  | "diagram"
+  | "process-flow"
+  | "framework"
+  | "comparison-table"
+  | "chart";
+
+export interface CurriculumVisualNode {
+  id: string;
+  title: string;
+  detail?: string;
+  column?: number;
+  row?: number;
+  tone?: "default" | "accent" | "muted";
+}
+
+export interface CurriculumVisualEdge {
+  from: string;
+  to: string;
+  label?: string;
+}
+
+export interface CurriculumDiagramBlock {
+  type: "diagram";
+  title?: string;
+  note?: string;
+  nodes: CurriculumVisualNode[];
+  edges?: CurriculumVisualEdge[];
+}
+
+export interface CurriculumProcessStep {
+  id: string;
+  title: string;
+  detail?: string;
+  emphasis?: string;
+}
+
+export interface CurriculumProcessFlowBlock {
+  type: "process-flow";
+  title?: string;
+  note?: string;
+  steps: CurriculumProcessStep[];
+}
+
+export interface CurriculumFrameworkPillar {
+  title: string;
+  detail?: string;
+  bullets?: string[];
+}
+
+export interface CurriculumFrameworkBlock {
+  type: "framework";
+  title?: string;
+  note?: string;
+  pillars: CurriculumFrameworkPillar[];
+}
+
+export interface CurriculumComparisonColumn {
+  key: string;
+  label: string;
+}
+
+export interface CurriculumComparisonTableBlock {
+  type: "comparison-table";
+  title?: string;
+  note?: string;
+  columns: CurriculumComparisonColumn[];
+  rows: Array<Record<string, string | number>>;
+}
+
+export interface CurriculumChartBlock {
+  type: "chart";
+  title?: string;
+  note?: string;
+  chartType: "line" | "bar" | "scatter";
+  xLabel: string;
+  yLabel?: string;
+  series?: string[];
+  data: Array<Record<string, string | number>>;
+}
+
+export type CurriculumVisualBlock =
+  | CurriculumDiagramBlock
+  | CurriculumProcessFlowBlock
+  | CurriculumFrameworkBlock
+  | CurriculumComparisonTableBlock
+  | CurriculumChartBlock;
 
 export interface UserChapterProgress {
   user_id: string;
@@ -108,6 +205,14 @@ export interface ReviewGradeResult {
   missing_points: string[];
 }
 
+export interface QuizResult {
+  question_id: string;
+  grade: number;
+  feedback: string;
+  correct_points: string[];
+  missing_points: string[];
+}
+
 export interface QuizQuestion {
   id: string;
   chapter_id: string;
@@ -131,12 +236,46 @@ export interface LearningStats {
   daily_activity: Record<string, number>;
 }
 
+export type RecommendationType = "continue" | "enrolled" | "ready" | "entry" | "fallback";
+
+export interface RecommendationSignal {
+  kind: "progress" | "readiness" | "context" | "industry" | "time";
+  label: string;
+  detail: string;
+}
+
+export type AppliedAssessmentType =
+  | "teach_back"
+  | "decision_brief"
+  | "scenario_analysis"
+  | "case_memo";
+
+export type AppliedAssessmentStage =
+  | "chapter_completion"
+  | "review"
+  | "scenario_practice"
+  | "capstone";
+
+export interface AppliedAssessment {
+  type: AppliedAssessmentType;
+  stage: AppliedAssessmentStage;
+  title: string;
+  summary: string;
+  deliverable: string;
+  prompt: string;
+  evaluation_focus: string[];
+}
+
 export interface NextRecommendation {
   guide_id: string | null;
   guide_title?: string;
   chapter: Chapter | null;
   reason: string;
   action?: "enroll";
+  recommendation_type?: RecommendationType;
+  signals?: RecommendationSignal[];
+  matched_programs?: Array<LearningProgram & { match_reason?: string }>;
+  applied_assessments?: AppliedAssessment[];
 }
 
 export interface ReadyGuide {
@@ -182,6 +321,17 @@ export interface Track {
   guide_ids: string[];
 }
 
+export interface LearningProgram {
+  id: string;
+  title: string;
+  audience: string;
+  description: string;
+  color: string;
+  outcomes: string[];
+  guide_ids: string[];
+  applied_module_ids: string[];
+}
+
 export interface RelatedChapter {
   chapter_id: string;
   guide_id: string;
@@ -219,6 +369,7 @@ export interface SkillTreeEdge {
 
 export interface SkillTreeResponse {
   tracks: Record<string, Track>;
+  programs: LearningProgram[];
   nodes: SkillTreeNode[];
   edges: SkillTreeEdge[];
 }

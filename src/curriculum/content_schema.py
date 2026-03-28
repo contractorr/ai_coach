@@ -101,7 +101,9 @@ def list_curriculum_content_files(directory: Path) -> list[Path]:
 def iter_curriculum_content_files(root: Path) -> list[Path]:
     files = [path for path in root.rglob("*") if is_curriculum_content_file(path)]
     deduped: dict[tuple[str, str], Path] = {}
-    for path in sorted(files, key=lambda item: (str(item.parent), item.stem, item.suffix != ".mdx")):
+    for path in sorted(
+        files, key=lambda item: (str(item.parent), item.stem, item.suffix != ".mdx")
+    ):
         key = (str(path.parent), path.stem)
         existing = deduped.get(key)
         if existing is None or path.suffix.lower() == ".mdx":
@@ -125,8 +127,12 @@ def load_curriculum_document(path: Path) -> CurriculumDocument:
         )
         + extract_content_references(body)
     )
-    content_format = _normalize_scalar(metadata.get("content_format")) or _infer_content_format(path)
-    schema_version = _coerce_int(metadata.get("schema_version"), default=1 if has_frontmatter else 0)
+    content_format = _normalize_scalar(metadata.get("content_format")) or _infer_content_format(
+        path
+    )
+    schema_version = _coerce_int(
+        metadata.get("schema_version"), default=1 if has_frontmatter else 0
+    )
 
     return CurriculumDocument(
         path=str(path),
@@ -381,7 +387,9 @@ def migrate_curriculum_corpus(
 
 def audit_curriculum_root(source_root: Path) -> CurriculumAuditReport:
     manifest = _load_curriculum_manifest(source_root)
-    aliases = manifest.get("guide_aliases", {}) if isinstance(manifest.get("guide_aliases"), dict) else {}
+    aliases = (
+        manifest.get("guide_aliases", {}) if isinstance(manifest.get("guide_aliases"), dict) else {}
+    )
     tracks = manifest.get("tracks", {}) if isinstance(manifest.get("tracks"), dict) else {}
     programs = manifest.get("programs", []) if isinstance(manifest.get("programs"), list) else []
 
@@ -867,7 +875,9 @@ def _lint_curriculum_manifest(
     return issues
 
 
-def _lint_prerequisite_cycles(graph: dict[str, list[str]], manifest_path: Path) -> list[CurriculumLintIssue]:
+def _lint_prerequisite_cycles(
+    graph: dict[str, list[str]], manifest_path: Path
+) -> list[CurriculumLintIssue]:
     states: dict[str, int] = {}
     stack: list[str] = []
     cycle_paths: dict[tuple[str, ...], list[str]] = {}

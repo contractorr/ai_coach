@@ -6,9 +6,9 @@ from datetime import datetime
 from pathlib import Path
 from uuid import uuid4
 
-import frontmatter
 import structlog
 
+import frontmatter
 from journal.storage import JournalStorage
 
 logger = structlog.get_logger()

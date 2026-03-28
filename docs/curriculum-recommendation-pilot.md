@@ -1,8 +1,10 @@
 # Curriculum Recommendation Pilot
 
 This document scopes the next-step recommendation pilot for Learn. The current `/api/curriculum/next`
-logic is DAG-aware, but it still treats users with very different roles, goals, industries, and
-time budgets too similarly.
+logic is momentum- and graph-aware, but it still needs explicit ranking signals for users with
+different roles, goals, industries, and time budgets. The same pilot also exposes a lightweight
+applied-assessment plan so the recommendation surface points toward transfer, not just content
+consumption.
 
 ## Pilot objective
 
@@ -20,6 +22,12 @@ The pilot should continue to use the existing candidate buckets:
 
 The pilot changes ranking inside those buckets instead of inventing a separate recommendation
 system.
+
+## Recommendation inputs
+
+- Graph state: last-read chapter, enrolled guides, unlocked guides, and entry points.
+- Profile context: current role, short/long-term goals, industries watching, active projects, and weekly time budget.
+- Curriculum context: manifest-backed learning programs, program outcomes, and applied industry modules.
 
 ## Recommendation rules
 
@@ -65,7 +73,7 @@ When there is more than one enrolled incomplete guide, rank them by:
 
 - Primary source: `current_role` and `career_stage` from `UserProfile`
 - Secondary source: program audience descriptions in `content/curriculum/skill_tree.yaml`
-- Use: prefer programs that match the learner's operating context, for example operator-facing AI material for managers deploying AI, or strategy/investing paths for investor/operator profiles
+- Use: prefer programs that match the learner's operating context
 
 ### Time-budget fit
 
@@ -75,25 +83,38 @@ When there is more than one enrolled incomplete guide, rank them by:
 
 ## Scoring shape
 
-The pilot does not need a perfect machine-learned ranker. A transparent weighted score is enough:
+The pilot does not need a machine-learned ranker. A transparent weighted score is enough:
 
-- `momentum_bonus`: keep existing active progress on top when possible
-- `goal_match`: strongest positive weight
-- `industry_or_role_match`: second strongest weight
-- `program_fit`: moderate weight
-- `time_budget_fit`: moderate weight
+- `momentum_bonus`
+- `goal_match`
+- `industry_or_role_match`
+- `program_fit`
+- `time_budget_fit`
 
 Suggested first-pass interpretation:
 
-- **low time budget**: `<= 3` hours/week
-- **medium time budget**: `4-7` hours/week
-- **high time budget**: `>= 8` hours/week
+- low time budget: `<= 3` hours/week
+- medium time budget: `4-7` hours/week
+- high time budget: `>= 8` hours/week
 
-Time-fit heuristics:
+## Applied assessment types
 
-- low budget prefers continuing the current chapter, short guides, and capstones with obvious transfer payoff
-- medium budget is neutral across most guide sizes
-- high budget can justify longer foundational ramps
+- `teach_back`
+  - Stage: `chapter_completion`
+  - Output: short note or voice memo translating a chapter into applied language
+  - Use: checks comprehension and transfer after each chapter
+- `decision_brief`
+  - Stage: `review`
+  - Output: one-page recommendation with assumptions, trade-offs, and a clear call
+  - Use: turns spaced review into applied reasoning instead of recall only
+- `scenario_analysis`
+  - Stage: `scenario_practice`
+  - Output: base/stress cases with leading indicators and response triggers
+  - Use: pressure-tests frameworks mid-guide against realistic uncertainty
+- `case_memo`
+  - Stage: `capstone`
+  - Output: 1-2 page memo with recommendation, rationale, execution plan, and failure modes
+  - Use: serves as the guide/program capstone artifact
 
 ## Required data dependencies
 
@@ -109,17 +130,15 @@ Time-fit heuristics:
 | goal intent | `GoalTracker.get_goals()` plus `UserProfile.goals_short_term`, `goals_long_term`, `aspirations` | match Learn to what the user is actually trying to achieve | use only curriculum progress |
 | time budget | `UserProfile.constraints.time_per_week` or `weekly_hours_available` | avoid recommending heavy cold starts to constrained learners | assume medium budget |
 
-## Minimum backend changes
+## Pilot surface area
 
-- Add a recommendation-ranking helper, for example `curriculum.personalization`, that scores candidate guides and chapters using the signals above.
-- Extend `/api/curriculum/next` to return not just `reason`, but also structured recommendation signals such as `matched_programs`, `matched_goals`, `time_fit`, and `why_now`.
-- Keep the current response shape backward-compatible by making the new fields additive.
-
-## Minimum frontend changes
-
-- Update the Learn landing "Next up" card to display why the item was chosen, not just what it is.
-- When the next action is enrollment, show recommendation chips such as matched program, industry fit, or time fit.
-- Reuse the existing guide detail and Learn landing surfaces; do not build a separate recommendation workspace for the pilot.
+- Backend
+  - Extend `/api/curriculum/next` to return recommendation signals, matched programs, and assessment previews.
+  - Extend guide detail payloads to expose the same assessment plan.
+- Frontend
+  - Show a visible personalized "Next up" card even when the next action is guide enrollment.
+  - Show recommendation chips or explanation signals on Learn landing.
+  - Show the assessment pilot on Learn landing and guide detail views.
 
 ## Pilot rollout
 

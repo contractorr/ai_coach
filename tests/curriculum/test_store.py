@@ -300,6 +300,138 @@ def test_get_chapter_metadata(store, sample_guide, sample_chapters):
     assert ch["word_count"] == 2000
 
 
+def test_reconcile_guide_aliases_merges_user_data_and_removes_alias_catalog_rows(store):
+    alias_guide = Guide(
+        id="32-engineering-guide",
+        title="Engineering Legacy",
+        category=GuideCategory.TECHNOLOGY,
+        difficulty=DifficultyLevel.INTERMEDIATE,
+        source_dir="/content/32-engineering-guide",
+        chapter_count=1,
+        total_word_count=1200,
+        total_reading_time_minutes=5,
+        has_glossary=False,
+        prerequisites=[],
+    )
+    canonical_guide = Guide(
+        id="35-engineering-guide",
+        title="Engineering",
+        category=GuideCategory.TECHNOLOGY,
+        difficulty=DifficultyLevel.INTERMEDIATE,
+        source_dir="/content/35-engineering-guide",
+        chapter_count=1,
+        total_word_count=2200,
+        total_reading_time_minutes=9,
+        has_glossary=False,
+        prerequisites=[],
+    )
+    alias_chapter = Chapter(
+        id="32-engineering-guide/01-introduction",
+        guide_id="32-engineering-guide",
+        title="Legacy intro",
+        filename="01-introduction.md",
+        order=0,
+        word_count=1200,
+        reading_time_minutes=5,
+        content_hash="legacy123",
+    )
+    canonical_chapter = Chapter(
+        id="35-engineering-guide/01-introduction",
+        guide_id="35-engineering-guide",
+        title="Canonical intro",
+        filename="01-introduction.md",
+        order=0,
+        word_count=2200,
+        reading_time_minutes=9,
+        content_hash="canon123",
+    )
+    store.sync_catalog([alias_guide, canonical_guide], [alias_chapter, canonical_chapter])
+
+    user_id = "test-user"
+    store.enroll(user_id, "35-engineering-guide")
+    store.enroll(user_id, "32-engineering-guide", linked_goal_id="goal-legacy")
+    store.update_progress(
+        user_id=user_id,
+        chapter_id="35-engineering-guide/01-introduction",
+        guide_id="35-engineering-guide",
+        status="in_progress",
+        reading_time_seconds=30,
+    )
+    store.update_progress(
+        user_id=user_id,
+        chapter_id="32-engineering-guide/01-introduction",
+        guide_id="32-engineering-guide",
+        status="completed",
+        reading_time_seconds=45,
+    )
+    store.add_review_items(
+        [
+            ReviewItem(
+                id="review-legacy",
+                user_id=user_id,
+                chapter_id="32-engineering-guide/01-introduction",
+                guide_id="32-engineering-guide",
+                question="Legacy question",
+                expected_answer="Legacy answer",
+                bloom_level=BloomLevel.REMEMBER,
+                item_type=ReviewItemType.QUIZ,
+                next_review=datetime.utcnow(),
+                created_at=datetime.utcnow(),
+                content_hash="legacy123",
+            )
+        ]
+    )
+
+    stats = store.reconcile_guide_aliases(
+        {"32-engineering-guide": "35-engineering-guide"}
+    )
+
+    assert stats["aliases_processed"] == 1
+    assert stats["enrollments_merged"] == 1
+    assert stats["progress_rows_migrated"] == 1
+    assert stats["review_items_migrated"] == 1
+    assert store.get_guide("32-engineering-guide") is None
+    assert store.get_chapter("32-engineering-guide/01-introduction") is None
+
+    enrollments = store.get_enrollments(user_id)
+    assert len(enrollments) == 1
+    assert enrollments[0]["guide_id"] == "35-engineering-guide"
+    assert enrollments[0]["linked_goal_id"] == "goal-legacy"
+
+    progress = store.get_chapter_progress(user_id, "35-engineering-guide/01-introduction")
+    assert progress is not None
+    assert progress["guide_id"] == "35-engineering-guide"
+    assert progress["status"] == "completed"
+    assert progress["reading_time_seconds"] == 75
+    assert (
+        store.get_chapter_progress(user_id, "32-engineering-guide/01-introduction") is None
+    )
+
+    review_item = store.get_review_item("review-legacy")
+    assert review_item is not None
+    assert review_item["guide_id"] == "35-engineering-guide"
+    assert review_item["chapter_id"] == "35-engineering-guide/01-introduction"
+
+
+def test_schema_v4_chapter_metadata_columns(store, sample_guide, sample_chapters):
+    sample_chapters[0].summary = "An introduction to philosophical inquiry."
+    sample_chapters[0].objectives = ["Understand the core branches of philosophy."]
+    sample_chapters[0].checkpoints = ["Explain what philosophy studies."]
+    sample_chapters[0].content_references = ["curriculum:01-philosophy-guide/02-logic"]
+    sample_chapters[0].content_format = "mdx"
+    sample_chapters[0].schema_version = 1
+
+    store.sync_catalog([sample_guide], sample_chapters)
+
+    chapter = store.get_chapter("01-philosophy-guide/01-introduction")
+    assert chapter["summary"] == "An introduction to philosophical inquiry."
+    assert chapter["objectives"] == ["Understand the core branches of philosophy."]
+    assert chapter["checkpoints"] == ["Explain what philosophy studies."]
+    assert chapter["content_references"] == ["curriculum:01-philosophy-guide/02-logic"]
+    assert chapter["content_format"] == "mdx"
+    assert chapter["schema_version"] == 1
+
+
 def test_schema_v2_item_type_column(store, sample_guide, sample_chapters):
     """Schema v2 migration adds item_type column."""
     store.sync_catalog([sample_guide], sample_chapters)
@@ -578,6 +710,46 @@ def test_list_tracks_uncategorized(store, sample_guide, sample_chapters):
     assert uncategorized["guide_count"] == 1
 
 
+def test_list_tracks_excludes_superseded_guides(store, sample_chapters):
+    guide1 = Guide(
+        id="01-philosophy-guide",
+        title="Philosophy",
+        category=GuideCategory.HUMANITIES,
+        difficulty=DifficultyLevel.INTRODUCTORY,
+        chapter_count=3,
+        prerequisites=[],
+        track="foundations",
+    )
+    guide2 = Guide(
+        id="02-legacy-guide",
+        title="Legacy",
+        category=GuideCategory.HUMANITIES,
+        difficulty=DifficultyLevel.INTRODUCTORY,
+        chapter_count=1,
+        prerequisites=[],
+        track="foundations",
+    )
+    legacy_chapter = Chapter(
+        id="02-legacy-guide/01-introduction",
+        guide_id="02-legacy-guide",
+        title="Legacy Intro",
+        filename="01-introduction.md",
+        order=0,
+        word_count=500,
+    )
+    store.sync_catalog([guide1, guide2], sample_chapters + [legacy_chapter])
+
+    tracks = store.list_tracks(
+        "test-user",
+        {"foundations": {"title": "Foundations", "description": "Core", "color": "#6366f1"}},
+        excluded_guide_ids={"02-legacy-guide"},
+    )
+
+    foundations = next(t for t in tracks if t["id"] == "foundations")
+    assert foundations["guide_count"] == 1
+    assert foundations["guide_ids"] == ["01-philosophy-guide"]
+
+
 # --- get_tree_data tests ---
 
 
@@ -650,3 +822,63 @@ def test_get_tree_data_mastery(store, sample_guide, sample_chapters):
     )
     data = store.get_tree_data(user_id)
     assert data[0]["mastery_score"] > 0
+
+
+def test_get_tree_data_excludes_superseded_guides(store, sample_guide, sample_chapters):
+    legacy_guide = Guide(
+        id="02-legacy-guide",
+        title="Legacy",
+        category=GuideCategory.HUMANITIES,
+        difficulty=DifficultyLevel.INTRODUCTORY,
+        chapter_count=1,
+        prerequisites=[],
+    )
+    legacy_chapter = Chapter(
+        id="02-legacy-guide/01-introduction",
+        guide_id="02-legacy-guide",
+        title="Legacy Intro",
+        filename="01-introduction.md",
+        order=0,
+        word_count=500,
+    )
+    store.sync_catalog([sample_guide, legacy_guide], sample_chapters + [legacy_chapter])
+
+    data = store.get_tree_data("test-user", excluded_guide_ids={"02-legacy-guide"})
+    assert [node["id"] for node in data] == ["01-philosophy-guide"]
+
+
+def test_get_ready_guides_excludes_superseded_guides(store, sample_guide, sample_chapters):
+    ready_guide = Guide(
+        id="02-legacy-guide",
+        title="Legacy",
+        category=GuideCategory.HUMANITIES,
+        difficulty=DifficultyLevel.INTERMEDIATE,
+        chapter_count=1,
+        prerequisites=["01-philosophy-guide"],
+    )
+    ready_chapter = Chapter(
+        id="02-legacy-guide/01-introduction",
+        guide_id="02-legacy-guide",
+        title="Legacy Intro",
+        filename="01-introduction.md",
+        order=0,
+        word_count=500,
+    )
+    store.sync_catalog([sample_guide, ready_guide], sample_chapters + [ready_chapter])
+    user_id = "test-user"
+    store.enroll(user_id, "01-philosophy-guide")
+    store.update_progress(
+        user_id=user_id,
+        chapter_id="01-philosophy-guide/01-introduction",
+        guide_id="01-philosophy-guide",
+        status="completed",
+    )
+    store.update_progress(
+        user_id=user_id,
+        chapter_id="01-philosophy-guide/02-logic",
+        guide_id="01-philosophy-guide",
+        status="completed",
+    )
+
+    ready = store.get_ready_guides(user_id, excluded_guide_ids={"02-legacy-guide"})
+    assert ready == []

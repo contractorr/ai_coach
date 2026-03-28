@@ -2,6 +2,9 @@
 
 from unittest.mock import AsyncMock, patch
 
+from profile.storage import ProfileStorage, UserProfile
+from web.deps import get_user_paths
+
 
 def test_tree_endpoint(client, auth_headers):
     """GET /api/curriculum/tree returns tracks, nodes, edges."""
@@ -12,10 +15,19 @@ def test_tree_endpoint(client, auth_headers):
     assert resp.status_code == 200
     data = resp.json()
     assert "tracks" in data
+    assert "programs" in data
     assert "nodes" in data
     assert "edges" in data
+    assert isinstance(data["programs"], list)
     assert isinstance(data["nodes"], list)
     assert isinstance(data["edges"], list)
+
+    node_ids = {node["id"] for node in data["nodes"]}
+    assert "05-game-theory-strategic-interaction-guide" not in node_ids
+    assert "32-engineering-guide" not in node_ids
+    assert "34-game-theory-strategic-interaction-guide" in node_ids
+    assert "35-engineering-guide" in node_ids
+    assert any(program["id"] == "business-acumen" for program in data["programs"])
 
     # If nodes exist, check structure
     if data["nodes"]:
@@ -32,6 +44,45 @@ def test_ready_endpoint(client, auth_headers):
     resp = client.get("/api/curriculum/ready", headers=auth_headers)
     assert resp.status_code == 200
     assert isinstance(resp.json(), list)
+
+
+def test_list_guides_hides_superseded_guides_and_exposes_programs(client, auth_headers):
+    client.post("/api/curriculum/sync", headers=auth_headers)
+    guides = client.get("/api/curriculum/guides", headers=auth_headers).json()
+    guide_ids = {guide["id"] for guide in guides}
+
+    assert "05-game-theory-strategic-interaction-guide" not in guide_ids
+    assert "32-engineering-guide" not in guide_ids
+
+    philosophy = next(guide for guide in guides if guide["id"] == "01-philosophy-guide")
+    assert philosophy["canonical_guide_id"] is None
+    assert any(program["id"] == "decision-quality" for program in philosophy["learning_programs"])
+
+
+def test_get_guide_resolves_superseded_alias_to_canonical_guide(client, auth_headers):
+    client.post("/api/curriculum/sync", headers=auth_headers)
+
+    resp = client.get(
+        "/api/curriculum/guides/32-engineering-guide",
+        headers=auth_headers,
+    )
+    assert resp.status_code == 200
+    payload = resp.json()
+    assert payload["id"] == "35-engineering-guide"
+    assert payload["chapter_count"] >= 1
+
+
+def test_get_chapter_resolves_superseded_alias_to_canonical_chapter(client, auth_headers):
+    client.post("/api/curriculum/sync", headers=auth_headers)
+
+    resp = client.get(
+        "/api/curriculum/guides/32-engineering-guide/chapters/01-introduction",
+        headers=auth_headers,
+    )
+    assert resp.status_code == 200
+    payload = resp.json()
+    assert payload["guide_id"] == "35-engineering-guide"
+    assert payload["id"] == "35-engineering-guide/01-introduction"
 
 
 def test_next_returns_entry_point_when_no_enrollment(client, auth_headers):
@@ -80,6 +131,53 @@ def test_next_continues_enrolled_guide(client, auth_headers):
     data = resp.json()
     assert data["guide_id"] == guide_id
     assert "chapter" in data
+    assert "signals" in data
+    assert "applied_assessments" in data
+
+
+def test_next_personalizes_entry_point_with_profile(client, auth_headers):
+    client.post("/api/curriculum/sync", headers=auth_headers)
+
+    profile_path = get_user_paths("user-123")["profile_path"]
+    ProfileStorage(profile_path).save(
+        UserProfile(
+            current_role="Operations manager",
+            goals_short_term="Build business acumen and learn to read a P&L.",
+            weekly_hours_available=3,
+        )
+    )
+
+    resp = client.get("/api/curriculum/next", headers=auth_headers)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["guide_id"] == "28-accounting"
+    assert data["recommendation_type"] == "entry"
+    assert any(program["id"] == "business-acumen" for program in data["matched_programs"])
+    assert any(signal["kind"] in {"context", "time"} for signal in data["signals"])
+
+
+def test_get_guide_exposes_applied_assessment_plan(client, auth_headers):
+    client.post("/api/curriculum/sync", headers=auth_headers)
+
+    profile_path = get_user_paths("user-123")["profile_path"]
+    ProfileStorage(profile_path).save(
+        UserProfile(
+            current_role="Healthcare operator",
+            industries_watching=["healthcare"],
+            weekly_hours_available=4,
+        )
+    )
+
+    guide = client.get("/api/curriculum/guides/37-ai-ml-fundamentals-guide", headers=auth_headers)
+    assert guide.status_code == 200
+    payload = guide.json()
+    assert len(payload["applied_assessments"]) == 4
+    assert {assessment["stage"] for assessment in payload["applied_assessments"]} == {
+        "chapter_completion",
+        "review",
+        "scenario_practice",
+        "capstone",
+    }
 
 
 def test_placement_generate_disabled(client, auth_headers):

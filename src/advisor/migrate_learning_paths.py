@@ -3,8 +3,9 @@
 import re
 from pathlib import Path
 
-import frontmatter
 import structlog
+
+import frontmatter
 
 from .goals import GoalTracker, get_goal_defaults
 
