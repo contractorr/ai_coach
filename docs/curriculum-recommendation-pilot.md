@@ -1,0 +1,139 @@
+# Curriculum Recommendation Pilot
+
+This document scopes the next-step recommendation pilot for Learn. The current `/api/curriculum/next`
+logic is DAG-aware, but it still treats users with very different roles, goals, industries, and
+time budgets too similarly.
+
+## Pilot objective
+
+Keep the current momentum-first behavior, but personalize what comes next when the system needs to
+choose between multiple valid guides or modules.
+
+## Candidate pool
+
+The pilot should continue to use the existing candidate buckets:
+
+1. next chapter in last-read active guide
+2. next chapter in another enrolled incomplete guide
+3. ready-to-start guide (all prerequisites complete)
+4. entry-point guide with no prerequisites
+
+The pilot changes ranking inside those buckets instead of inventing a separate recommendation
+system.
+
+## Recommendation rules
+
+### Rule 1: preserve momentum first
+
+- If the learner has an active guide with a natural next chapter, keep recommending that chapter.
+- Only break momentum when the current path is clearly mismatched with stated goals or constraints.
+
+### Rule 2: rank enrolled guides by context fit
+
+When there is more than one enrolled incomplete guide, rank them by:
+
+1. goal match
+2. industry or role match
+3. program fit
+4. time-budget fit
+
+### Rule 3: rank ready-to-start guides before generic entry points
+
+- Ready guides still beat cold-start entry points.
+- Within ready guides, apply the same context-fit scoring so the learner sees the most relevant unlocked option, not just the first one in DAG order.
+
+### Rule 4: personalize entry-point suggestions
+
+- When the learner has no active or ready guides, choose an entry-point guide that best fits role, industry, goals, and time budget.
+- Industry capstones should never be recommended as true entry points; they remain late-stage applied modules.
+
+## Context signals
+
+### Goal match
+
+- Primary source: active goals from `GoalTracker`
+- Secondary source: `goals_short_term`, `goals_long_term`, `aspirations`, and `active_projects` from `UserProfile`
+- Use: prioritize guides whose program outcomes or role descriptions align with the learner's explicit near-term direction
+
+### Industry match
+
+- Primary source: `industries_watching` from `UserProfile`
+- Secondary source: current role string, active projects, and program mapping for industry modules
+- Use: rank applied modules and sector-adjacent guides higher when the learner is clearly targeting a sector
+
+### Role match
+
+- Primary source: `current_role` and `career_stage` from `UserProfile`
+- Secondary source: program audience descriptions in `content/curriculum/skill_tree.yaml`
+- Use: prefer programs that match the learner's operating context, for example operator-facing AI material for managers deploying AI, or strategy/investing paths for investor/operator profiles
+
+### Time-budget fit
+
+- Primary source: `constraints.time_per_week`
+- Fallback: `weekly_hours_available`
+- Use: prefer lighter recommendations when time is scarce and longer cold-start guides when the learner has more available study time
+
+## Scoring shape
+
+The pilot does not need a perfect machine-learned ranker. A transparent weighted score is enough:
+
+- `momentum_bonus`: keep existing active progress on top when possible
+- `goal_match`: strongest positive weight
+- `industry_or_role_match`: second strongest weight
+- `program_fit`: moderate weight
+- `time_budget_fit`: moderate weight
+
+Suggested first-pass interpretation:
+
+- **low time budget**: `<= 3` hours/week
+- **medium time budget**: `4-7` hours/week
+- **high time budget**: `>= 8` hours/week
+
+Time-fit heuristics:
+
+- low budget prefers continuing the current chapter, short guides, and capstones with obvious transfer payoff
+- medium budget is neutral across most guide sizes
+- high budget can justify longer foundational ramps
+
+## Required data dependencies
+
+| Dependency | Current source | Why it is needed | Fallback |
+|---|---|---|---|
+| active guide state | `CurriculumStore.get_last_read_chapter()`, `get_enrollments()`, `get_next_chapter()` | preserve momentum and know what can be continued now | DAG-only behavior |
+| ready guides | `CurriculumStore.get_ready_guides()` | preserve prerequisite safety while still personalizing | entry-point suggestions |
+| guide metadata | `CurriculumStore.list_guides()` and `get_guide()` | chapter count, reading-time estimate, track, prerequisites | omit time-fit nuance |
+| learning programs | `content/curriculum/skill_tree.yaml` `programs` section | connect guides/modules to target outcomes and audiences | use track only |
+| fuller guide roles | `docs/curriculum-program-map.md` | optional richer mapping for non-program guides during pilot tuning | rely on manifest-only programs |
+| profile role and stage | `UserProfile.current_role`, `career_stage` | distinguish operator, specialist, founder, investor, etc. | no role weighting |
+| industry intent | `UserProfile.industries_watching` | rank sector modules and adjacent guides | infer weakly from goals/projects |
+| goal intent | `GoalTracker.get_goals()` plus `UserProfile.goals_short_term`, `goals_long_term`, `aspirations` | match Learn to what the user is actually trying to achieve | use only curriculum progress |
+| time budget | `UserProfile.constraints.time_per_week` or `weekly_hours_available` | avoid recommending heavy cold starts to constrained learners | assume medium budget |
+
+## Minimum backend changes
+
+- Add a recommendation-ranking helper, for example `curriculum.personalization`, that scores candidate guides and chapters using the signals above.
+- Extend `/api/curriculum/next` to return not just `reason`, but also structured recommendation signals such as `matched_programs`, `matched_goals`, `time_fit`, and `why_now`.
+- Keep the current response shape backward-compatible by making the new fields additive.
+
+## Minimum frontend changes
+
+- Update the Learn landing "Next up" card to display why the item was chosen, not just what it is.
+- When the next action is enrollment, show recommendation chips such as matched program, industry fit, or time fit.
+- Reuse the existing guide detail and Learn landing surfaces; do not build a separate recommendation workspace for the pilot.
+
+## Pilot rollout
+
+### Phase 1
+
+- Add structured recommendation signals to `/api/curriculum/next`.
+- Personalize ready-guide and entry-point selection using profile and goals.
+
+### Phase 2
+
+- Personalize ranking across multiple enrolled incomplete guides.
+- Add frontend explanation chips so users can see why a guide is being suggested now.
+
+### Phase 3
+
+- Tune weights using real usage and completion feedback.
+- Expand beyond manifest-backed programs only after the program-map metadata is stable.

@@ -208,6 +208,13 @@ Learn is a structured study workspace that turns a corpus of markdown guides int
 | Circular prereqs (shouldn't exist) | Guide never appears in ready list |
 | Guide prereq points to nonexistent guide | Guide excluded from ready list |
 
+### Personalized next-step recommendations (planned)
+
+- The next-step flow should remain DAG-aware, but it should rank valid candidates using learner context such as role, industry intent, goals, and time budget.
+- The pilot should stay inside the existing Learn entry points: `/api/curriculum/next`, the Learn landing card, and guide-detail enrollment CTAs.
+- Recommendation explanations should be user-visible so the system can justify why a guide is suggested now.
+- The current pilot scope and data dependencies live in `docs/curriculum-recommendation-pilot.md`.
+
 ### Placement bypass (test-out)
 
 - Advanced users can "test out" of a guide by taking a placement quiz covering all chapters.

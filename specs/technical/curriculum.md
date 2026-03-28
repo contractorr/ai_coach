@@ -331,6 +331,13 @@ Returns `store.get_ready_guides(user_id)`.
 
 Priority: (1) continue last-read, (2) next enrolled incomplete, (3) first from `get_ready_guides()` with `action: "enroll"`, (4) first entry-point with `action: "enroll"`, (5) fallback.
 
+#### Personalized next-step recommendations (planned)
+
+- Keep `/api/curriculum/next` as the pilot surface, but extend ranking with profile, goal, industry, and time-budget signals.
+- Additive response fields should include structured explanation data such as `matched_programs`, `matched_goals`, `time_fit`, and `why_now`.
+- Ranking inputs should come from existing stores first: curriculum progress, manifest program metadata, `UserProfile`, and active goals. No separate recommendation datastore is required for the pilot.
+- The detailed pilot rules and dependency map live in `docs/curriculum-recommendation-pilot.md`.
+
 ### Placement cache design
 
 Module-level dict: `_placement_cache: dict[tuple[str, str], dict]` keyed by `(user_id, guide_id)`. Value: `{questions: list[dict], created_at: datetime}`. TTL: 1 hour. Checked on submit; stale entries return 410.
