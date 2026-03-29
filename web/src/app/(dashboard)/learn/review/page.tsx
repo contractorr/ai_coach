@@ -61,7 +61,7 @@ export default function ReviewSessionPage() {
     answer: string,
     selfGrade?: number
   ): Promise<ReviewSubmissionResult | null> => {
-    if (!token) return;
+    if (!token) return null;
     try {
       const result = await apiFetch<ReviewSubmissionResult>(
         `/api/v1/curriculum/review/${reviewId}/grade`,

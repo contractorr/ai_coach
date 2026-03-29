@@ -6,6 +6,8 @@ from pathlib import Path
 
 import structlog
 
+from storage_paths import get_user_paths
+
 logger = structlog.get_logger()
 
 
@@ -176,7 +178,6 @@ class SupplementaryRetriever:
             from curriculum.personalization import build_learning_signal_map
             from curriculum.store import CurriculumStore
             from journal.storage import JournalStorage
-            from web.deps import get_user_paths
 
             paths = get_user_paths(self._user_id)
             db_path = Path(paths["data_dir"]) / "curriculum.db"
