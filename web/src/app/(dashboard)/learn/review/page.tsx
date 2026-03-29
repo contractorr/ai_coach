@@ -10,7 +10,7 @@ import { apiFetch } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 
 import { ReviewCard } from "@/components/curriculum/ReviewCard";
-import type { ReviewItem } from "@/types/curriculum";
+import type { ReviewItem, ReviewSubmissionResult } from "@/types/curriculum";
 
 export default function ReviewSessionPage() {
   const token = useToken();
@@ -60,10 +60,10 @@ export default function ReviewSessionPage() {
     reviewId: string,
     answer: string,
     selfGrade?: number
-  ) => {
+  ): Promise<ReviewSubmissionResult | null> => {
     if (!token) return;
     try {
-      const result = await apiFetch<{ grade: number }>(
+      const result = await apiFetch<ReviewSubmissionResult>(
         `/api/v1/curriculum/review/${reviewId}/grade`,
         {
           method: "POST",
@@ -75,15 +75,18 @@ export default function ReviewSessionPage() {
         token
       );
       setGrades((prev) => [...prev, result.grade]);
-
-      // Move to next or finish
-      if (current + 1 >= items.length) {
-        setDone(true);
-      } else {
-        setCurrent((prev) => prev + 1);
-      }
+      return result;
     } catch (e) {
       toast.error((e as Error).message);
+      return null;
+    }
+  };
+
+  const handleNext = () => {
+    if (current + 1 >= items.length) {
+      setDone(true);
+    } else {
+      setCurrent((prev) => prev + 1);
     }
   };
 
@@ -143,7 +146,16 @@ export default function ReviewSessionPage() {
         />
       </div>
 
-      {item && <ReviewCard item={item} onGrade={handleGrade} showAnswer />}
+      {item && (
+        <ReviewCard
+          key={item.id}
+          item={item}
+          onGrade={handleGrade}
+          onNext={handleNext}
+          nextLabel={current + 1 >= items.length ? "Finish session" : "Next item"}
+          showAnswer
+        />
+      )}
     </div>
   );
 }

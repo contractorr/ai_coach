@@ -1,19 +1,16 @@
 "use client";
 
 import { useState } from "react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
-import type { ReviewItem, ReviewItemType } from "@/types/curriculum";
+import type {
+  ReviewItem,
+  ReviewItemType,
+  ReviewSubmissionResult,
+} from "@/types/curriculum";
 
-const gradeLabels = [
-  "Blackout",
-  "Incorrect",
-  "Hard",
-  "Okay",
-  "Good",
-  "Perfect",
-];
+const gradeLabels = ["Blackout", "Incorrect", "Hard", "Okay", "Good", "Perfect"];
 
 const gradeColors = [
   "bg-red-500",
@@ -26,22 +23,35 @@ const gradeColors = [
 
 interface ReviewCardProps {
   item: ReviewItem;
-  onGrade: (reviewId: string, answer: string, selfGrade?: number) => Promise<void>;
+  onGrade: (
+    reviewId: string,
+    answer: string,
+    selfGrade?: number
+  ) => Promise<ReviewSubmissionResult | null>;
+  onNext: () => void;
+  nextLabel: string;
   showAnswer?: boolean;
 }
 
-export function ReviewCard({ item, onGrade, showAnswer = false }: ReviewCardProps) {
-  const isTeachback = (item as ReviewItem & { item_type?: ReviewItemType }).item_type === "teachback";
+export function ReviewCard({
+  item,
+  onGrade,
+  onNext,
+  nextLabel,
+  showAnswer = false,
+}: ReviewCardProps) {
+  const isTeachback =
+    (item as ReviewItem & { item_type?: ReviewItemType }).item_type === "teachback";
   const [answer, setAnswer] = useState("");
-  const [submitted, setSubmitted] = useState(false);
   const [grading, setGrading] = useState(false);
   const [showSelfGrade, setShowSelfGrade] = useState(false);
+  const [result, setResult] = useState<ReviewSubmissionResult | null>(null);
 
   const handleSubmit = async () => {
     setGrading(true);
     try {
-      await onGrade(item.id, answer);
-      setSubmitted(true);
+      const gradeResult = await onGrade(item.id, answer);
+      setResult(gradeResult);
     } finally {
       setGrading(false);
     }
@@ -50,20 +60,23 @@ export function ReviewCard({ item, onGrade, showAnswer = false }: ReviewCardProp
   const handleSelfGrade = async (grade: number) => {
     setGrading(true);
     try {
-      await onGrade(item.id, answer, grade);
-      setSubmitted(true);
+      const gradeResult = await onGrade(item.id, answer, grade);
+      setResult(gradeResult);
     } finally {
       setGrading(false);
     }
   };
 
+  const correctPoints = result?.correct_points ?? [];
+  const missingPoints = result?.missing_points ?? [];
+
   return (
     <div className="space-y-4 rounded-lg border bg-card p-4">
       <div className="flex items-start justify-between gap-2">
         <p className="text-sm font-medium leading-relaxed">{item.question}</p>
-        <div className="flex gap-1 shrink-0">
+        <div className="flex shrink-0 gap-1">
           {isTeachback && (
-            <Badge className="bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-300 text-[10px]">
+            <Badge className="bg-violet-100 text-[10px] text-violet-800 dark:bg-violet-900/40 dark:text-violet-300">
               Teach-back
             </Badge>
           )}
@@ -72,11 +85,9 @@ export function ReviewCard({ item, onGrade, showAnswer = false }: ReviewCardProp
           </Badge>
         </div>
       </div>
-      {isTeachback && (
-        <p className="text-xs text-muted-foreground">Explain in your own words</p>
-      )}
+      {isTeachback && <p className="text-xs text-muted-foreground">Explain in your own words</p>}
 
-      {!submitted ? (
+      {!result ? (
         <div className="space-y-3">
           <Textarea
             value={answer}
@@ -89,11 +100,7 @@ export function ReviewCard({ item, onGrade, showAnswer = false }: ReviewCardProp
             <Button size="sm" onClick={handleSubmit} disabled={!answer.trim() || grading}>
               {grading ? "Grading..." : "Submit"}
             </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => setShowSelfGrade(!showSelfGrade)}
-            >
+            <Button size="sm" variant="ghost" onClick={() => setShowSelfGrade(!showSelfGrade)}>
               Self-grade
             </Button>
           </div>
@@ -109,21 +116,55 @@ export function ReviewCard({ item, onGrade, showAnswer = false }: ReviewCardProp
                   disabled={grading}
                 >
                   <span className={`mr-1.5 h-2 w-2 rounded-full ${gradeColors[i]}`} />
-                  {i} — {label}
+                  {i} - {label}
                 </Button>
               ))}
             </div>
           )}
         </div>
       ) : (
-        <div className="rounded-md bg-muted/50 p-3">
-          <p className="text-xs text-muted-foreground">Answer submitted — moving to next question.</p>
+        <div className="space-y-3 rounded-md border bg-muted/40 p-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant={result.grade >= 4 ? "default" : "outline"} className="text-xs">
+              Grade: {result.grade} / 5
+            </Badge>
+            {result.feedback && <p className="text-sm text-muted-foreground">{result.feedback}</p>}
+          </div>
+          {correctPoints.length > 0 && (
+            <div className="space-y-1">
+              <p className="text-xs font-medium uppercase tracking-wide text-foreground/80">
+                Strong points
+              </p>
+              <ul className="ml-5 list-disc space-y-1 text-sm text-muted-foreground">
+                {correctPoints.map((point) => (
+                  <li key={point}>{point}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {missingPoints.length > 0 && (
+            <div className="space-y-1">
+              <p className="text-xs font-medium uppercase tracking-wide text-foreground/80">
+                Missing points
+              </p>
+              <ul className="ml-5 list-disc space-y-1 text-sm text-muted-foreground">
+                {missingPoints.map((point) => (
+                  <li key={point}>{point}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <div className="flex items-center gap-2">
+            <Button size="sm" onClick={onNext}>
+              {nextLabel}
+            </Button>
+          </div>
         </div>
       )}
 
-      {showAnswer && submitted && (
+      {showAnswer && result && (
         <div className="rounded-md border-l-2 border-primary/40 bg-primary/5 p-3">
-          <p className="text-xs font-medium text-muted-foreground mb-1">Expected answer:</p>
+          <p className="mb-1 text-xs font-medium text-muted-foreground">Expected answer:</p>
           <p className="text-sm">{item.expected_answer}</p>
         </div>
       )}

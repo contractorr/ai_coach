@@ -540,6 +540,34 @@ def test_launch_assessment_reuses_existing_draft(client, auth_headers):
     assert second["created"] is False
 
 
+def test_get_guide_finds_assessment_draft_beyond_latest_hundred_entries(client, auth_headers):
+    client.post("/api/curriculum/sync", headers=auth_headers)
+
+    launched = client.post(
+        "/api/curriculum/guides/37-ai-ml-fundamentals-guide/assessments/decision_brief/launch",
+        headers=auth_headers,
+    ).json()
+
+    storage = JournalStorage(get_user_paths("user-123")["journal_dir"])
+    for index in range(120):
+        storage.create(
+            content=f"Noise entry {index}",
+            entry_type="note",
+            title=f"zzzz filler entry {index:03d}",
+        )
+
+    guide = client.get("/api/curriculum/guides/37-ai-ml-fundamentals-guide", headers=auth_headers)
+
+    assert guide.status_code == 200
+    payload = guide.json()
+    decision_brief = next(
+        assessment
+        for assessment in payload["applied_assessments"]
+        if assessment["type"] == "decision_brief"
+    )
+    assert decision_brief["draft_entry_path"] == launched["entry_path"]
+
+
 def test_submit_assessment_grades_draft_and_updates_goal(client, auth_headers):
     client.post("/api/curriculum/sync", headers=auth_headers)
 
@@ -667,6 +695,122 @@ def test_review_grade_uses_teachback_grader_for_teachback_items(client, auth_hea
     assert payload["feedback"] == "Clear explanation with a usable everyday example."
     fake_generator.grade_teachback.assert_awaited_once()
     fake_generator.grade_answer.assert_not_called()
+
+
+def test_quiz_generation_replaces_stale_cached_questions(client, auth_headers):
+    client.post("/api/curriculum/sync", headers=auth_headers)
+
+    store = _curriculum_store()
+    chapter = store.get_guide("01-philosophy-guide", user_id="user-123")["chapters"][0]
+    store.add_review_items(
+        [
+            ReviewItem(
+                id="stale-quiz",
+                user_id="user-123",
+                chapter_id=chapter["id"],
+                guide_id=chapter["guide_id"],
+                question="Old quiz question",
+                expected_answer="Old answer",
+                bloom_level=BloomLevel.REMEMBER,
+                item_type=ReviewItemType.QUIZ,
+                content_hash="stale-hash",
+                next_review=datetime.utcnow(),
+            )
+        ]
+    )
+
+    fresh_item = ReviewItem(
+        id="fresh-quiz",
+        user_id="user-123",
+        chapter_id=chapter["id"],
+        guide_id=chapter["guide_id"],
+        question="Fresh quiz question",
+        expected_answer="Fresh answer",
+        bloom_level=BloomLevel.UNDERSTAND,
+        item_type=ReviewItemType.QUIZ,
+        content_hash=chapter["content_hash"],
+        next_review=datetime.utcnow(),
+    )
+    fake_generator = SimpleNamespace(generate_questions=AsyncMock(return_value=[fresh_item]))
+
+    with patch("web.routes.curriculum._build_question_generator", return_value=fake_generator):
+        resp = client.post(
+            f"/api/curriculum/quiz/{chapter['id']}/generate",
+            headers=auth_headers,
+        )
+
+    assert resp.status_code == 200
+    payload = resp.json()
+    assert payload["cached"] is False
+    assert [item["id"] for item in payload["questions"]] == ["fresh-quiz"]
+    assert store.get_review_item("stale-quiz") is None
+    assert store.get_review_item("fresh-quiz") is not None
+
+
+def test_pre_reading_generation_reuses_current_quiz_without_duplication(client, auth_headers):
+    client.post("/api/curriculum/sync", headers=auth_headers)
+
+    store = _curriculum_store()
+    chapter = store.get_guide("01-philosophy-guide", user_id="user-123")["chapters"][0]
+    store.add_review_items(
+        [
+            ReviewItem(
+                id="current-quiz",
+                user_id="user-123",
+                chapter_id=chapter["id"],
+                guide_id=chapter["guide_id"],
+                question="Current quiz question",
+                expected_answer="Current answer",
+                bloom_level=BloomLevel.REMEMBER,
+                item_type=ReviewItemType.QUIZ,
+                content_hash=chapter["content_hash"],
+                next_review=datetime.utcnow(),
+            )
+        ]
+    )
+
+    generated_items = [
+        ReviewItem(
+            id="duplicate-quiz",
+            user_id="user-123",
+            chapter_id=chapter["id"],
+            guide_id=chapter["guide_id"],
+            question="Duplicate quiz question",
+            expected_answer="Duplicate answer",
+            bloom_level=BloomLevel.REMEMBER,
+            item_type=ReviewItemType.QUIZ,
+            content_hash=chapter["content_hash"],
+            next_review=datetime.utcnow(),
+        ),
+        ReviewItem(
+            id="fresh-pre-reading",
+            user_id="user-123",
+            chapter_id=chapter["id"],
+            guide_id=chapter["guide_id"],
+            question="Fresh pre-reading question",
+            expected_answer="",
+            bloom_level=BloomLevel.REMEMBER,
+            item_type=ReviewItemType.PRE_READING,
+            content_hash=chapter["content_hash"],
+            next_review=None,
+        ),
+    ]
+    fake_generator = SimpleNamespace(generate_questions=AsyncMock(return_value=generated_items))
+
+    with patch("web.routes.curriculum._build_question_generator", return_value=fake_generator):
+        resp = client.get(
+            f"/api/curriculum/chapters/{chapter['id']}/pre-reading",
+            headers=auth_headers,
+        )
+
+    assert resp.status_code == 200
+    payload = resp.json()
+    assert [item["id"] for item in payload["questions"]] == ["fresh-pre-reading"]
+    chapter_items = store.get_review_items_for_chapter("user-123", chapter["id"])
+    quiz_ids = [item["id"] for item in chapter_items if item["item_type"] == "quiz"]
+    assert quiz_ids == ["current-quiz"]
+    assert store.get_review_item("duplicate-quiz") is None
+    assert store.get_review_item("fresh-pre-reading") is not None
 
 
 def test_today_includes_retry_task_when_weak_items_exist(client, auth_headers):

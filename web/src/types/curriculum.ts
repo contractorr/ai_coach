@@ -205,6 +205,13 @@ export interface ReviewGradeResult {
   missing_points: string[];
 }
 
+export interface ReviewSubmissionResult {
+  grade: number;
+  feedback?: string;
+  correct_points?: string[];
+  missing_points?: string[];
+}
+
 export interface AssessmentFeedbackResult extends ReviewGradeResult {
   graded_at?: string | null;
 }

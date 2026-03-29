@@ -969,6 +969,30 @@ class CurriculumStore:
             ).fetchall()
             return [dict(r) for r in rows]
 
+    def delete_review_items_for_chapter(
+        self,
+        user_id: str,
+        chapter_id: str,
+        item_types: list[str] | tuple[str, ...] | set[str] | None = None,
+    ) -> int:
+        """Delete cached review items for a chapter, optionally filtered by item type."""
+        with wal_connect(self.db_path) as conn:
+            if item_types:
+                normalized = tuple(item_types)
+                placeholders = ",".join("?" for _ in normalized)
+                result = conn.execute(
+                    f"""DELETE FROM review_items
+                        WHERE user_id=? AND chapter_id=? AND item_type IN ({placeholders})""",
+                    (user_id, chapter_id, *normalized),
+                )
+            else:
+                result = conn.execute(
+                    "DELETE FROM review_items WHERE user_id=? AND chapter_id=?",
+                    (user_id, chapter_id),
+                )
+            conn.commit()
+            return result.rowcount
+
     def get_teachback_for_chapter(self, user_id: str, chapter_id: str) -> dict | None:
         """Get the teach-back review item for a chapter, if any."""
         with wal_connect(self.db_path, row_factory=True) as conn:

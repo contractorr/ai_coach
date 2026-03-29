@@ -150,9 +150,9 @@ def _list_assessment_drafts(
     drafts: dict[str, dict] = {}
     allowed_statuses = allowed_statuses or {"draft", "active", "submitted"}
 
-    for entry in storage.list_entries(limit=100):
+    for entry_path in sorted(storage.journal_dir.glob("*.md"), reverse=True):
         try:
-            post = storage.read(entry["path"])
+            post = storage.read(entry_path)
         except Exception:
             continue
 
@@ -166,7 +166,7 @@ def _list_assessment_drafts(
             continue
 
         key = _assessment_draft_key(entry_guide_id, assessment_type)
-        sort_key = metadata.get("updated") or metadata.get("created") or entry.get("created") or ""
+        sort_key = metadata.get("updated") or metadata.get("created") or ""
         existing = drafts.get(key)
         if existing and existing["sort_key"] >= sort_key:
             continue
@@ -174,8 +174,8 @@ def _list_assessment_drafts(
         drafts[key] = {
             "guide_id": entry_guide_id,
             "assessment_type": assessment_type,
-            "entry_path": str(entry["path"]),
-            "entry_title": metadata.get("title", entry.get("title", "Assessment draft")),
+            "entry_path": str(entry_path),
+            "entry_title": metadata.get("title", entry_path.stem),
             "goal_path": metadata.get("linked_goal_path"),
             "goal_title": metadata.get("linked_goal_title"),
             "draft_status": draft_status,
@@ -430,6 +430,28 @@ def _resolve_chapter_id(scanner: CurriculumScanner, chapter_id: str) -> str:
         return chapter_id
     raw_guide_id, chapter_stem = chapter_id.split("/", 1)
     return f"{_resolve_guide_id(scanner, raw_guide_id)}/{chapter_stem}"
+
+
+def _load_current_cached_artifacts(
+    store: CurriculumStore,
+    *,
+    user_id: str,
+    chapter_id: str,
+    content_hash: str,
+    item_types: set[str],
+) -> list[dict]:
+    """Return current cached chapter artifacts, evicting stale ones first."""
+    items = [
+        item
+        for item in store.get_review_items_for_chapter(user_id, chapter_id)
+        if item.get("item_type") in item_types
+    ]
+    if not items:
+        return []
+    if any(item.get("content_hash") != content_hash for item in items):
+        store.delete_review_items_for_chapter(user_id, chapter_id, sorted(item_types))
+        return []
+    return items
 
 
 def _recommendation_reason(stage: str, recommendation_meta: dict, fallback: str) -> str:
@@ -1524,7 +1546,8 @@ async def generate_quiz(
     chapter_id: str,
     user: dict = Depends(get_current_user),
 ):
-    store = _get_store(user["id"])
+    user_id = user["id"]
+    store = _get_store(user_id)
     scanner = _ensure_catalog_initialized(store, CurriculumScanner(_content_dirs()))
     resolved_chapter_id = _resolve_chapter_id(scanner, chapter_id)
     chapter = store.get_chapter(resolved_chapter_id)
@@ -1532,10 +1555,15 @@ async def generate_quiz(
         raise HTTPException(status_code=404, detail="Chapter not found")
 
     # Check if questions already exist
+    existing_artifacts = _load_current_cached_artifacts(
+        store,
+        user_id=user_id,
+        chapter_id=resolved_chapter_id,
+        content_hash=chapter["content_hash"],
+        item_types={ReviewItemType.QUIZ.value, ReviewItemType.PRE_READING.value},
+    )
     existing = [
-        item
-        for item in store.get_review_items_for_chapter(user["id"], resolved_chapter_id)
-        if item.get("item_type") == ReviewItemType.QUIZ.value
+        item for item in existing_artifacts if item.get("item_type") == ReviewItemType.QUIZ.value
     ]
     if existing:
         return {"questions": existing, "cached": True}
@@ -1639,7 +1667,14 @@ async def generate_teachback(
         raise HTTPException(status_code=400, detail="Chapter not completed")
 
     # Return cached
-    existing = store.get_teachback_for_chapter(user_id, resolved_chapter_id)
+    existing_items = _load_current_cached_artifacts(
+        store,
+        user_id=user_id,
+        chapter_id=resolved_chapter_id,
+        content_hash=chapter["content_hash"],
+        item_types={ReviewItemType.TEACHBACK.value},
+    )
+    existing = existing_items[0] if existing_items else None
     if existing:
         return {
             "concept": existing["question"].removeprefix("Explain ").split(" as if ")[0],
@@ -1742,7 +1777,18 @@ async def get_pre_reading(
         raise HTTPException(status_code=404, detail="Chapter not found")
 
     # Return cached
-    existing = store.get_pre_reading_questions(user_id, resolved_chapter_id)
+    existing_artifacts = _load_current_cached_artifacts(
+        store,
+        user_id=user_id,
+        chapter_id=resolved_chapter_id,
+        content_hash=chapter["content_hash"],
+        item_types={ReviewItemType.QUIZ.value, ReviewItemType.PRE_READING.value},
+    )
+    existing = [
+        item
+        for item in existing_artifacts
+        if item.get("item_type") == ReviewItemType.PRE_READING.value
+    ]
     if existing:
         return {"questions": existing}
 
@@ -1767,6 +1813,9 @@ async def get_pre_reading(
         include_pre_reading=True,
         pre_reading_count=config.curriculum.pre_reading_count,
     )
+
+    if any(item.get("item_type") == ReviewItemType.QUIZ.value for item in existing_artifacts):
+        items = [item for item in items if item.item_type != ReviewItemType.QUIZ]
 
     if items:
         store.add_review_items(items)
