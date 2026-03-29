@@ -71,6 +71,10 @@ export function buildLearningTaskHref(task: LearningTodayTask): string {
   return "/learn";
 }
 
+export function buildLearningProgramHref(programId: string): string {
+  return `/learn?view=tree&program=${encodeURIComponent(programId)}#library-and-map`;
+}
+
 export function formatLearningProgramSignals(
   program: LearningProgramFocus,
 ): string[] {

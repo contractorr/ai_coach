@@ -22,6 +22,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
+  buildLearningProgramHref,
   buildLearningTaskHref,
   formatLearningMinutes,
   formatLearningProgramSignals,
@@ -217,7 +218,7 @@ export function LearningSnapshotCard({ stats, today, loading }: Props) {
                 return (
                   <Link
                     key={program.id}
-                    href={`/learn?view=tree&program=${program.id}`}
+                    href={buildLearningProgramHref(program.id)}
                   >
                     <div
                       className="rounded-xl border px-3 py-2 text-sm transition-colors hover:border-primary/40"

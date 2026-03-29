@@ -39,6 +39,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToken } from "@/hooks/useToken";
 import { apiFetch } from "@/lib/api";
 import {
+  buildLearningProgramHref,
   buildLearningTaskHref,
   formatLearningMinutes,
   formatLearningProgramSignals,
@@ -691,7 +692,7 @@ export default function LearnPage() {
                     </div>
 
                     <Button variant="outline" asChild>
-                      <Link href={`/learn?view=tree&program=${program.id}`}>
+                      <Link href={buildLearningProgramHref(program.id)}>
                         Open path
                         <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
                       </Link>
@@ -711,7 +712,11 @@ export default function LearnPage() {
         )}
       </section>
 
-      <section ref={librarySectionRef} className="space-y-4">
+      <section
+        id="library-and-map"
+        ref={librarySectionRef}
+        className="scroll-mt-4 space-y-4"
+      >
         <div className="space-y-1">
           <h2 className="text-lg font-semibold">Library and map</h2>
           <p className="text-sm text-muted-foreground">
