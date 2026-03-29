@@ -31,6 +31,8 @@ Works as a CLI (`coach`), web app (FastAPI + Next.js), or MCP server (52 tools) 
 
 ## Quick start
 
+Canonical development commands live in [docs/development.md](docs/development.md).
+
 ### Prerequisites
 
 - Python 3.11+
@@ -42,8 +44,8 @@ Works as a CLI (`coach`), web app (FastAPI + Next.js), or MCP server (52 tools) 
 ```bash
 git clone https://github.com/contractorr/stewardme.git
 cd stewardme
-python -m venv .venv && source .venv/bin/activate
-pip install -e ".[all-providers]"
+uv sync --frozen --extra dev --extra web --extra all-providers
+npm ci --prefix web
 coach init
 ```
 
@@ -70,12 +72,11 @@ coach research run "distributed systems"
 
 ```bash
 # Backend
-pip install -e ".[web]"
 cp .env.example .env  # fill in SECRET_KEY, NEXTAUTH_SECRET, OAuth creds
-uvicorn src.web.app:app --reload --port 8000
+uv run uvicorn src.web.app:app --reload --port 8000
 
 # Frontend (separate terminal)
-cd web && npm install && npm run dev
+npm --prefix web run dev
 ```
 
 Open http://localhost:3000 — sign in with GitHub or Google.
@@ -176,21 +177,25 @@ Configured in `.mcp.json` for auto-discovery.
 ## Development
 
 ```bash
-pip install -e ".[dev]"
+uv sync --frozen --extra dev --extra web --extra all-providers
 
 # Tests
-ANTHROPIC_API_KEY=test-key pytest                                  # fast local default
-pytest -m "not slow and not web and not integration"              # fast core suite
-pytest -m "web or integration or slow"                            # extended suites
-pytest tests/web/ -q                                               # web API only
-pytest --cov=src --cov-report=term-missing -m "not slow and not web and not integration"
+uv run pytest -m "not slow and not web and not integration"      # fast core suite
+uv run pytest -m "web or integration or slow"                    # extended suites
+uv run pytest tests/web/ -q                                       # web API only
+uv run pytest --cov=src --cov-report=term-missing -m "not slow and not web and not integration"
 
 # Lint + format
-ruff check src tests
-ruff format src tests
+uv run ruff check src tests
+uv run ruff format src tests
 
 # Type check
-mypy src/ --ignore-missing-imports
+uv run mypy src/ --ignore-missing-imports
+
+# Frontend
+npm --prefix web run lint
+npm --prefix web run typecheck
+npm --prefix web run build
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines.

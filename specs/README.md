@@ -9,6 +9,9 @@ Primary spec system: functional specs define *what*, technical specs define *how
 3. Claude produces/updates a technical spec in `technical/` + implementation plan
 4. Review both → implement
 
+For quick navigation from a feature name to specs, code, tests, and validation
+commands, use `specs/manifest.yaml`.
+
 ## Structure
 
 ```

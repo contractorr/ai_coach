@@ -2,6 +2,9 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+Canonical workflow details live in `AGENTS.md` and `docs/development.md`. Keep
+this file aligned with those sources instead of adding divergent command paths.
+
 ## Environment
 
 Python (primary) and TypeScript (frontend). Python uses uv/uvx for package management with virtual environments (not conda). TypeScript uses npm with Node.js 18+.
@@ -9,31 +12,27 @@ Python (primary) and TypeScript (frontend). Python uses uv/uvx for package manag
 ## Commands
 
 ```bash
-# Activate venv (do this first)
-source .venv/bin/activate
-
 # Install
-pip install -e ".[dev]"              # dev deps
-pip install -e ".[all-providers]"    # all LLM providers
-pip install -e ".[web]"             # FastAPI backend
-pip install -e ".[dev,all-providers,web]"  # everything (matches CI)
+uv sync --frozen --extra dev --extra web --extra all-providers
+npm ci --prefix web
 
 # Test
-pytest                                          # all tests
-pytest tests/advisor/test_engine.py::test_ask_advice -v  # single test
-pytest tests/web/ -v                            # web API only
-pytest --cov=src --cov-report=term-missing -v   # with coverage (fail_under=55)
+uv run pytest tests/advisor/test_engine.py::test_ask_advice -v
+just test-fast
+just test-web
+uv run pytest --cov=src --cov-report=term-missing -v
 
 # Lint & format
-ruff check src tests
-ruff format src tests
+just lint
+just format
 
 # Type check (advisory, not enforced in CI)
-mypy src/ --ignore-missing-imports
+just typecheck
+just frontend-typecheck
 
 # Web app
-uvicorn src.web.app:app --reload --port 8000  # backend
-cd web && npm install && npm run dev            # frontend (port 3000)
+uv run uvicorn src.web.app:app --reload --port 8000
+npm --prefix web run dev
 ```
 
 Tests require `ANTHROPIC_API_KEY=test-key` in env. Async tests use `pytest-asyncio` with `asyncio_mode = "auto"` globally. Ruff ignores `E501`.
@@ -92,6 +91,9 @@ Next.js 16 + React 19 + TypeScript + Tailwind v4 + shadcn/ui. NextAuth v5 beta (
 ## Specs
 
 Two-tier system under `specs/`. See [`specs/README.md`](specs/README.md) for full index.
+
+`specs/manifest.yaml` is the fast path from feature name to specs, primary files,
+tests, and validation commands.
 
 - **`specs/functional/`** — PM-authored, user-facing: problem, desired behavior, acceptance criteria, edge cases. No code.
 - **`specs/technical/`** — Implementation reference: component signatures, invariants, error paths, config.

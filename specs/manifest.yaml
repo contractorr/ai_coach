@@ -1,0 +1,302 @@
+version: 1
+description: >
+  Machine-readable feature map for agent and reviewer navigation. Keep this file
+  updated alongside functional specs, technical specs, and code changes.
+features:
+  ask-advice:
+    status: stable
+    functional_spec: specs/functional/ask-advice.md
+    technical_specs:
+      - specs/technical/advisor.md
+      - specs/technical/web.md
+      - specs/technical/conversation-storage.md
+    backend:
+      - src/advisor/engine.py
+      - src/advisor/agentic.py
+      - src/advisor/context_assembler.py
+      - src/web/routes/advisor.py
+      - src/web/conversation_store.py
+      - src/web/models.py
+    frontend:
+      - web/src/app/(dashboard)/home/page.tsx
+      - web/src/app/(dashboard)/advisor/page.tsx
+      - web/src/components/EmbeddedAdvisor.tsx
+      - web/src/components/ChatSheet.tsx
+      - web/src/types/chat.ts
+    tests:
+      - tests/advisor/test_engine.py
+      - tests/advisor/test_agentic.py
+      - tests/web/test_advisor_routes.py
+    validation_commands:
+      - uv run pytest tests/advisor/test_engine.py tests/advisor/test_agentic.py tests/web/test_advisor_routes.py -q
+  journaling:
+    status: stable
+    functional_spec: specs/functional/journaling.md
+    technical_specs:
+      - specs/technical/journal.md
+      - specs/technical/extraction-receipt.md
+      - specs/technical/web.md
+    backend:
+      - src/journal/storage.py
+      - src/journal/search.py
+      - src/journal/mind_map.py
+      - src/web/routes/journal.py
+      - src/web/services/journal_entries.py
+      - src/web/models.py
+    frontend:
+      - web/src/app/(dashboard)/journal/page.tsx
+      - web/src/components/journal/MindMapCard.tsx
+    tests:
+      - tests/journal/test_storage.py
+      - tests/journal/test_search.py
+      - tests/web/test_journal_routes.py
+      - tests/web/test_journal_mind_map_routes.py
+    validation_commands:
+      - uv run pytest tests/journal/test_storage.py tests/journal/test_search.py tests/web/test_journal_routes.py tests/web/test_journal_mind_map_routes.py -q
+  intelligence-feed:
+    status: stable
+    functional_spec: specs/functional/intelligence-feed.md
+    technical_specs:
+      - specs/technical/intelligence.md
+      - specs/technical/trending-radar.md
+      - specs/technical/web.md
+    backend:
+      - src/intelligence/scheduler.py
+      - src/intelligence/search.py
+      - src/intelligence/trending_radar.py
+      - src/web/routes/intel.py
+      - src/web/models.py
+    frontend:
+      - web/src/app/(dashboard)/radar/page.tsx
+      - web/src/app/(dashboard)/intel/page.tsx
+      - web/src/types/radar.ts
+    tests:
+      - tests/intelligence/test_scraper.py
+      - tests/intelligence/test_trending_radar.py
+      - tests/web/test_intel_routes.py
+    validation_commands:
+      - uv run pytest tests/intelligence/test_scraper.py tests/intelligence/test_trending_radar.py tests/web/test_intel_routes.py -q
+  recommendations:
+    status: stable
+    functional_spec: specs/functional/recommendations.md
+    technical_specs:
+      - specs/technical/action-plans.md
+      - specs/technical/suggestions-engine.md
+      - specs/technical/goal-learning-merge.md
+    backend:
+      - src/advisor/recommendations.py
+      - src/services/recommendation_actions.py
+      - src/web/routes/recommendations.py
+      - src/web/routes/suggestions.py
+      - src/web/models.py
+    frontend:
+      - web/src/app/(dashboard)/home/page.tsx
+      - web/src/app/(dashboard)/focus/page.tsx
+      - web/src/types/suggestions.ts
+      - web/src/types/briefing.ts
+    tests:
+      - tests/advisor/test_recommendations.py
+      - tests/services/test_recommendation_actions.py
+      - tests/web/test_recommendations_routes.py
+      - tests/web/test_suggestions_routes.py
+    validation_commands:
+      - uv run pytest tests/advisor/test_recommendations.py tests/services/test_recommendation_actions.py tests/web/test_recommendations_routes.py tests/web/test_suggestions_routes.py -q
+  goal-tracking:
+    status: experimental
+    functional_spec: specs/functional/goal-tracking.md
+    technical_specs:
+      - specs/technical/action-plans.md
+      - specs/technical/goal-learning-merge.md
+      - specs/technical/web.md
+    backend:
+      - src/advisor/goals.py
+      - src/web/routes/goals.py
+      - src/web/routes/projects.py
+      - src/web/models.py
+    frontend:
+      - web/src/app/(dashboard)/goals/page.tsx
+      - web/src/app/(dashboard)/focus/page.tsx
+      - web/src/app/(dashboard)/projects/page.tsx
+    tests:
+      - tests/advisor/test_goals_milestones.py
+      - tests/web/test_goals_routes.py
+      - tests/web/test_projects_routes.py
+    validation_commands:
+      - uv run pytest tests/advisor/test_goals_milestones.py tests/web/test_goals_routes.py tests/web/test_projects_routes.py -q
+  settings-account:
+    status: stable
+    functional_spec: specs/functional/settings-account.md
+    technical_specs:
+      - specs/technical/llm.md
+      - specs/technical/profile.md
+      - specs/technical/memory.md
+      - specs/technical/web.md
+    backend:
+      - src/web/routes/settings.py
+      - src/web/routes/profile.py
+      - src/web/routes/memory.py
+      - src/web/user_store.py
+      - src/web/models.py
+    frontend:
+      - web/src/app/(dashboard)/settings/page.tsx
+      - web/src/components/SettingsSheet.tsx
+      - web/src/lib/auth.ts
+    tests:
+      - tests/web/test_settings.py
+      - tests/web/test_settings_toggles.py
+      - tests/web/test_profile_routes.py
+      - tests/web/test_memory_routes.py
+      - tests/web/test_user_store.py
+    validation_commands:
+      - uv run pytest tests/web/test_settings.py tests/web/test_settings_toggles.py tests/web/test_profile_routes.py tests/web/test_memory_routes.py tests/web/test_user_store.py -q
+  profile-onboarding:
+    status: stable
+    functional_spec: specs/functional/profile-onboarding.md
+    technical_specs:
+      - specs/technical/profile.md
+      - specs/technical/web.md
+    backend:
+      - src/profile/interview.py
+      - src/profile/storage.py
+      - src/web/routes/onboarding.py
+      - src/web/routes/profile.py
+      - src/web/models.py
+    frontend:
+      - web/src/app/(dashboard)/onboarding/page.tsx
+      - web/src/components/OnboardingDialog.tsx
+    tests:
+      - tests/profile/test_interview.py
+      - tests/web/test_onboarding_routes.py
+      - tests/web/test_profile_routes.py
+    validation_commands:
+      - uv run pytest tests/profile/test_interview.py tests/web/test_onboarding_routes.py tests/web/test_profile_routes.py -q
+  curriculum:
+    status: implemented
+    functional_spec: specs/functional/curriculum.md
+    technical_specs:
+      - specs/technical/curriculum.md
+      - specs/technical/web.md
+    backend:
+      - src/curriculum/store.py
+      - src/curriculum/scanner.py
+      - src/curriculum/question_generator.py
+      - src/web/routes/curriculum.py
+      - src/web/models.py
+    frontend:
+      - web/src/app/(dashboard)/learn/page.tsx
+      - web/src/app/(dashboard)/learn/[guideId]/page.tsx
+      - web/src/app/(dashboard)/learn/[guideId]/[chapterId]/page.tsx
+      - web/src/components/curriculum/CurriculumRenderer.tsx
+      - web/src/types/curriculum.ts
+    tests:
+      - tests/curriculum/test_store.py
+      - tests/curriculum/test_scanner.py
+      - tests/web/test_curriculum_routes.py
+    validation_commands:
+      - uv run pytest tests/curriculum/test_store.py tests/curriculum/test_scanner.py tests/web/test_curriculum_routes.py -q
+  deep-research:
+    status: experimental
+    functional_spec: specs/functional/deep-research.md
+    technical_specs:
+      - specs/technical/research.md
+      - specs/technical/web.md
+    backend:
+      - src/research/agent.py
+      - src/research/web_search.py
+      - src/research/synthesis.py
+      - src/web/routes/research.py
+      - src/web/models.py
+    frontend:
+      - web/src/app/(dashboard)/library/page.tsx
+      - web/src/types/library.ts
+    tests:
+      - tests/research/test_agent.py
+      - tests/research/test_web_search.py
+      - tests/web/test_research_routes.py
+    validation_commands:
+      - uv run pytest tests/research/test_agent.py tests/research/test_web_search.py tests/web/test_research_routes.py -q
+  research-dossiers:
+    status: experimental
+    functional_spec: specs/functional/research-dossiers.md
+    technical_specs:
+      - specs/technical/research-dossiers.md
+      - specs/technical/dossier-escalation-engine.md
+    backend:
+      - src/research/dossiers.py
+      - src/research/escalation.py
+      - src/web/routes/dossier_escalations.py
+      - src/web/routes/research.py
+      - src/web/models.py
+    frontend:
+      - web/src/app/(dashboard)/radar/page.tsx
+      - web/src/app/(dashboard)/library/page.tsx
+      - web/src/types/library.ts
+    tests:
+      - tests/research/test_dossiers.py
+      - tests/research/test_escalation.py
+      - tests/web/test_dossier_escalations_routes.py
+    validation_commands:
+      - uv run pytest tests/research/test_dossiers.py tests/research/test_escalation.py tests/web/test_dossier_escalations_routes.py -q
+  memory-threads:
+    status: experimental
+    functional_spec: specs/functional/memory-threads.md
+    technical_specs:
+      - specs/technical/memory.md
+      - specs/technical/recurring-thread-inbox.md
+    backend:
+      - src/memory/store.py
+      - src/memory/pipeline.py
+      - src/journal/thread_inbox.py
+      - src/web/routes/memory.py
+      - src/web/routes/threads.py
+      - src/web/models.py
+    frontend:
+      - web/src/app/(dashboard)/settings/page.tsx
+      - web/src/app/(dashboard)/radar/page.tsx
+    tests:
+      - tests/memory/test_store.py
+      - tests/journal/test_thread_inbox.py
+      - tests/web/test_memory_routes.py
+      - tests/web/test_threads_routes.py
+    validation_commands:
+      - uv run pytest tests/memory/test_store.py tests/journal/test_thread_inbox.py tests/web/test_memory_routes.py tests/web/test_threads_routes.py -q
+  library-reports:
+    status: partially_implemented
+    functional_spec: specs/functional/library-reports.md
+    technical_specs:
+      - specs/technical/library.md
+      - specs/technical/web.md
+    backend:
+      - src/library/reports.py
+      - src/library/index.py
+      - src/web/routes/library.py
+      - src/web/models.py
+    frontend:
+      - web/src/app/(dashboard)/library/page.tsx
+      - web/src/types/library.ts
+    tests:
+      - tests/library/test_reports.py
+      - tests/library/test_index.py
+      - tests/web/test_library_routes.py
+    validation_commands:
+      - uv run pytest tests/library/test_reports.py tests/library/test_index.py tests/web/test_library_routes.py -q
+  analytics-admin:
+    status: stable
+    functional_spec: specs/functional/analytics-admin.md
+    technical_specs:
+      - specs/technical/web.md
+      - specs/technical/usage-cost-estimation.md
+    backend:
+      - src/observability.py
+      - src/web/routes/metrics.py
+      - src/web/routes/admin.py
+      - src/web/models.py
+    frontend:
+      - web/src/app/(dashboard)/admin/stats/page.tsx
+      - web/src/app/(dashboard)/settings/page.tsx
+      - web/src/types/briefing.ts
+    tests:
+      - tests/test_observability.py
+      - tests/web/test_metrics.py
+    validation_commands:
+      - uv run pytest tests/test_observability.py tests/web/test_metrics.py -q

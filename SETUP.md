@@ -1,5 +1,9 @@
 # Quick Setup
 
+Canonical contributor setup now lives in [docs/development.md](docs/development.md).
+Use the `uv` + `npm ci` flow there unless you have a deployment-specific reason
+to do otherwise.
+
 ## Docker (recommended)
 
 ```bash
@@ -31,12 +35,11 @@ You need at least one OAuth provider for login:
 
 ```bash
 # Backend
-python -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev,all-providers]"
-uvicorn web.app:app --reload --port 8000
+uv sync --frozen --extra dev --extra web --extra all-providers
+uv run uvicorn src.web.app:app --reload --port 8000
 
 # Frontend (separate terminal)
-cd web && npm install && npm run dev
+npm --prefix web run dev
 ```
 
 Configure `web/.env.local` with OAuth vars + `NEXT_PUBLIC_API_URL=http://localhost:8000`.

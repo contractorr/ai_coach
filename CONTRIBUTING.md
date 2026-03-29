@@ -5,18 +5,17 @@
 ```bash
 git clone https://github.com/contractorr/stewardme.git
 cd stewardme
-python -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev,web,all-providers]"
+uv sync --frozen --extra dev --extra web --extra all-providers
 pre-commit install
-
-# Frontend
-cd web && npm install && cd ..
+npm ci --prefix web
 
 # Verify
-ANTHROPIC_API_KEY=test-key pytest
-ruff check src tests
+just test-fast
+just lint
 pre-commit run --all-files
 ```
+
+Canonical setup and validation commands live in [docs/development.md](docs/development.md).
 
 ## Project structure
 
@@ -31,7 +30,7 @@ src/
 ├── memory/         # Persistent user memory (facts, context)
 ├── library/        # Content library management
 ├── services/       # Shared service layer
-├── coach_mcp/      # MCP server (46 tools across 12 modules)
+├── coach_mcp/      # MCP server (52 tools across 13 modules)
 ├── web/            # FastAPI backend
 ├── cli/            # Click CLI + config
 web/                # Next.js frontend
@@ -98,15 +97,14 @@ Some areas that could use help:
 
 ```bash
 # Terminal 1: backend
-source .venv/bin/activate
 cp .env.example .env  # fill in values
-uvicorn src.web.app:app --reload --port 8000
+uv run uvicorn src.web.app:app --reload --port 8000
 
 # Terminal 2: frontend
-cd web && npm run dev
+npm --prefix web run dev
 
 # Terminal 3: tests (optional)
-ANTHROPIC_API_KEY=test-key pytest --watch
+just test-fast
 ```
 
 ## Questions?

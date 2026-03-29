@@ -21,3 +21,9 @@ repos:
         language: system
         pass_filenames: false
         files: ^web/(src/.*\.(js|jsx|ts|tsx)|e2e/.*\.(js|jsx|ts|tsx)|eslint\.config\.mjs|next\.config\.ts|package\.json|tsconfig\.json|components\.json)$
+      - id: contracts-check
+        name: contracts check
+        entry: python scripts/check_contracts.py
+        language: system
+        pass_filenames: false
+        files: ^(src/web/.*\.py|web/openapi\.json|web/src/types/api\.generated\.ts|scripts/(export_openapi|check_contracts)\.py|web/scripts/generate-contracts\.mjs)$

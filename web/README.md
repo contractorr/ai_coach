@@ -13,15 +13,14 @@ The `web` workspace contains the Next.js dashboard for StewardMe.
 ## Local development
 
 ```bash
-cd web
-npm install
+npm ci
 npm run dev
 ```
 
 The frontend expects the API server to be running separately from the repo root:
 
 ```bash
-uvicorn src.web.app:app --reload --port 8000
+uv run uvicorn src.web.app:app --reload --port 8000
 ```
 
 Open `http://localhost:3000` and sign in.
@@ -31,7 +30,8 @@ Open `http://localhost:3000` and sign in.
 - `/` - Home for capture, ask, greeting/return brief, and top next steps
 - `/focus` - Focus for goals, weekly plan, and best next moves
 - `/radar` - Radar for signals, threads, dossiers, saved follow-ups, and tracked topics
-- `/library` - Library for documents, reports, and archived dossiers
+- `/library` - Research for documents, reports, and archived dossiers
+- `/learn` - Library for daily learning, guides, and reviews
 - `/settings` - Profile, keys, tracked topics, memory, and advanced controls
 - `/journal` - Deeper Journal workspace reached from the sidebar shortcut
 - Secondary deep links: `/advisor`, `/intel`, `/projects`
@@ -75,9 +75,9 @@ The advanced opportunities page supports deeper browsing when the lightweight Fo
 - `Project ideas` stay available without becoming a primary navigation concept
 - Empty and error states keep the page useful even when data or model access is thin
 
-## Library workspace
+## Research workspace
 
-The Library page is the durable reference workspace:
+The Research page is the durable reference workspace:
 
 - Browse documents, reports, and archived dossiers
 - Organize reports with simple collection labels
@@ -89,5 +89,9 @@ The Library page is the durable reference workspace:
 
 ```bash
 npm run lint
+npm run typecheck
 npm run build
 ```
+
+For payload changes, regenerate API contracts from the repo root with
+`just contracts-generate`, then validate with `just contracts-check`.
