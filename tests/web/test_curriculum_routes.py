@@ -341,6 +341,64 @@ def test_today_returns_queue_and_program_focus(client, auth_headers):
     assert any(program["status"] == "active" for program in data["focus_programs"])
 
 
+def test_today_orders_program_focus_by_revision_pressure(client, auth_headers):
+    client.post("/api/curriculum/sync", headers=auth_headers)
+
+    store = _curriculum_store()
+    store.enroll("user-123", "28-accounting")
+    store.enroll("user-123", "37-ai-ml-fundamentals-guide")
+
+    accounting = store.get_guide("28-accounting", user_id="user-123")
+    accounting_chapter = accounting["chapters"][0]
+    store.add_review_items(
+        [
+            ReviewItem(
+                id="program-weak-review",
+                user_id="user-123",
+                chapter_id=accounting_chapter["id"],
+                guide_id="28-accounting",
+                question="Why does working capital matter?",
+                expected_answer="It shows short-term operating flexibility.",
+                bloom_level=BloomLevel.UNDERSTAND,
+                item_type=ReviewItemType.QUIZ,
+                next_review=datetime.utcnow() - timedelta(days=1),
+            )
+        ]
+    )
+    store.grade_review("program-weak-review", 2)
+
+    launched = client.post(
+        "/api/curriculum/guides/37-ai-ml-fundamentals-guide/assessments/decision_brief/launch",
+        headers=auth_headers,
+    ).json()
+    JournalStorage(get_user_paths("user-123")["journal_dir"]).update(
+        launched["entry_path"],
+        metadata={
+            "assessment_status": "active",
+            "assessment_feedback": {
+                "grade": 2,
+                "feedback": "Revise the trade-offs and scope.",
+                "correct_points": ["Clear decision"],
+                "missing_points": ["Sharper trade-offs"],
+            },
+        },
+    )
+
+    resp = client.get("/api/curriculum/today", headers=auth_headers)
+
+    assert resp.status_code == 200
+    payload = resp.json()
+    assert payload["focus_programs"][0]["id"] == "ai-for-operators"
+    assert payload["focus_programs"][0]["revision_backlog_count"] == 1
+    assert payload["focus_programs"][0]["average_assessment_grade"] == 2.0
+
+    business_program = next(
+        program for program in payload["focus_programs"] if program["id"] == "business-acumen"
+    )
+    assert business_program["weak_review_count"] >= 1
+    assert business_program["revision_backlog_count"] == 0
+
+
 def test_get_guide_exposes_applied_assessment_plan(client, auth_headers):
     client.post("/api/curriculum/sync", headers=auth_headers)
 

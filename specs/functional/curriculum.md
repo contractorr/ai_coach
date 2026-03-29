@@ -59,6 +59,9 @@ recommendations, and authoring QA.
   - weak-item density from recent review history
   - applied-deliverable grades
   - revision backlog on active deliverables
+- The same learning signals now shape path prioritization and advisor context:
+  - Home and `/learn` path cards surface revision, weak-item, and assessment-grade cues
+  - advisor prompt injection includes learning pressure plus per-guide weak-recall / revision attributes
 - The recommendation logic now also feeds a `Today in Learn` workflow payload:
   - primary action for the current block
   - due-review task when recall is waiting
@@ -99,6 +102,7 @@ recommendations, and authoring QA.
 - Program-path cards summarize:
   - whether the path is active, recommended, or merely available
   - completed/in-progress/ready guide counts
+  - remediation and assessment cues such as revision backlog, weak recall pressure, and average deliverable grade
   - path outcomes
   - a direct link into the tree view filtered to that path
 - The daily queue can recommend:
@@ -196,6 +200,8 @@ recommendations, and authoring QA.
 - [x] `/api/curriculum/next` is profile-aware and not only prerequisite-aware.
 - [x] `/api/curriculum/next` also reacts to weak recall, deliverable grades, and revision backlog within the existing candidate buckets.
 - [x] `/api/curriculum/today` assembles a ranked learning queue plus active/recommended program paths.
+- [x] Program-path cards surface remediation and assessment cues instead of only completion counts.
+- [x] Advisor curriculum context includes learning pressure and per-guide weak-recall / revision signals.
 - [x] Recommendation and guide payloads surface applied-assessment pilot data.
 - [x] Applied-assessment cards can create persisted Journal drafts and linked learning goals.
 - [x] Existing applied-assessment drafts reopen instead of creating duplicate artifacts.

@@ -247,6 +247,7 @@ Current properties:
   - scenario analysis
   - case memo
 - ranking-sensitive performance signals surfaced in `/api/curriculum/next` when relevant
+- reusable per-guide learning-signal summaries used by both route ranking and advisor context
 
 #### Roadmap references
 
@@ -342,6 +343,11 @@ The web API currently exposes 25 curriculum routes.
   - `focus_programs`
   - `reviews_due`
   - a retry-review task when recently weak recall exists
+- `/today` focus-program ordering now blends:
+  - active/recommended/available status
+  - revision backlog aggregated across the path
+  - weak-review pressure aggregated across the path
+  - completion and ready-guide counts
 - assessment launch creates:
   - a persisted Journal draft entry
   - a linked learning-goal entry with default milestones
@@ -351,6 +357,28 @@ The web API currently exposes 25 curriculum routes.
   - leaves weak submissions `active` for revision
   - marks stronger submissions `submitted` and completes the linked goal
 - sync runs alias reconciliation after catalog upsert
+
+### Advisor curriculum context
+
+**File:** `src/advisor/retrievers/supplementary.py`
+
+`SupplementaryRetriever.get_curriculum_context()` reads the per-user `curriculum.db` from the user
+data directory, joins it with Journal-backed assessment artifacts, and injects compact XML-like
+context that includes:
+
+- aggregate `learning_pressure` attributes:
+  - due reviews
+  - retry reviews
+  - weak reviews
+  - active revisions
+  - submitted assessments
+- per-guide attributes when present:
+  - progress
+  - track
+  - weak review count
+  - revision backlog count
+  - average assessment grade
+  - submitted assessment count
 
 ### Frontend
 
@@ -367,10 +395,12 @@ The web API currently exposes 25 curriculum routes.
 - Home:
   - `Today in Learn` card backed by `/api/curriculum/today`
   - learning metrics alongside the daily queue
+  - top program paths now show revision / weak-item / assessment cues from the same backend signals
 - Learn landing page:
   - `Today in Learn` primary task
   - supporting queue
   - program-path cards
+  - program-path remediation badges driven by aggregated learning signals
   - library/grid/tree section below the workflow surfaces
 - guide detail:
   - enrollment

@@ -343,6 +343,10 @@ export interface LearningProgramFocus extends LearningProgram {
   completed_guide_count: number;
   in_progress_guide_count: number;
   ready_guide_count: number;
+  weak_review_count?: number;
+  revision_backlog_count?: number;
+  submitted_assessment_count?: number;
+  average_assessment_grade?: number | null;
   progress_pct: number;
 }
 

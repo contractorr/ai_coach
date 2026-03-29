@@ -31,6 +31,7 @@ import { apiFetch } from "@/lib/api";
 import {
   buildLearningTaskHref,
   formatLearningMinutes,
+  formatLearningProgramSignals,
   formatLearningSeconds,
   learningProgramStatusLabels,
   learningTaskLabels,
@@ -107,11 +108,10 @@ export default function LearnPage() {
     if (!token) return;
     setSyncing(true);
     try {
-      const result = await apiFetch<{ synced_guides: number; message?: string }>(
-        "/api/v1/curriculum/sync",
-        { method: "POST" },
-        token,
-      );
+      const result = await apiFetch<{
+        synced_guides: number;
+        message?: string;
+      }>("/api/v1/curriculum/sync", { method: "POST" }, token);
       await loadData();
       toast.success(result.message || `Synced ${result.synced_guides} guides`);
     } catch (e) {
@@ -142,7 +142,10 @@ export default function LearnPage() {
         case "progress":
           return (b.progress_pct ?? 0) - (a.progress_pct ?? 0);
         case "difficulty":
-          return (difficultyOrder[a.difficulty] ?? 1) - (difficultyOrder[b.difficulty] ?? 1);
+          return (
+            (difficultyOrder[a.difficulty] ?? 1) -
+            (difficultyOrder[b.difficulty] ?? 1)
+          );
         case "recommended":
         default:
           if (a.enrolled && !b.enrolled) return -1;
@@ -191,8 +194,15 @@ export default function LearnPage() {
         description="Daily learning workflow centered on today’s queue, program paths, and applied practice."
         eyebrow="Curriculum"
         actions={
-          <Button size="sm" variant="outline" onClick={handleSync} disabled={syncing}>
-            <RefreshCcw className={`mr-1.5 h-3.5 w-3.5 ${syncing ? "animate-spin" : ""}`} />
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleSync}
+            disabled={syncing}
+          >
+            <RefreshCcw
+              className={`mr-1.5 h-3.5 w-3.5 ${syncing ? "animate-spin" : ""}`}
+            />
             Sync
           </Button>
         }
@@ -212,7 +222,9 @@ export default function LearnPage() {
                   <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                     Daily queue
                   </p>
-                  <CardTitle className="text-2xl">{today?.headline ?? "Today in Learn"}</CardTitle>
+                  <CardTitle className="text-2xl">
+                    {today?.headline ?? "Today in Learn"}
+                  </CardTitle>
                   <p className="text-sm text-muted-foreground">
                     {today?.summary ??
                       "Learn now starts from the work that matters today, not from a catalog-first view."}
@@ -220,7 +232,8 @@ export default function LearnPage() {
                 </div>
                 {stats && (
                   <Badge variant="secondary" className="text-xs">
-                    {stats.reviews_due} review{stats.reviews_due === 1 ? "" : "s"} due
+                    {stats.reviews_due} review
+                    {stats.reviews_due === 1 ? "" : "s"} due
                   </Badge>
                 )}
               </div>
@@ -243,11 +256,17 @@ export default function LearnPage() {
 
                   <div className="space-y-3">
                     <div className="space-y-1">
-                      <p className="text-xl font-semibold">{primaryTask.title}</p>
+                      <p className="text-xl font-semibold">
+                        {primaryTask.title}
+                      </p>
                       {primaryTask.guide_title ? (
-                        <p className="text-xs text-muted-foreground">{primaryTask.guide_title}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {primaryTask.guide_title}
+                        </p>
                       ) : null}
-                      <p className="text-sm text-muted-foreground">{primaryTask.detail}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {primaryTask.detail}
+                      </p>
                     </div>
 
                     {primarySignals.length > 0 ? (
@@ -257,8 +276,12 @@ export default function LearnPage() {
                             key={`${signal.kind}-${signal.label}`}
                             className="rounded-xl border bg-background/70 p-3"
                           >
-                            <p className="text-sm font-medium">{signal.label}</p>
-                            <p className="mt-1 text-xs text-muted-foreground">{signal.detail}</p>
+                            <p className="text-sm font-medium">
+                              {signal.label}
+                            </p>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              {signal.detail}
+                            </p>
                           </div>
                         ))}
                       </div>
@@ -271,7 +294,10 @@ export default function LearnPage() {
                             key={program.id}
                             variant="outline"
                             className="text-[10px]"
-                            style={{ borderColor: program.color, color: program.color }}
+                            style={{
+                              borderColor: program.color,
+                              color: program.color,
+                            }}
                           >
                             {program.title}
                           </Badge>
@@ -295,7 +321,8 @@ export default function LearnPage() {
               ) : (
                 <div className="rounded-2xl border border-dashed p-6">
                   <p className="text-sm text-muted-foreground">
-                    No task is queued yet. Start with a program path or open the library below.
+                    No task is queued yet. Start with a program path or open the
+                    library below.
                   </p>
                 </div>
               )}
@@ -310,7 +337,10 @@ export default function LearnPage() {
               <CardContent className="space-y-3">
                 {secondaryTasks.length > 0 ? (
                   secondaryTasks.map((task) => (
-                    <div key={task.id} className="rounded-xl border bg-background/70 p-3">
+                    <div
+                      key={task.id}
+                      className="rounded-xl border bg-background/70 p-3"
+                    >
                       <div className="mb-2 flex flex-wrap items-center gap-2">
                         <Badge variant="outline" className="text-[10px]">
                           {learningTaskLabels[task.task_type]}
@@ -320,8 +350,15 @@ export default function LearnPage() {
                         </Badge>
                       </div>
                       <p className="text-sm font-medium">{task.title}</p>
-                      <p className="mt-1 text-xs text-muted-foreground">{task.detail}</p>
-                      <Button size="sm" variant="ghost" className="mt-3 px-0" asChild>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {task.detail}
+                      </p>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="mt-3 px-0"
+                        asChild
+                      >
                         <Link href={buildLearningTaskHref(task)}>
                           {task.cta_label}
                           <ArrowRight className="ml-1 h-3 w-3" />
@@ -331,7 +368,8 @@ export default function LearnPage() {
                   ))
                 ) : (
                   <p className="text-sm text-muted-foreground">
-                    Secondary tasks will appear here once you enroll, review, or unlock more guides.
+                    Secondary tasks will appear here once you enroll, review, or
+                    unlock more guides.
                   </p>
                 )}
               </CardContent>
@@ -345,7 +383,9 @@ export default function LearnPage() {
                       <Icon className="h-4 w-4 text-primary" />
                       <div>
                         <p className="text-lg font-semibold">{value}</p>
-                        <p className="text-[11px] text-muted-foreground">{label}</p>
+                        <p className="text-[11px] text-muted-foreground">
+                          {label}
+                        </p>
                       </div>
                     </CardContent>
                   </Card>
@@ -362,74 +402,113 @@ export default function LearnPage() {
           <h2 className="text-lg font-semibold">Program paths</h2>
         </div>
         <p className="text-sm text-muted-foreground">
-          Programs are the primary framing now: outcomes first, reusable guides underneath, applied modules at the edge.
+          Programs are the primary framing now: outcomes first, reusable guides
+          underneath, applied modules at the edge.
         </p>
 
         {today?.focus_programs?.length ? (
           <div className="grid gap-4 lg:grid-cols-3">
-            {today.focus_programs.map((program) => (
-              <Card key={program.id} className="border-primary/10">
-                <CardHeader className="space-y-3 pb-3">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge
-                      variant="outline"
-                      className="text-[10px]"
-                      style={{ borderColor: program.color, color: program.color }}
-                    >
-                      {learningProgramStatusLabels[program.status]}
-                    </Badge>
-                    <Badge variant="secondary" className="text-[10px]">
-                      {program.completed_guide_count}/{program.total_guide_count} complete
-                    </Badge>
-                  </div>
-                  <div className="space-y-1">
-                    <CardTitle className="text-lg">{program.title}</CardTitle>
-                    <p className="text-sm text-muted-foreground">{program.description}</p>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 gap-2 text-sm">
-                    <div className="rounded-xl border bg-background/70 p-3">
-                      <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-                        In progress
-                      </p>
-                      <p className="mt-1 text-lg font-semibold">{program.in_progress_guide_count}</p>
-                    </div>
-                    <div className="rounded-xl border bg-background/70 p-3">
-                      <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-                        Ready
-                      </p>
-                      <p className="mt-1 text-lg font-semibold">{program.ready_guide_count}</p>
-                    </div>
-                  </div>
+            {today.focus_programs.map((program) => {
+              const programSignals = formatLearningProgramSignals(program);
 
-                  <div className="space-y-2">
-                    <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-                      Outcomes
-                    </p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {program.outcomes.slice(0, 3).map((outcome) => (
-                        <Badge key={outcome} variant="secondary" className="text-[10px]">
-                          {outcome}
-                        </Badge>
-                      ))}
+              return (
+                <Card key={program.id} className="border-primary/10">
+                  <CardHeader className="space-y-3 pb-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge
+                        variant="outline"
+                        className="text-[10px]"
+                        style={{
+                          borderColor: program.color,
+                          color: program.color,
+                        }}
+                      >
+                        {learningProgramStatusLabels[program.status]}
+                      </Badge>
+                      <Badge variant="secondary" className="text-[10px]">
+                        {program.completed_guide_count}/
+                        {program.total_guide_count} complete
+                      </Badge>
                     </div>
-                  </div>
+                    <div className="space-y-1">
+                      <CardTitle className="text-lg">{program.title}</CardTitle>
+                      <p className="text-sm text-muted-foreground">
+                        {program.description}
+                      </p>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div className="rounded-xl border bg-background/70 p-3">
+                        <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                          In progress
+                        </p>
+                        <p className="mt-1 text-lg font-semibold">
+                          {program.in_progress_guide_count}
+                        </p>
+                      </div>
+                      <div className="rounded-xl border bg-background/70 p-3">
+                        <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                          Ready
+                        </p>
+                        <p className="mt-1 text-lg font-semibold">
+                          {program.ready_guide_count}
+                        </p>
+                      </div>
+                    </div>
 
-                  <Button variant="outline" asChild>
-                    <Link href={`/learn?view=tree&program=${program.id}`}>
-                      Open path
-                      <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
-                    </Link>
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
+                    {programSignals.length > 0 ? (
+                      <div className="space-y-2">
+                        <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                          Watch now
+                        </p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {programSignals.map((signal) => (
+                            <Badge
+                              key={signal}
+                              variant="outline"
+                              className="text-[10px]"
+                            >
+                              {signal}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                        Outcomes
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {program.outcomes.slice(0, 3).map((outcome) => (
+                          <Badge
+                            key={outcome}
+                            variant="secondary"
+                            className="text-[10px]"
+                          >
+                            {outcome}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+
+                    <Button variant="outline" asChild>
+                      <Link href={`/learn?view=tree&program=${program.id}`}>
+                        Open path
+                        <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+                      </Link>
+                    </Button>
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         ) : (
           <Card>
             <CardContent className="p-6 text-sm text-muted-foreground">
-              Program recommendations will appear here once your curriculum profile and progress have more signal.
+              Program recommendations will appear here once your curriculum
+              profile and progress have more signal.
             </CardContent>
           </Card>
         )}
@@ -439,11 +518,15 @@ export default function LearnPage() {
         <div className="space-y-1">
           <h2 className="text-lg font-semibold">Library and map</h2>
           <p className="text-sm text-muted-foreground">
-            Browse the full guide library or switch to the graph view when you want to inspect the underlying curriculum.
+            Browse the full guide library or switch to the graph view when you
+            want to inspect the underlying curriculum.
           </p>
         </div>
 
-        <Tabs value={activeView} onValueChange={(value) => setActiveView(value as LearnView)}>
+        <Tabs
+          value={activeView}
+          onValueChange={(value) => setActiveView(value as LearnView)}
+        >
           <TabsList variant="line">
             <TabsTrigger value="grid">
               <LayoutGrid className="mr-1.5 h-3.5 w-3.5" />
@@ -506,8 +589,15 @@ export default function LearnPage() {
             ) : filtered.length === 0 ? (
               <div className="rounded-lg border border-dashed p-8 text-center">
                 <GraduationCap className="mx-auto h-10 w-10 text-muted-foreground/40" />
-                <p className="mt-2 text-sm text-muted-foreground">No guides found</p>
-                <Button size="sm" variant="outline" className="mt-3" onClick={handleSync}>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  No guides found
+                </p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="mt-3"
+                  onClick={handleSync}
+                >
                   Sync content
                 </Button>
               </div>

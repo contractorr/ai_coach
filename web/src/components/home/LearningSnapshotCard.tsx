@@ -14,10 +14,17 @@ import {
 import { ProgressRing } from "@/components/curriculum/ProgressRing";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   buildLearningTaskHref,
   formatLearningMinutes,
+  formatLearningProgramSignals,
   formatLearningSeconds,
   learningProgramStatusLabels,
   learningTaskLabels,
@@ -33,7 +40,9 @@ interface Props {
 
 export function LearningSnapshotCard({ stats, today, loading }: Props) {
   if (loading && !stats && !today) {
-    return <div className="h-full min-h-72 animate-pulse rounded-2xl border bg-muted/30" />;
+    return (
+      <div className="h-full min-h-72 animate-pulse rounded-2xl border bg-muted/30" />
+    );
   }
 
   const progressPct =
@@ -74,7 +83,9 @@ export function LearningSnapshotCard({ stats, today, loading }: Props) {
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
               Today in Learn
             </p>
-            <CardTitle className="text-xl">{today?.headline ?? "Learning workflow"}</CardTitle>
+            <CardTitle className="text-xl">
+              {today?.headline ?? "Learning workflow"}
+            </CardTitle>
             <CardDescription>
               {today?.summary ??
                 "Structured learning now shows up as a daily workflow on Home, not a side workspace."}
@@ -90,7 +101,9 @@ export function LearningSnapshotCard({ stats, today, loading }: Props) {
             <div key={label} className="rounded-xl border bg-background/70 p-3">
               <div className="mb-2 flex items-center gap-2 text-muted-foreground">
                 <Icon className="h-3.5 w-3.5" />
-                <span className="text-[11px] font-medium uppercase tracking-[0.14em]">{label}</span>
+                <span className="text-[11px] font-medium uppercase tracking-[0.14em]">
+                  {label}
+                </span>
               </div>
               <p className="text-lg font-semibold">{value}</p>
             </div>
@@ -120,9 +133,13 @@ export function LearningSnapshotCard({ stats, today, loading }: Props) {
               <div className="space-y-1">
                 <p className="text-base font-semibold">{primaryTask.title}</p>
                 {primaryTask.guide_title ? (
-                  <p className="text-xs text-muted-foreground">{primaryTask.guide_title}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {primaryTask.guide_title}
+                  </p>
                 ) : null}
-                <p className="text-sm text-muted-foreground">{primaryTask.detail}</p>
+                <p className="text-sm text-muted-foreground">
+                  {primaryTask.detail}
+                </p>
               </div>
               <div className="flex flex-wrap gap-2">
                 <Button size="sm" asChild>
@@ -140,7 +157,8 @@ export function LearningSnapshotCard({ stats, today, loading }: Props) {
         ) : (
           <div className="rounded-2xl border bg-background/80 p-4">
             <p className="text-sm text-muted-foreground">
-              No learning block is queued yet. Open Learn to start a guide or choose a program path.
+              No learning block is queued yet. Open Learn to start a guide or
+              choose a program path.
             </p>
             <Button size="sm" className="mt-3" asChild>
               <Link href="/learn">
@@ -169,10 +187,14 @@ export function LearningSnapshotCard({ stats, today, loading }: Props) {
                         {learningTaskLabels[task.task_type]}
                       </Badge>
                     </div>
-                    <p className="text-xs text-muted-foreground">{task.detail}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {task.detail}
+                    </p>
                   </div>
                   <Button size="sm" variant="ghost" asChild>
-                    <Link href={buildLearningTaskHref(task)}>{task.cta_label}</Link>
+                    <Link href={buildLearningTaskHref(task)}>
+                      {task.cta_label}
+                    </Link>
                   </Button>
                 </div>
               ))}
@@ -187,20 +209,43 @@ export function LearningSnapshotCard({ stats, today, loading }: Props) {
               Program paths
             </div>
             <div className="flex flex-wrap gap-2">
-              {today.focus_programs.slice(0, 2).map((program) => (
-                <Link key={program.id} href={`/learn?view=tree&program=${program.id}`}>
-                  <div
-                    className="rounded-xl border px-3 py-2 text-sm transition-colors hover:border-primary/40"
-                    style={{ borderColor: `${program.color}55` }}
+              {today.focus_programs.slice(0, 2).map((program) => {
+                const programSignals = formatLearningProgramSignals(
+                  program,
+                ).slice(0, 2);
+
+                return (
+                  <Link
+                    key={program.id}
+                    href={`/learn?view=tree&program=${program.id}`}
                   >
-                    <p className="font-medium">{program.title}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {learningProgramStatusLabels[program.status]} • {program.completed_guide_count}/
-                      {program.total_guide_count} complete
-                    </p>
-                  </div>
-                </Link>
-              ))}
+                    <div
+                      className="rounded-xl border px-3 py-2 text-sm transition-colors hover:border-primary/40"
+                      style={{ borderColor: `${program.color}55` }}
+                    >
+                      <p className="font-medium">{program.title}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {learningProgramStatusLabels[program.status]} •{" "}
+                        {program.completed_guide_count}/
+                        {program.total_guide_count} complete
+                      </p>
+                      {programSignals.length > 0 ? (
+                        <div className="mt-2 flex flex-wrap gap-1">
+                          {programSignals.map((signal) => (
+                            <Badge
+                              key={signal}
+                              variant="outline"
+                              className="text-[10px]"
+                            >
+                              {signal}
+                            </Badge>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                  </Link>
+                );
+              })}
             </div>
           </div>
         ) : null}
@@ -208,7 +253,8 @@ export function LearningSnapshotCard({ stats, today, loading }: Props) {
         <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
           <BookOpen className="h-3.5 w-3.5" />
           <span>
-            {stats?.guides_completed ?? 0} guide{stats?.guides_completed === 1 ? "" : "s"} completed so far
+            {stats?.guides_completed ?? 0} guide
+            {stats?.guides_completed === 1 ? "" : "s"} completed so far
           </span>
         </div>
       </CardContent>

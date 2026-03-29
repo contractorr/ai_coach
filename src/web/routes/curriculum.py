@@ -16,7 +16,12 @@ from curriculum.models import (
     ReviewGradeRequest,
     ReviewItemType,
 )
-from curriculum.personalization import build_applied_assessments, score_guide_candidate
+from curriculum.personalization import (
+    build_applied_assessments,
+    build_learning_signal_map,
+    empty_learning_signal_summary,
+    score_guide_candidate,
+)
 from curriculum.question_generator import QuestionGenerator
 from curriculum.scanner import CurriculumScanner, build_tree_layout
 from curriculum.store import CurriculumStore
@@ -344,80 +349,20 @@ def _get_applied_assessment_artifact(
     ).get(_assessment_draft_key(guide_id, assessment_type))
 
 
-def _empty_learning_signal_summary() -> dict:
-    return {
-        "review_count": 0,
-        "reviewed_review_count": 0,
-        "weak_review_count": 0,
-        "revision_backlog_count": 0,
-        "submitted_assessment_count": 0,
-        "assessment_grade_count": 0,
-        "average_assessment_grade": None,
-        "low_assessment_count": 0,
-    }
-
-
 def _build_learning_signal_map(user_id: str, store: CurriculumStore) -> dict[str, dict]:
-    signal_map: dict[str, dict] = {}
-    for item in store.list_review_items(user_id, include_pre_reading=False):
-        guide_id = item["guide_id"]
-        summary = signal_map.setdefault(guide_id, _empty_learning_signal_summary())
-        summary["review_count"] += 1
-        if item.get("last_reviewed"):
-            summary["reviewed_review_count"] += 1
-            if item.get("repetitions", 0) == 0 or float(item.get("easiness_factor", 2.5)) < 2.4:
-                summary["weak_review_count"] += 1
-
-    assessment_grade_totals: dict[str, float] = {}
-    storage = None
-    for artifact in _list_assessment_drafts(
-        user_id,
-        allowed_statuses={"draft", "active", "submitted"},
-    ).values():
-        entry_path = str(artifact.get("entry_path") or "")
-        if not entry_path:
-            continue
-        guide_id = artifact.get("guide_id")
-        if not guide_id:
-            try:
-                from journal.storage import JournalStorage
-
-                storage = storage or JournalStorage(get_user_paths(user_id)["journal_dir"])
-                post = storage.read(entry_path)
-                guide_id = post.metadata.get("curriculum_guide_id")
-            except Exception:
-                guide_id = None
-        if not guide_id:
-            continue
-
-        summary = signal_map.setdefault(guide_id, _empty_learning_signal_summary())
-        status_value = artifact.get("draft_status")
-        if status_value == "active":
-            summary["revision_backlog_count"] += 1
-        if status_value == "submitted":
-            summary["submitted_assessment_count"] += 1
-        feedback = artifact.get("draft_feedback") or {}
-        grade_value = feedback.get("grade")
-        if isinstance(grade_value, (int, float)):
-            summary["assessment_grade_count"] += 1
-            assessment_grade_totals[guide_id] = assessment_grade_totals.get(guide_id, 0.0) + float(
-                grade_value
-            )
-            if float(grade_value) < 4:
-                summary["low_assessment_count"] += 1
-
-    for guide_id, summary in signal_map.items():
-        grade_count = summary["assessment_grade_count"]
-        if grade_count > 0:
-            summary["average_assessment_grade"] = round(
-                assessment_grade_totals.get(guide_id, 0.0) / grade_count,
-                2,
-            )
-    return signal_map
+    return build_learning_signal_map(
+        store.list_review_items(user_id, include_pre_reading=False),
+        list(
+            _list_assessment_drafts(
+                user_id,
+                allowed_statuses={"draft", "active", "submitted"},
+            ).values()
+        ),
+    )
 
 
 def _guide_learning_signals(learning_signal_map: dict[str, dict], guide_id: str) -> dict:
-    return learning_signal_map.get(guide_id, _empty_learning_signal_summary())
+    return learning_signal_map.get(guide_id, empty_learning_signal_summary())
 
 
 def _decorate_guide_payload(
@@ -910,6 +855,7 @@ def _build_program_focus(
     *,
     matched_program_ids: set[str],
     ready_guide_ids: set[str],
+    learning_signal_map: dict[str, dict],
 ) -> dict | None:
     guide_ids = list(
         dict.fromkeys([*program.get("guide_ids", []), *program.get("applied_module_ids", [])])
@@ -922,6 +868,11 @@ def _build_program_focus(
     completed = 0
     in_progress = 0
     ready = 0
+    weak_review_count = 0
+    revision_backlog_count = 0
+    submitted_assessment_count = 0
+    assessment_grade_total = 0.0
+    assessment_grade_count = 0
     for guide_id in guide_ids:
         guide = store.get_guide(guide_id, user_id=user_id) or store.get_guide(guide_id)
         if not guide:
@@ -935,6 +886,19 @@ def _build_program_focus(
             in_progress += 1
         if guide_id in ready_guide_ids and not guide.get("enrolled"):
             ready += 1
+        learning_signals = _guide_learning_signals(learning_signal_map, guide_id)
+        weak_review_count += learning_signals["weak_review_count"]
+        revision_backlog_count += learning_signals["revision_backlog_count"]
+        submitted_assessment_count += learning_signals["submitted_assessment_count"]
+        if (
+            learning_signals["average_assessment_grade"] is not None
+            and learning_signals["assessment_grade_count"]
+        ):
+            assessment_grade_total += (
+                learning_signals["average_assessment_grade"]
+                * learning_signals["assessment_grade_count"]
+            )
+            assessment_grade_count += learning_signals["assessment_grade_count"]
 
     if total == 0:
         return None
@@ -955,6 +919,12 @@ def _build_program_focus(
         "completed_guide_count": completed,
         "in_progress_guide_count": in_progress,
         "ready_guide_count": ready,
+        "weak_review_count": weak_review_count,
+        "revision_backlog_count": revision_backlog_count,
+        "submitted_assessment_count": submitted_assessment_count,
+        "average_assessment_grade": round(assessment_grade_total / assessment_grade_count, 1)
+        if assessment_grade_count > 0
+        else None,
         "progress_pct": round(completed / total * 100, 1),
     }
 
@@ -967,6 +937,7 @@ def _build_learning_today(
 ) -> dict:
     stats = store.get_stats(user_id)
     recommendation = _get_next_recommendation_v2(user_id, store, scanner, guide_aliases)
+    learning_signal_map = _build_learning_signal_map(user_id, store)
     assessment_drafts = _list_assessment_drafts(user_id)
     if recommendation.get("guide_id"):
         recommendation["applied_assessments"] = _attach_assessment_drafts(
@@ -1011,6 +982,7 @@ def _build_learning_today(
             program,
             matched_program_ids=matched_program_ids,
             ready_guide_ids=ready_guide_ids,
+            learning_signal_map=learning_signal_map,
         )
         if not focus:
             continue
@@ -1029,6 +1001,7 @@ def _build_learning_today(
                 program,
                 matched_program_ids=matched_program_ids,
                 ready_guide_ids=ready_guide_ids,
+                learning_signal_map=learning_signal_map,
             )
             if focus:
                 focus_programs.append(focus)
@@ -1037,6 +1010,8 @@ def _build_learning_today(
     focus_programs.sort(
         key=lambda item: (
             status_rank.get(item["status"], 9),
+            -item["revision_backlog_count"],
+            -item["weak_review_count"],
             -item["progress_pct"],
             -item["ready_guide_count"],
             item["title"],

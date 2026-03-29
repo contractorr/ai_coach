@@ -173,9 +173,13 @@ class SupplementaryRetriever:
         if not self._user_id or not self._intel_db_path:
             return ""
         try:
+            from curriculum.personalization import build_learning_signal_map
             from curriculum.store import CurriculumStore
+            from journal.storage import JournalStorage
+            from web.deps import get_user_paths
 
-            db_path = Path(self._intel_db_path).parent / "curriculum.db"
+            paths = get_user_paths(self._user_id)
+            db_path = Path(paths["data_dir"]) / "curriculum.db"
             if not db_path.exists():
                 return ""
             store = CurriculumStore(db_path)
@@ -184,7 +188,64 @@ class SupplementaryRetriever:
             if not active:
                 return ""
 
+            storage = JournalStorage(paths["journal_dir"])
+            assessment_artifacts: list[dict] = []
+            for entry in storage.list_entries(limit=100):
+                try:
+                    post = storage.read(entry["path"])
+                except Exception:
+                    continue
+                metadata = dict(post.metadata)
+                guide_id = metadata.get("curriculum_guide_id")
+                assessment_type = metadata.get("curriculum_assessment_type")
+                status_value = metadata.get("assessment_status")
+                if (
+                    not guide_id
+                    or not assessment_type
+                    or status_value
+                    not in {
+                        "draft",
+                        "active",
+                        "submitted",
+                    }
+                ):
+                    continue
+                assessment_artifacts.append(
+                    {
+                        "guide_id": guide_id,
+                        "assessment_type": assessment_type,
+                        "draft_status": status_value,
+                        "draft_feedback": metadata.get("assessment_feedback"),
+                    }
+                )
+
+            learning_signal_map = build_learning_signal_map(
+                store.list_review_items(self._user_id, include_pre_reading=False),
+                assessment_artifacts,
+            )
+            due_reviews = len(store.get_due_reviews(self._user_id, limit=20))
+            retry_reviews = len(store.get_retry_review_items(self._user_id, limit=20))
+
+            weak_reviews = 0
+            active_revisions = 0
+            submitted_assessments = 0
+            for enrollment in active:
+                learning_signals = learning_signal_map.get(enrollment["guide_id"], {})
+                weak_reviews += int(learning_signals.get("weak_review_count") or 0)
+                active_revisions += int(learning_signals.get("revision_backlog_count") or 0)
+                submitted_assessments += int(
+                    learning_signals.get("submitted_assessment_count") or 0
+                )
+
             lines = ["<curriculum_progress>"]
+            lines.append(
+                "  <learning_pressure "
+                f'due_reviews="{due_reviews}" '
+                f'retry_reviews="{retry_reviews}" '
+                f'weak_reviews="{weak_reviews}" '
+                f'active_revisions="{active_revisions}" '
+                f'submitted_assessments="{submitted_assessments}" />'
+            )
             for enrollment in active:
                 guide = store.get_guide(enrollment["guide_id"])
                 if not guide:
@@ -198,9 +259,29 @@ class SupplementaryRetriever:
                         if prog and prog.get("status") == "completed":
                             completed += 1
                 track_attr = f' track="{guide.get("track", "")}"' if guide.get("track") else ""
+                learning_signals = learning_signal_map.get(enrollment["guide_id"], {})
+                weak_attr = ""
+                if learning_signals.get("weak_review_count"):
+                    weak_attr = f' weak_reviews="{learning_signals["weak_review_count"]}"'
+                revision_attr = ""
+                if learning_signals.get("revision_backlog_count"):
+                    revision_attr = (
+                        f' revision_backlog="{learning_signals["revision_backlog_count"]}"'
+                    )
+                grade_attr = ""
+                if learning_signals.get("average_assessment_grade") is not None:
+                    grade_attr = (
+                        f' avg_assessment_grade="{learning_signals["average_assessment_grade"]}"'
+                    )
+                submitted_attr = ""
+                if learning_signals.get("submitted_assessment_count"):
+                    submitted_attr = (
+                        f' submitted_assessments="{learning_signals["submitted_assessment_count"]}"'
+                    )
                 lines.append(
                     f'  <guide id="{guide["id"]}" title="{guide["title"]}" '
-                    f'progress="{completed}/{total}"{track_attr} />'
+                    f'progress="{completed}/{total}"{track_attr}{weak_attr}'
+                    f"{revision_attr}{grade_attr}{submitted_attr} />"
                 )
             lines.append("</curriculum_progress>")
             result = "\n".join(lines)

@@ -143,10 +143,12 @@ Suggested first-pass interpretation:
 - Backend
   - Extend `/api/curriculum/next` to return recommendation signals, matched programs, and assessment previews.
   - Extend guide detail payloads to expose the same assessment plan.
+  - Reuse the same learning-signal summaries for `/api/curriculum/today` program ordering and Advisor curriculum injection.
 - Frontend
   - Show a visible personalized "Next up" card even when the next action is guide enrollment.
   - Show recommendation chips or explanation signals on Learn landing.
   - Show the assessment pilot on Learn landing and guide detail views.
+  - Show revision / weak-item / grade cues on Home and Learn program-path cards so path ordering is legible.
 
 ## Pilot rollout
 

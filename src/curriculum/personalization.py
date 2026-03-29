@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import re
-from profile.storage import UserProfile
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from profile.storage import UserProfile
 
 _TOKEN_RE = re.compile(r"[a-z0-9]+")
 _STOP_WORDS = {
@@ -73,10 +75,73 @@ _TRACK_LABELS = {
 }
 
 
+def empty_learning_signal_summary() -> dict[str, Any]:
+    return {
+        "review_count": 0,
+        "reviewed_review_count": 0,
+        "weak_review_count": 0,
+        "revision_backlog_count": 0,
+        "submitted_assessment_count": 0,
+        "assessment_grade_count": 0,
+        "average_assessment_grade": None,
+        "low_assessment_count": 0,
+    }
+
+
+def build_learning_signal_map(
+    review_items: list[dict[str, Any]],
+    assessment_artifacts: list[dict[str, Any]],
+) -> dict[str, dict[str, Any]]:
+    signal_map: dict[str, dict[str, Any]] = {}
+    assessment_grade_totals: dict[str, float] = {}
+
+    for item in review_items:
+        guide_id = item.get("guide_id")
+        if not guide_id or item.get("item_type") == "pre_reading":
+            continue
+        summary = signal_map.setdefault(guide_id, empty_learning_signal_summary())
+        summary["review_count"] += 1
+        if item.get("last_reviewed"):
+            summary["reviewed_review_count"] += 1
+            if item.get("repetitions", 0) == 0 or float(item.get("easiness_factor", 2.5)) < 2.4:
+                summary["weak_review_count"] += 1
+
+    for artifact in assessment_artifacts:
+        guide_id = artifact.get("guide_id")
+        if not guide_id:
+            continue
+
+        summary = signal_map.setdefault(guide_id, empty_learning_signal_summary())
+        status_value = artifact.get("draft_status") or artifact.get("assessment_status")
+        if status_value == "active":
+            summary["revision_backlog_count"] += 1
+        if status_value == "submitted":
+            summary["submitted_assessment_count"] += 1
+
+        feedback = artifact.get("draft_feedback") or artifact.get("assessment_feedback") or {}
+        grade_value = feedback.get("grade")
+        if isinstance(grade_value, (int, float)):
+            summary["assessment_grade_count"] += 1
+            assessment_grade_totals[guide_id] = assessment_grade_totals.get(guide_id, 0.0) + float(
+                grade_value
+            )
+            if float(grade_value) < 4:
+                summary["low_assessment_count"] += 1
+
+    for guide_id, summary in signal_map.items():
+        grade_count = summary["assessment_grade_count"]
+        if grade_count > 0:
+            summary["average_assessment_grade"] = round(
+                assessment_grade_totals.get(guide_id, 0.0) / grade_count,
+                2,
+            )
+    return signal_map
+
+
 def _normalize_learning_signals(learning_signals: dict[str, Any] | None) -> dict[str, Any]:
-    signals = dict(learning_signals or {})
-    reviewed_count = int(signals.get("reviewed_review_count") or 0)
-    weak_count = int(signals.get("weak_review_count") or 0)
+    signals = {**empty_learning_signal_summary(), **dict(learning_signals or {})}
+    reviewed_count = int(signals["reviewed_review_count"] or 0)
+    weak_count = int(signals["weak_review_count"] or 0)
     average_grade = signals.get("average_assessment_grade")
     if average_grade is not None:
         average_grade = round(float(average_grade), 1)
