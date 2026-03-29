@@ -142,6 +142,8 @@ def _list_assessment_drafts(
             continue
 
         drafts[key] = {
+            "guide_id": entry_guide_id,
+            "assessment_type": assessment_type,
             "entry_path": str(entry["path"]),
             "entry_title": metadata.get("title", entry.get("title", "Assessment draft")),
             "goal_path": metadata.get("linked_goal_path"),
@@ -342,6 +344,82 @@ def _get_applied_assessment_artifact(
     ).get(_assessment_draft_key(guide_id, assessment_type))
 
 
+def _empty_learning_signal_summary() -> dict:
+    return {
+        "review_count": 0,
+        "reviewed_review_count": 0,
+        "weak_review_count": 0,
+        "revision_backlog_count": 0,
+        "submitted_assessment_count": 0,
+        "assessment_grade_count": 0,
+        "average_assessment_grade": None,
+        "low_assessment_count": 0,
+    }
+
+
+def _build_learning_signal_map(user_id: str, store: CurriculumStore) -> dict[str, dict]:
+    signal_map: dict[str, dict] = {}
+    for item in store.list_review_items(user_id, include_pre_reading=False):
+        guide_id = item["guide_id"]
+        summary = signal_map.setdefault(guide_id, _empty_learning_signal_summary())
+        summary["review_count"] += 1
+        if item.get("last_reviewed"):
+            summary["reviewed_review_count"] += 1
+            if item.get("repetitions", 0) == 0 or float(item.get("easiness_factor", 2.5)) < 2.4:
+                summary["weak_review_count"] += 1
+
+    assessment_grade_totals: dict[str, float] = {}
+    storage = None
+    for artifact in _list_assessment_drafts(
+        user_id,
+        allowed_statuses={"draft", "active", "submitted"},
+    ).values():
+        entry_path = str(artifact.get("entry_path") or "")
+        if not entry_path:
+            continue
+        guide_id = artifact.get("guide_id")
+        if not guide_id:
+            try:
+                from journal.storage import JournalStorage
+
+                storage = storage or JournalStorage(get_user_paths(user_id)["journal_dir"])
+                post = storage.read(entry_path)
+                guide_id = post.metadata.get("curriculum_guide_id")
+            except Exception:
+                guide_id = None
+        if not guide_id:
+            continue
+
+        summary = signal_map.setdefault(guide_id, _empty_learning_signal_summary())
+        status_value = artifact.get("draft_status")
+        if status_value == "active":
+            summary["revision_backlog_count"] += 1
+        if status_value == "submitted":
+            summary["submitted_assessment_count"] += 1
+        feedback = artifact.get("draft_feedback") or {}
+        grade_value = feedback.get("grade")
+        if isinstance(grade_value, (int, float)):
+            summary["assessment_grade_count"] += 1
+            assessment_grade_totals[guide_id] = assessment_grade_totals.get(guide_id, 0.0) + float(
+                grade_value
+            )
+            if float(grade_value) < 4:
+                summary["low_assessment_count"] += 1
+
+    for guide_id, summary in signal_map.items():
+        grade_count = summary["assessment_grade_count"]
+        if grade_count > 0:
+            summary["average_assessment_grade"] = round(
+                assessment_grade_totals.get(guide_id, 0.0) / grade_count,
+                2,
+            )
+    return signal_map
+
+
+def _guide_learning_signals(learning_signal_map: dict[str, dict], guide_id: str) -> dict:
+    return learning_signal_map.get(guide_id, _empty_learning_signal_summary())
+
+
 def _decorate_guide_payload(
     guide: dict,
     scanner: CurriculumScanner,
@@ -381,9 +459,13 @@ def _recommendation_reason(stage: str, recommendation_meta: dict, fallback: str)
     if matched_programs and stage in {"ready", "entry"}:
         return f"Best fit right now for {matched_programs[0]['title']}."
     signals = recommendation_meta.get("signals", [])
+    if stage in {"continue", "enrolled"}:
+        for signal in signals:
+            if signal.get("kind") in {"assessment", "performance"}:
+                return signal.get("detail", fallback)
     if stage in {"ready", "entry"}:
         for signal in signals:
-            if signal.get("kind") in {"context", "industry", "time"}:
+            if signal.get("kind") in {"context", "industry", "time", "assessment"}:
                 return signal.get("detail", fallback)
     return fallback
 
@@ -393,6 +475,7 @@ def _build_next_payload(
     scanner: CurriculumScanner,
     program_lookup: dict[str, list[dict]],
     profile,
+    learning_signal_map: dict[str, dict],
     *,
     stage: str,
     chapter: dict | None,
@@ -405,6 +488,7 @@ def _build_next_payload(
         decorated_guide["learning_programs"],
         profile,
         stage=stage,
+        learning_signals=_guide_learning_signals(learning_signal_map, decorated_guide["id"]),
     )
     return {
         "guide_id": decorated_guide["id"],
@@ -440,6 +524,7 @@ def _get_next_recommendation_v2(
 
     program_lookup = _build_program_lookup(scanner.get_learning_programs())
     profile = _load_user_profile(user_id)
+    learning_signal_map = _build_learning_signal_map(user_id, store)
 
     last = store.get_last_read_chapter(user_id)
     if last:
@@ -454,6 +539,7 @@ def _get_next_recommendation_v2(
                     scanner,
                     program_lookup,
                     profile,
+                    learning_signal_map,
                     stage="continue",
                     chapter=next_ch,
                     action=None,
@@ -482,6 +568,7 @@ def _get_next_recommendation_v2(
                     decorated["learning_programs"],
                     profile,
                     stage="enrolled",
+                    learning_signals=_guide_learning_signals(learning_signal_map, guide["id"]),
                 ),
             }
         )
@@ -492,6 +579,7 @@ def _get_next_recommendation_v2(
             scanner,
             program_lookup,
             profile,
+            learning_signal_map,
             stage="enrolled",
             chapter=best_enrolled["chapter"],
             action=None,
@@ -514,6 +602,7 @@ def _get_next_recommendation_v2(
                     decorated["learning_programs"],
                     profile,
                     stage="ready",
+                    learning_signals=_guide_learning_signals(learning_signal_map, guide["id"]),
                 ),
             }
         )
@@ -524,6 +613,7 @@ def _get_next_recommendation_v2(
             scanner,
             program_lookup,
             profile,
+            learning_signal_map,
             stage="ready",
             chapter=None,
             action="enroll",
@@ -549,6 +639,7 @@ def _get_next_recommendation_v2(
                     decorated["learning_programs"],
                     profile,
                     stage="entry",
+                    learning_signals=_guide_learning_signals(learning_signal_map, guide["id"]),
                 ),
             }
         )
@@ -559,6 +650,7 @@ def _get_next_recommendation_v2(
             scanner,
             program_lookup,
             profile,
+            learning_signal_map,
             stage="entry",
             chapter=None,
             action="enroll",

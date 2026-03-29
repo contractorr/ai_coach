@@ -856,6 +856,25 @@ class CurriculumStore:
                 ).fetchall()
             return [dict(r) for r in rows]
 
+    def list_review_items(
+        self,
+        user_id: str,
+        *,
+        guide_id: str | None = None,
+        include_pre_reading: bool = True,
+    ) -> list[dict]:
+        with wal_connect(self.db_path, row_factory=True) as conn:
+            query = "SELECT * FROM review_items WHERE user_id=?"
+            params: list[object] = [user_id]
+            if guide_id:
+                query += " AND guide_id=?"
+                params.append(guide_id)
+            if not include_pre_reading:
+                query += " AND item_type != 'pre_reading'"
+            query += " ORDER BY created_at DESC"
+            rows = conn.execute(query, tuple(params)).fetchall()
+            return [dict(r) for r in rows]
+
     def get_retry_review_items(
         self,
         user_id: str,

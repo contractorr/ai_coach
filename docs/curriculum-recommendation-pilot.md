@@ -28,6 +28,7 @@ system.
 - Graph state: last-read chapter, enrolled guides, unlocked guides, and entry points.
 - Profile context: current role, short/long-term goals, industries watching, active projects, and weekly time budget.
 - Curriculum context: manifest-backed learning programs, program outcomes, and applied industry modules.
+- Learning-performance context: weak-review density, recent applied-deliverable grades, and active revision backlog.
 
 ## Recommendation rules
 
@@ -44,6 +45,7 @@ When there is more than one enrolled incomplete guide, rank them by:
 2. industry or role match
 3. program fit
 4. time-budget fit
+5. weak recall or revision pressure inside the guide
 
 ### Rule 3: rank ready-to-start guides before generic entry points
 
@@ -90,6 +92,9 @@ The pilot does not need a machine-learned ranker. A transparent weighted score i
 - `industry_or_role_match`
 - `program_fit`
 - `time_budget_fit`
+- `weak_review_density`
+- `deliverable_grade_signal`
+- `revision_backlog_signal`
 
 Suggested first-pass interpretation:
 
@@ -129,6 +134,9 @@ Suggested first-pass interpretation:
 | industry intent | `UserProfile.industries_watching` | rank sector modules and adjacent guides | infer weakly from goals/projects |
 | goal intent | `GoalTracker.get_goals()` plus `UserProfile.goals_short_term`, `goals_long_term`, `aspirations` | match Learn to what the user is actually trying to achieve | use only curriculum progress |
 | time budget | `UserProfile.constraints.time_per_week` or `weekly_hours_available` | avoid recommending heavy cold starts to constrained learners | assume medium budget |
+| weak-review density | `CurriculumStore.list_review_items()` / retry-item criteria | keep shaky recall from disappearing behind generic momentum | pure profile/program fit |
+| deliverable grades | assessment feedback stored in Journal frontmatter | distinguish guides with strong applied transfer from guides needing more work | revision backlog only |
+| revision backlog | assessment artifact status in Journal metadata | prioritize guides where applied work still needs revision | ignore applied work state |
 
 ## Pilot surface area
 
@@ -156,3 +164,4 @@ Suggested first-pass interpretation:
 
 - Tune weights using real usage and completion feedback.
 - Expand beyond manifest-backed programs only after the program-map metadata is stable.
+- Feed assessment and review-performance signals into the same transparent ranker rather than adding a separate remediation recommender.

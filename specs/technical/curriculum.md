@@ -231,6 +231,10 @@ Current properties:
 - time budget
 - guide metadata
 - program metadata
+- per-guide learning-performance signals:
+  - weak-review counts and density
+  - deliverable-grade averages
+  - active revision backlog
 
 #### Current outputs
 
@@ -242,6 +246,7 @@ Current properties:
   - decision brief
   - scenario analysis
   - case memo
+- ranking-sensitive performance signals surfaced in `/api/curriculum/next` when relevant
 
 #### Roadmap references
 
@@ -324,6 +329,11 @@ The web API currently exposes 25 curriculum routes.
   - `signals`
   - `matched_programs`
   - `applied_assessments`
+- `/next` ranking now blends:
+  - profile/program fit
+  - weak-review density
+  - applied-deliverable grades
+  - revision backlog for active deliverables
 - `/today` returns:
   - `headline`
   - `summary`
@@ -476,6 +486,7 @@ Key route-level checks now include:
 - today queue auto-sync and retry-task coverage
 - assessment launch, reopen, and submit flows
 - retry review endpoint coverage
+- next-step ranking against weak-review and revision-backlog signals
 
 ## Known Limitations
 

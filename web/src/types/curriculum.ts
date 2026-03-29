@@ -243,7 +243,7 @@ export interface LearningStats {
 export type RecommendationType = "continue" | "enrolled" | "ready" | "entry" | "fallback";
 
 export interface RecommendationSignal {
-  kind: "progress" | "readiness" | "context" | "industry" | "time";
+  kind: "progress" | "readiness" | "context" | "industry" | "time" | "performance" | "assessment";
   label: string;
   detail: string;
 }

@@ -205,6 +205,88 @@ def test_next_personalizes_entry_point_with_profile(client, auth_headers):
     assert any(signal["kind"] in {"context", "time"} for signal in data["signals"])
 
 
+def test_next_surfaces_weak_review_signal_for_enrolled_guide(client, auth_headers):
+    client.post("/api/curriculum/sync", headers=auth_headers)
+
+    store = _curriculum_store()
+    guide_id = "28-accounting"
+    store.enroll("user-123", guide_id)
+    guide = store.get_guide(guide_id, user_id="user-123")
+    chapter = guide["chapters"][0]
+    store.add_review_items(
+        [
+            ReviewItem(
+                id="weak-review-next",
+                user_id="user-123",
+                chapter_id=chapter["id"],
+                guide_id=guide_id,
+                question="Why does gross margin matter?",
+                expected_answer="It shows how much value remains after direct costs.",
+                bloom_level=BloomLevel.UNDERSTAND,
+                item_type=ReviewItemType.QUIZ,
+                next_review=datetime.utcnow() - timedelta(days=1),
+            )
+        ]
+    )
+    store.grade_review("weak-review-next", 2)
+
+    resp = client.get("/api/curriculum/next", headers=auth_headers)
+
+    assert resp.status_code == 200
+    payload = resp.json()
+    assert payload["guide_id"] == guide_id
+    assert any(signal["kind"] == "performance" for signal in payload["signals"])
+
+
+def test_next_prioritizes_revision_backlog_in_enrolled_guides(client, auth_headers):
+    client.post("/api/curriculum/sync", headers=auth_headers)
+
+    store = _curriculum_store()
+    store.enroll("user-123", "28-accounting")
+    store.enroll("user-123", "37-ai-ml-fundamentals-guide")
+
+    launched = client.post(
+        "/api/curriculum/guides/37-ai-ml-fundamentals-guide/assessments/decision_brief/launch",
+        headers=auth_headers,
+    ).json()
+    storage = JournalStorage(get_user_paths("user-123")["journal_dir"])
+    storage.update(
+        launched["entry_path"],
+        content=(
+            "# Decision brief\n\n"
+            "Use a broad AI rollout soon. It could help with efficiency, but the case is still thin "
+            "and the draft needs better trade-offs, clearer assumptions, stronger metrics, and a more "
+            "specific recommendation about scope, risk, and review checkpoints."
+        ),
+    )
+
+    with patch(
+        "web.routes.curriculum.QuestionGenerator.grade_applied_assessment",
+        new=AsyncMock(
+            return_value=ReviewGradeResult(
+                grade=2,
+                feedback="Needs sharper trade-offs and clearer operating constraints.",
+                correct_points=["The draft names a real decision"],
+                missing_points=["Concrete trade-offs", "Success metrics"],
+            )
+        ),
+    ):
+        submit_resp = client.post(
+            "/api/curriculum/guides/37-ai-ml-fundamentals-guide/assessments/decision_brief/submit",
+            headers=auth_headers,
+        )
+
+    assert submit_resp.status_code == 200
+    assert submit_resp.json()["status"] == "active"
+
+    resp = client.get("/api/curriculum/next", headers=auth_headers)
+
+    assert resp.status_code == 200
+    payload = resp.json()
+    assert payload["guide_id"] == "37-ai-ml-fundamentals-guide"
+    assert any(signal["kind"] == "assessment" for signal in payload["signals"])
+
+
 def test_today_returns_queue_and_program_focus(client, auth_headers):
     client.post("/api/curriculum/sync", headers=auth_headers)
 

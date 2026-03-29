@@ -73,6 +73,26 @@ _TRACK_LABELS = {
 }
 
 
+def _normalize_learning_signals(learning_signals: dict[str, Any] | None) -> dict[str, Any]:
+    signals = dict(learning_signals or {})
+    reviewed_count = int(signals.get("reviewed_review_count") or 0)
+    weak_count = int(signals.get("weak_review_count") or 0)
+    average_grade = signals.get("average_assessment_grade")
+    if average_grade is not None:
+        average_grade = round(float(average_grade), 1)
+    return {
+        "review_count": int(signals.get("review_count") or 0),
+        "reviewed_review_count": reviewed_count,
+        "weak_review_count": weak_count,
+        "weak_review_density": (weak_count / reviewed_count if reviewed_count > 0 else 0.0),
+        "revision_backlog_count": int(signals.get("revision_backlog_count") or 0),
+        "submitted_assessment_count": int(signals.get("submitted_assessment_count") or 0),
+        "assessment_grade_count": int(signals.get("assessment_grade_count") or 0),
+        "average_assessment_grade": average_grade,
+        "low_assessment_count": int(signals.get("low_assessment_count") or 0),
+    }
+
+
 def _tokenize(*values: str) -> set[str]:
     tokens: set[str] = set()
     for value in values:
@@ -184,9 +204,11 @@ def score_guide_candidate(
     profile: UserProfile | None,
     *,
     stage: str,
+    learning_signals: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Score a guide candidate and explain the strongest matching signals."""
     profile_terms = _collect_profile_terms(profile)
+    learning_signal_summary = _normalize_learning_signals(learning_signals)
     guide_term_set = _guide_terms(guide, programs)
     score = 0
     signals: list[dict[str, str]] = []
@@ -228,6 +250,64 @@ def score_guide_candidate(
                 "detail": "No prerequisites are required, so you can start here immediately.",
             }
         )
+
+    weak_review_count = learning_signal_summary["weak_review_count"]
+    weak_review_density = learning_signal_summary["weak_review_density"]
+    if weak_review_count > 0:
+        if weak_review_density >= 0.5:
+            weak_score = 18
+        elif weak_review_density >= 0.25:
+            weak_score = 12
+        else:
+            weak_score = 7
+        if stage in {"continue", "enrolled"}:
+            weak_score += 4
+        score += weak_score
+        signals.append(
+            {
+                "kind": "performance",
+                "label": "Weak recall surfaced",
+                "detail": f"{weak_review_count} recent review item{'s' if weak_review_count != 1 else ''} still need reinforcement.",
+            }
+        )
+
+    revision_backlog_count = learning_signal_summary["revision_backlog_count"]
+    if revision_backlog_count > 0:
+        backlog_score = min(22, 10 + revision_backlog_count * 5)
+        if stage in {"continue", "enrolled"}:
+            backlog_score += 6
+        score += backlog_score
+        signals.append(
+            {
+                "kind": "assessment",
+                "label": "Revision backlog",
+                "detail": f"{revision_backlog_count} applied deliverable{'s' if revision_backlog_count != 1 else ''} still need revision.",
+            }
+        )
+
+    assessment_grade_count = learning_signal_summary["assessment_grade_count"]
+    average_assessment_grade = learning_signal_summary["average_assessment_grade"]
+    if assessment_grade_count > 0 and average_assessment_grade is not None:
+        if average_assessment_grade >= 4.2:
+            grade_score = 6 if stage in {"continue", "enrolled"} else 3
+            score += grade_score
+            signals.append(
+                {
+                    "kind": "assessment",
+                    "label": "Applied momentum",
+                    "detail": f"Recent deliverables are landing well at roughly {average_assessment_grade}/5.",
+                }
+            )
+        elif average_assessment_grade < 3.5:
+            grade_score = 9 if stage in {"continue", "enrolled"} else 4
+            score += grade_score
+            signals.append(
+                {
+                    "kind": "assessment",
+                    "label": "Feedback to work through",
+                    "detail": f"Recent deliverable feedback is still low at about {average_assessment_grade}/5.",
+                }
+            )
 
     if profile_terms["all"]:
         guide_overlap = profile_terms["all"] & guide_term_set

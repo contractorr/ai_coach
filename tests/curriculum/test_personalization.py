@@ -1,5 +1,6 @@
-from curriculum.personalization import build_applied_assessments, score_guide_candidate
 from profile.storage import UserProfile
+
+from curriculum.personalization import build_applied_assessments, score_guide_candidate
 
 
 def test_score_guide_candidate_matches_program_and_time_budget():
@@ -80,3 +81,36 @@ def test_build_applied_assessments_returns_full_pilot_plan():
         "case_memo",
     }
     assert "healthcare" in assessments[1]["prompt"].lower()
+
+
+def test_score_guide_candidate_uses_learning_performance_signals():
+    guide = {
+        "id": "37-ai-ml-fundamentals-guide",
+        "title": "AI/ML Fundamentals",
+        "category": "technology",
+        "track": "technology",
+        "total_reading_time_minutes": 150,
+    }
+    profile = UserProfile(
+        current_role="Operations lead",
+        goals_short_term="Use AI with better judgment in operational workflows.",
+        weekly_hours_available=4,
+    )
+
+    result = score_guide_candidate(
+        guide,
+        [],
+        profile,
+        stage="enrolled",
+        learning_signals={
+            "reviewed_review_count": 4,
+            "weak_review_count": 2,
+            "revision_backlog_count": 1,
+            "assessment_grade_count": 1,
+            "average_assessment_grade": 2.0,
+        },
+    )
+
+    assert result["score"] > 120
+    assert any(signal["kind"] == "performance" for signal in result["signals"])
+    assert any(signal["kind"] == "assessment" for signal in result["signals"])

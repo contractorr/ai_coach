@@ -55,6 +55,10 @@ recommendations, and authoring QA.
   - industries
   - time budget
   - learning-program overlap
+- Recommendation ranking also now consumes live learning-performance signals:
+  - weak-item density from recent review history
+  - applied-deliverable grades
+  - revision backlog on active deliverables
 - The recommendation logic now also feeds a `Today in Learn` workflow payload:
   - primary action for the current block
   - due-review task when recall is waiting
@@ -190,6 +194,7 @@ recommendations, and authoring QA.
 - [x] Canonical guide aliases are resolved so deprecated guide IDs do not remain in the active graph.
 - [x] Learning programs are data-driven from the manifest.
 - [x] `/api/curriculum/next` is profile-aware and not only prerequisite-aware.
+- [x] `/api/curriculum/next` also reacts to weak recall, deliverable grades, and revision backlog within the existing candidate buckets.
 - [x] `/api/curriculum/today` assembles a ranked learning queue plus active/recommended program paths.
 - [x] Recommendation and guide payloads surface applied-assessment pilot data.
 - [x] Applied-assessment cards can create persisted Journal drafts and linked learning goals.
