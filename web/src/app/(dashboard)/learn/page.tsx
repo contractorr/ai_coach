@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
@@ -74,6 +74,7 @@ export default function LearnPage() {
   const [activeView, setActiveView] = useState<LearnView>(
     searchParams.get("view") === "tree" ? "tree" : "grid",
   );
+  const librarySectionRef = useRef<HTMLElement | null>(null);
 
   const selectedProgramId = searchParams.get("program");
 
@@ -103,6 +104,20 @@ export default function LearnPage() {
   useEffect(() => {
     setActiveView(searchParams.get("view") === "tree" ? "tree" : "grid");
   }, [searchParams]);
+
+  const handleViewChange = (value: string) => {
+    const nextView = value as LearnView;
+    setActiveView(nextView);
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const section = librarySectionRef.current;
+        if (!section) return;
+        const top = section.getBoundingClientRect().top + window.scrollY - 16;
+        window.scrollTo({ top: Math.max(top, 0) });
+      });
+    });
+  };
 
   const handleSync = async () => {
     if (!token) return;
@@ -485,7 +500,7 @@ export default function LearnPage() {
                           <Badge
                             key={outcome}
                             variant="secondary"
-                            className="text-[10px]"
+                            className="max-w-full shrink whitespace-normal break-words py-1 text-left text-[10px] leading-snug"
                           >
                             {outcome}
                           </Badge>
@@ -514,7 +529,7 @@ export default function LearnPage() {
         )}
       </section>
 
-      <section className="space-y-4">
+      <section ref={librarySectionRef} className="space-y-4">
         <div className="space-y-1">
           <h2 className="text-lg font-semibold">Library and map</h2>
           <p className="text-sm text-muted-foreground">
@@ -525,7 +540,7 @@ export default function LearnPage() {
 
         <Tabs
           value={activeView}
-          onValueChange={(value) => setActiveView(value as LearnView)}
+          onValueChange={handleViewChange}
         >
           <TabsList variant="line">
             <TabsTrigger value="grid">
