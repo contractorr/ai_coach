@@ -8,14 +8,16 @@ Goals combines goals, recommendations, weekly planning, and actionable opportuni
 
 ## Product Placement
 
-- Workspace: `Goals`
-- Current route: `/focus` (with `/goals` available as an alias)
+- Workspace: secondary `Goals` workspace
+- Current route: `/goals` (with `/focus` kept as an alias)
+- Entry points: contextual links from `Home` and recommendation-driven flows
 - Primary job: decide what to do next and keep current work moving
 - Advanced detail: `/projects` remains available for deeper opportunity browsing, but it is no longer a primary product concept
 
 ## Current Behavior
 
 - Goals starts with the strongest next moves and weekly plan items.
+- Goals should open with filters and working lists, not summary KPI cards.
 - Goals remain durable objects with milestones, check-ins, and status changes.
 - Recommendations and opportunities are treated as part of the same execution workflow.
 - Users can create a goal, update progress, and score recommendation quality from one page.
@@ -29,6 +31,5 @@ Goals combines goals, recommendations, weekly planning, and actionable opportuni
 ## Key System Components
 
 - `web/src/app/(dashboard)/goals/page.tsx`
-- `web/src/app/(dashboard)/focus/page.tsx`
 - `src/web/routes/goals.py`
 - `src/web/routes/recommendations.py`

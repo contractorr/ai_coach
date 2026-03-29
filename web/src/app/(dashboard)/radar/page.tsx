@@ -190,7 +190,7 @@ export default function RadarPage() {
       return;
     }
 
-    router.push("/focus");
+    router.push("/goals");
   };
 
   const handleThreadAction = async (threadId: string, action: string) => {
@@ -261,8 +261,12 @@ export default function RadarPage() {
         eyebrow="Monitor"
         title="Radar"
         description="Keep one eye on what changed, what resurfaced, and what needs follow-up without juggling separate monitoring tools."
+        badge={!loading ? `${radarSuggestions.length} signal${radarSuggestions.length === 1 ? "" : "s"}` : undefined}
         actions={
           <>
+            <Button variant="outline" asChild>
+              <Link href="/research">Open research</Link>
+            </Button>
             <Button variant="outline" asChild>
               <Link href="/intel">Open advanced intel</Link>
             </Button>
@@ -273,36 +277,6 @@ export default function RadarPage() {
           </>
         }
       />
-
-      <div className="grid gap-3 md:grid-cols-3">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>For you</CardDescription>
-            <CardTitle className="text-2xl">{radarSuggestions.length}</CardTitle>
-          </CardHeader>
-          <CardContent className="text-sm text-muted-foreground">
-            Personalized monitoring items across intel, alerts, assumptions, and dossier triggers.
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Tracked topics</CardDescription>
-            <CardTitle className="text-2xl">{watchlist.length}</CardTitle>
-          </CardHeader>
-          <CardContent className="text-sm text-muted-foreground">
-            Your companies, themes, sectors, and places to watch.
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Saved follow-ups</CardDescription>
-            <CardTitle className="text-2xl">{followUps.length}</CardTitle>
-          </CardHeader>
-          <CardContent className="text-sm text-muted-foreground">
-            Signals you saved for later with notes and follow-up context.
-          </CardContent>
-        </Card>
-      </div>
 
       <Tabs defaultValue="for-you">
         <TabsList className="flex w-full flex-wrap justify-start">

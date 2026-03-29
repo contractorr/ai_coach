@@ -7,14 +7,13 @@ import {
   BookOpen,
   FileText,
   GitMerge,
+  GraduationCap,
   Home,
   Lightbulb,
-  MessageSquare,
   Newspaper,
   Target,
   Sparkles,
   Send,
-  FlaskConical,
   Waypoints,
   ArrowRight,
   ExternalLink,
@@ -79,22 +78,22 @@ const ALL_LLM_PROVIDERS = ["claude", "openai", "gemini"] as const;
 
 const introSections = [
   {
+    icon: Home,
+    title: "Home",
+    description:
+      "Start here each day to capture a thought, ask for guidance, and see what matters next.",
+  },
+  {
     icon: Newspaper,
     title: "Radar",
     description:
       "Watches HN, GitHub, arXiv, Reddit, and RSS so the strongest signals rise to the top.",
   },
   {
-    icon: Brain,
-    title: "Guidance",
+    icon: GraduationCap,
+    title: "Learn",
     description:
-      "Turns your notes, goals, and live signals into grounded help with what to do next.",
-  },
-  {
-    icon: Target,
-    title: "Goals",
-    description:
-      "Keeps your priorities visible so StewardMe can rank what matters against them.",
+      "Build knowledge deliberately from the Guide Library, reviews, and daily learning prompts.",
   },
   {
     icon: BookOpen,
@@ -103,10 +102,10 @@ const introSections = [
       "Capture reflections, decisions, and observations. Every entry sharpens future guidance.",
   },
   {
-    icon: FlaskConical,
-    title: "Research",
+    icon: Target,
+    title: "Goals and Research",
     description:
-      "Deep dives into opportunities, technologies, or trends — driven by your goals and interests.",
+      "Open Goals when you need a clearer plan and Research when a signal deserves a deeper dive.",
   },
 ];
 
@@ -115,37 +114,37 @@ export const guideCards = [
     icon: Home,
     title: "Start at Home",
     description:
-      "Your daily dashboard — prioritized tasks, goal updates, and signals. Start here each day.",
+      "Your daily starting point for capture, guidance, and the next thing worth your attention.",
   },
   {
-    icon: Target,
-    title: "Set goals",
+    icon: Newspaper,
+    title: "Check Radar",
     description:
-      "Track goals and milestones. Your steward uses these to prioritize your brief and surface relevant intel.",
+      "Radar watches your sources in the background so only the strongest signals rise to the top.",
+  },
+  {
+    icon: GraduationCap,
+    title: "Use the Guide Library",
+    description:
+      "Learn from curated guides, keep your streak alive, and return when reviews are due.",
   },
   {
     icon: BookOpen,
     title: "Journal daily",
     description:
-      "Capture thoughts, decisions, observations. Every entry sharpens your steward's guidance.",
+      "Capture thoughts, decisions, and observations. Every entry sharpens your steward's guidance.",
   },
   {
-    icon: MessageSquare,
-    title: "Ask for guidance",
+    icon: Target,
+    title: "Open Goals when planning",
     description:
-      "Decisions, priorities, strategy — tap any item or type a question to start a conversation.",
-  },
-  {
-    icon: Newspaper,
-    title: "Radar runs in the background",
-    description:
-      "Scrapers watch HN, GitHub, arXiv, Reddit & RSS. Relevant items surface automatically.",
+      "Use Goals when you want to shape priorities, track milestones, or work through next-step planning.",
   },
   {
     icon: FileText,
-    title: "Browse Research",
+    title: "Open Research when digging deeper",
     description:
-      "Research reports, uploaded PDFs, and saved content — all searchable in one place.",
+      "Research holds reports, uploaded PDFs, and saved reference material for the topics worth a deeper dive.",
   },
 ];
 
@@ -490,8 +489,9 @@ export default function OnboardingPage() {
                 <span className="font-medium text-foreground">
                   How it connects:
                 </span>{" "}
-                Journal and goals shape what matters. Radar watches the world.
-                Research helps when a topic needs a deeper dive.
+                Home is your daily starting point. Radar watches the world.
+                Learn builds understanding. Journal captures context. Goals and
+                Research stay nearby when you need more depth.
               </div>
             </div>
 
@@ -614,7 +614,8 @@ export default function OnboardingPage() {
               <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30 p-3 text-xs text-muted-foreground space-y-1">
                 <p className="font-medium text-foreground">Lite mode</p>
                 <p>
-                  Haiku model &middot; 30 queries/day &middot; No deep research
+                  Haiku model &middot; 30 queries/day &middot; No Research
+                  workspace
                 </p>
                 <p>
                   Add your own key anytime in Settings for the full experience.
@@ -819,15 +820,16 @@ export default function OnboardingPage() {
               ))}
               <div className="rounded-lg border bg-muted/50 p-3 text-xs text-muted-foreground leading-relaxed">
                 <span className="font-medium text-foreground">Tip:</span> The
-                more you journal and set goals, the sharper your brief gets. You
-                can always revisit this from the sidebar.
+                more you journal and refine goals, the sharper Home gets. You
+                can always revisit this guide from the sidebar.
               </div>
               {usingSharedKey && (
                 <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30 p-3 text-xs text-muted-foreground space-y-1">
                   <p className="font-medium text-foreground">Upgrade anytime</p>
                   <p>
                     You&apos;re on lite mode. Add your API key in Settings for
-                    fuller responses, deep research, and unlimited usage.
+                    fuller responses, the Research workspace, and unlimited
+                    usage.
                   </p>
                 </div>
               )}

@@ -17,8 +17,10 @@ Home is the default entry point for both note capture and grounded advice. The p
 - The Home composer defaults to capture.
 - Explicit question syntax can preselect Ask, while an explicit toggle choice wins for the current draft.
 - The composer shows a visible intent state so the user can tell whether Enter will save to Journal or send to the advisor.
+- The composer is the visual center of Home rather than one widget among multiple dashboards.
 - After a note is captured, Home offers a lightweight `Get advice on this` follow-up.
-- Home also shows a short greeting/return brief and at most three prioritized next-step cards.
+- Home also shows a short greeting or return brief, one compact learning handoff, and at most three prioritized next-step items.
+- Home should avoid opening with KPI cards, heatmaps, or multiple side-by-side status widgets.
 - When the user has multiple working provider keys, important or open-ended Ask prompts can use council-assisted answering instead of relying on a single provider.
 - Council-assisted answers should surface the best path forward, not just a generic synthesis.
 - PDF attachments stay available in Ask mode without turning document handling into a separate product concept.
@@ -30,6 +32,7 @@ Home is the default entry point for both note capture and grounded advice. The p
 - User starts typing, sees Home preselect Ask for a question-shaped draft, and can still lock the draft back to Capture when they only want to save it.
 - User writes a note, saves it, then upgrades it into advice with one click.
 - User opens the full chat deep link only when a longer thread needs more space.
+- User stays on Home for short back-and-forth exchanges and only leaves for `/advisor` when the thread becomes long enough to need a dedicated workspace.
 
 ## Acceptance Criteria — Prompt Assembly
 

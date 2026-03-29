@@ -6,13 +6,11 @@ import { useSession } from "next-auth/react";
 import {
   BookOpen,
   Brain,
-  FileText,
   GraduationCap,
   HelpCircle,
   Home,
   Newspaper,
   Settings,
-  Target,
   X,
   LogOut,
   User,
@@ -30,12 +28,45 @@ import { guideCards, behindTheScenesCards } from "@/app/(dashboard)/onboarding/p
 
 const primaryNav = [
   { href: "/home", label: "Home", icon: Home },
-  { href: "/focus", label: "Goals", icon: Target },
   { href: "/radar", label: "Radar", icon: Newspaper },
-  { href: "/library", label: "Research", icon: FileText },
   { href: "/learn", label: "Learn", icon: GraduationCap },
   { href: "/journal", label: "Journal", icon: BookOpen },
 ];
+
+function resolvePrimaryPath(pathname: string) {
+  if (
+    pathname === "/home" ||
+    pathname === "/focus" ||
+    pathname === "/goals" ||
+    pathname === "/projects" ||
+    pathname === "/advisor"
+  ) {
+    return "/home";
+  }
+
+  if (
+    pathname === "/radar" ||
+    pathname === "/research" ||
+    pathname === "/library" ||
+    pathname === "/intel"
+  ) {
+    return "/radar";
+  }
+
+  if (pathname === "/learn" || pathname.startsWith("/learn/")) {
+    return "/learn";
+  }
+
+  if (pathname === "/journal") {
+    return "/journal";
+  }
+
+  if (pathname === "/settings") {
+    return "/settings";
+  }
+
+  return null;
+}
 
 function NavItem({
   href,
@@ -96,6 +127,7 @@ export function Sidebar({
   onGuideOpenChange: (open: boolean) => void;
 }) {
   const pathname = usePathname();
+  const primaryPath = resolvePrimaryPath(pathname);
   const { data: session } = useSession();
   const user = session?.user;
 
@@ -145,7 +177,7 @@ export function Sidebar({
               <NavItem
                 key={item.href}
                 {...item}
-                active={pathname === item.href}
+                active={primaryPath === item.href}
                 onClick={() => onOpenChange(false)}
                 disabled={disabled}
               />
@@ -159,7 +191,7 @@ export function Sidebar({
             href="/settings"
             label="Settings"
             icon={Settings}
-            active={pathname === "/settings"}
+            active={primaryPath === "/settings"}
             onClick={() => onOpenChange(false)}
             disabled={disabled}
           />

@@ -15,6 +15,7 @@ Radar is the unified monitoring workspace for external signals, recurring thread
 ## Current Behavior
 
 - Radar mixes signal families into one ranked `For you` feed with simple badges and clear next actions.
+- Radar should open directly into tabs and signal lists rather than a summary count dashboard.
 - Threads and active dossiers live inside Radar because they are active monitoring work.
 - A `Scan now` action refreshes monitoring on demand.
 - The advanced `/intel` page remains available for power users but is no longer the primary monitoring entry point.

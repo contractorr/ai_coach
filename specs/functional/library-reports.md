@@ -8,13 +8,16 @@ Research is the durable reference workspace for uploaded documents, generated re
 
 ## Product Placement
 
-- Workspace: `Research`
+- Workspace: secondary `Research` workspace
+- Current route: `/research` (with `/library` kept as an alias)
+- Entry points: contextual links from `Radar`, `Journal`, and guided flows
 - Primary job: find, reuse, and manage durable reference material
 - Journal handoff: the user can jump from Research into the deeper Journal workspace when they need source notes instead of durable artifacts
 
 ## Current Behavior
 
 - Research supports type filtering across documents, reports, and dossiers.
+- Report generation should be available as a secondary action, not a permanent top-of-page form.
 - Active dossiers stay in Radar until they are archived.
 - Archived dossiers become read-only reference material in Research.
 - Report-like items can still be refreshed or edited from the Research workspace.
@@ -63,7 +66,8 @@ Research is the durable reference workspace for uploaded documents, generated re
 
 ## Key System Components
 
-- `web/src/app/(dashboard)/library/page.tsx`
+- `web/src/app/(dashboard)/research/page.tsx`
+- `web/src/components/research/ResearchWorkspace.tsx`
 - `src/web/routes/library.py`
 - `src/web/routes/research.py`
 - `src/library/reports.py` — `ReportStore`

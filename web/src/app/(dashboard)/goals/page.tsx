@@ -5,10 +5,8 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useToken } from "@/hooks/useToken";
 import {
-  Archive,
   CheckCircle2,
   Circle,
-  Clock3,
   Lightbulb,
   Plus,
   Search,
@@ -725,6 +723,7 @@ export default function GoalsPage() {
         eyebrow="Move forward"
         title="Goals"
         description="Keep active goals moving and turn the best opportunities into steady progress."
+        badge={!loading && goals.length > 0 ? `${goalCounts.focus} active` : undefined}
         actions={
           <>
             <Button variant="outline" asChild>
@@ -806,44 +805,6 @@ export default function GoalsPage() {
 
       {!loading && goals.length > 0 && (
         <>
-          <div className="grid gap-3 sm:grid-cols-3">
-            <Card className="gap-3 py-4">
-              <CardHeader className="px-4 pb-0">
-                <CardDescription className="flex items-center gap-2 text-xs uppercase tracking-wide">
-                  <Target className="h-3.5 w-3.5" /> Active
-                </CardDescription>
-                <CardTitle className="text-2xl">{goalCounts.focus}</CardTitle>
-              </CardHeader>
-              <CardContent className="px-4 text-xs text-muted-foreground">
-                Active and paused goals stay in the default working list.
-              </CardContent>
-            </Card>
-
-            <Card className="gap-3 py-4">
-              <CardHeader className="px-4 pb-0">
-                <CardDescription className="flex items-center gap-2 text-xs uppercase tracking-wide">
-                  <Clock3 className="h-3.5 w-3.5" /> Needs check-in
-                </CardDescription>
-                <CardTitle className="text-2xl">{goalCounts.stale}</CardTitle>
-              </CardHeader>
-              <CardContent className="px-4 text-xs text-muted-foreground">
-                Stale goals surface separately so they do not get buried in the list.
-              </CardContent>
-            </Card>
-
-            <Card className="gap-3 py-4">
-              <CardHeader className="px-4 pb-0">
-                <CardDescription className="flex items-center gap-2 text-xs uppercase tracking-wide">
-                  <Archive className="h-3.5 w-3.5" /> Archived
-                </CardDescription>
-                <CardTitle className="text-2xl">{goalCounts.archived}</CardTitle>
-              </CardHeader>
-              <CardContent className="px-4 text-xs text-muted-foreground">
-                Completed and abandoned goals remain available without crowding current work.
-              </CardContent>
-            </Card>
-          </div>
-
           <Card className="gap-3 py-4">
             <CardContent className="flex flex-col gap-3 px-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex flex-wrap gap-2">

@@ -23,3 +23,4 @@ Journal APIs support both Home quick capture and the deeper Journal workspace re
 
 - Quick capture belongs on Home.
 - The full Journal remains one tap away, but it is no longer a primary navigation concept.
+- The Journal page should emphasize search, filters, and entry browsing before any aggregate stats.

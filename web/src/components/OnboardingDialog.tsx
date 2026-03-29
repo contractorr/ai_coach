@@ -2,7 +2,7 @@
 
 import { useRef, useCallback, useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
-import { Brain, BookOpen, Newspaper, Target, Sparkles, Send, FlaskConical, ArrowRight, ExternalLink } from "lucide-react";
+import { Brain, BookOpen, Newspaper, Target, Sparkles, Send, ArrowRight, ExternalLink, FileText, GraduationCap, Home } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -44,10 +44,16 @@ const features = [
   { icon: Newspaper, text: "Watch what matters across HN, GitHub, arXiv, Reddit, and RSS" },
   { icon: Sparkles, text: "Ask for grounded guidance shaped by your context and live signals" },
   { icon: Target, text: "Keep goals connected to the changes and opportunities around you" },
-  { icon: BookOpen, text: "Capture notes and research that sharpen future guidance" },
+  { icon: BookOpen, text: "Capture notes in Journal and keep durable findings in Research" },
 ];
 
 const introSections = [
+  {
+    icon: Home,
+    title: "Home",
+    description:
+      "Start here each day to capture a thought, ask for guidance, and see what matters next.",
+  },
   {
     icon: Newspaper,
     title: "Radar",
@@ -55,16 +61,10 @@ const introSections = [
       "Watches HN, GitHub, arXiv, Reddit, and RSS so the strongest signals rise to the top.",
   },
   {
-    icon: Brain,
-    title: "Guidance",
+    icon: GraduationCap,
+    title: "Learn",
     description:
-      "Turns your notes, goals, and live signals into grounded help with what to do next.",
-  },
-  {
-    icon: Target,
-    title: "Goals",
-    description:
-      "Keeps your priorities visible so StewardMe can rank what matters against them.",
+      "Build knowledge deliberately from the Guide Library, reviews, and daily learning prompts.",
   },
   {
     icon: BookOpen,
@@ -73,10 +73,10 @@ const introSections = [
       "Capture reflections, decisions, and observations. Every entry sharpens future guidance.",
   },
   {
-    icon: FlaskConical,
-    title: "Research",
+    icon: FileText,
+    title: "Goals and Research",
     description:
-      "Deep dives into opportunities, technologies, or trends — driven by your goals and interests.",
+      "Open Goals when you need a clearer plan and Research when a signal deserves a deeper dive.",
   },
 ];
 
@@ -237,7 +237,7 @@ export function OnboardingDialog({ open, onClose, onComplete, token, startPhase 
 
               <div className="rounded-lg border bg-muted/50 p-3 text-xs text-muted-foreground leading-relaxed">
                 <span className="font-medium text-foreground">How it connects:</span>{" "}
-                Journal and goals shape what matters. Radar watches the world. Research helps when a topic needs a deeper dive.
+                Home is your daily starting point. Radar watches the world. Learn builds understanding. Journal captures context. Goals and Research stay nearby when you need more depth.
               </div>
             </div>
 
@@ -388,7 +388,7 @@ export function OnboardingDialog({ open, onClose, onComplete, token, startPhase 
               </button>
               <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30 p-3 text-xs text-muted-foreground space-y-1">
                 <p className="font-medium text-foreground">Lite mode</p>
-                <p>Haiku model &middot; 30 queries/day &middot; No deep research</p>
+                <p>Haiku model &middot; 30 queries/day &middot; No Research workspace</p>
                 <p>Add your own key anytime in Settings for the full experience.</p>
               </div>
             </SheetFooter>

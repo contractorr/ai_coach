@@ -11,7 +11,8 @@ Research dossiers now have a clear active-versus-archived lifecycle mapped to Ra
 - `src/web/routes/research.py`
 - `src/web/routes/dossier_escalations.py`
 - `web/src/app/(dashboard)/radar/page.tsx`
-- `web/src/app/(dashboard)/library/page.tsx`
+- `web/src/app/(dashboard)/research/page.tsx`
+- `web/src/components/research/ResearchWorkspace.tsx`
 
 ## Interfaces
 

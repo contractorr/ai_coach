@@ -91,7 +91,7 @@ features:
       - src/web/models.py
     frontend:
       - web/src/app/(dashboard)/home/page.tsx
-      - web/src/app/(dashboard)/focus/page.tsx
+      - web/src/app/(dashboard)/goals/page.tsx
       - web/src/types/suggestions.ts
       - web/src/types/briefing.ts
     tests:
@@ -115,7 +115,6 @@ features:
       - src/web/models.py
     frontend:
       - web/src/app/(dashboard)/goals/page.tsx
-      - web/src/app/(dashboard)/focus/page.tsx
       - web/src/app/(dashboard)/projects/page.tsx
     tests:
       - tests/advisor/test_goals_milestones.py
@@ -207,7 +206,8 @@ features:
       - src/web/routes/research.py
       - src/web/models.py
     frontend:
-      - web/src/app/(dashboard)/library/page.tsx
+      - web/src/app/(dashboard)/research/page.tsx
+      - web/src/components/research/ResearchWorkspace.tsx
       - web/src/types/library.ts
     tests:
       - tests/research/test_agent.py
@@ -229,7 +229,8 @@ features:
       - src/web/models.py
     frontend:
       - web/src/app/(dashboard)/radar/page.tsx
-      - web/src/app/(dashboard)/library/page.tsx
+      - web/src/app/(dashboard)/research/page.tsx
+      - web/src/components/research/ResearchWorkspace.tsx
       - web/src/types/library.ts
     tests:
       - tests/research/test_dossiers.py
@@ -272,7 +273,8 @@ features:
       - src/web/routes/library.py
       - src/web/models.py
     frontend:
-      - web/src/app/(dashboard)/library/page.tsx
+      - web/src/app/(dashboard)/research/page.tsx
+      - web/src/components/research/ResearchWorkspace.tsx
       - web/src/types/library.ts
     tests:
       - tests/library/test_reports.py

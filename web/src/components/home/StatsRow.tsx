@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { BookOpen, Flame, RotateCcw, Target } from "lucide-react";
 import { useMemo } from "react";
 import type { LearningStats } from "@/types/curriculum";
@@ -22,19 +23,22 @@ function thisWeekCount(entries: Array<{ created: string | null }>): number {
 
 export function StatsRow({ journalEntries, activeGoals, learningStats, loading }: Props) {
   const weekCount = useMemo(() => thisWeekCount(journalEntries), [journalEntries]);
+  const reviewsHref = (learningStats?.reviews_due ?? 0) > 0 ? "/learn/review" : "/learn";
 
   const pills = [
-    { icon: BookOpen, label: `${weekCount} journaled this week`, key: "journal" },
-    { icon: Target, label: `${activeGoals} active goals`, key: "goals" },
+    { icon: BookOpen, label: `${weekCount} journaled this week`, key: "journal", href: "/journal" },
+    { icon: Target, label: `${activeGoals} active goals`, key: "goals", href: "/goals" },
     {
       icon: Flame,
       label: `${learningStats?.current_streak_days ?? 0}d learning streak`,
       key: "learning_streak",
+      href: "/learn",
     },
     {
       icon: RotateCcw,
       label: `${learningStats?.reviews_due ?? 0} reviews due`,
       key: "reviews_due",
+      href: reviewsHref,
     },
   ];
 
@@ -50,14 +54,15 @@ export function StatsRow({ journalEntries, activeGoals, learningStats, loading }
 
   return (
     <div className="flex flex-wrap gap-2">
-      {pills.map(({ icon: Icon, label, key }) => (
-        <span
+      {pills.map(({ icon: Icon, label, key, href }) => (
+        <Link
           key={key}
+          href={href}
           className="inline-flex items-center gap-1.5 rounded-full border bg-card/70 px-3 py-1 text-xs backdrop-blur"
         >
           <Icon className="h-3 w-3 text-muted-foreground" />
           {label}
-        </span>
+        </Link>
       ))}
     </div>
   );

@@ -15,6 +15,7 @@ Settings owns account-level and advanced configuration tasks so everyday work ca
 ## Current Behavior
 
 - Settings includes profile and model-access management.
+- Account, AI access, and profile should stay visible first; heavier controls should be collapsed into an advanced section.
 - Users can save separate API keys for multiple supported LLM providers without overwriting the others.
 - Each provider entry has its own masked key state, replace/remove actions, and connection test.
 - Settings explains when steward may use a multi-provider council for important or open-ended prompts, including the expected tradeoff of better deliberation versus higher latency and cost.

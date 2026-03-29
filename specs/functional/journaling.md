@@ -16,6 +16,7 @@ Journaling is the product's capture flywheel. Quick capture belongs on Home, whi
 
 - Home quick capture optimizes for speed and minimal required fields.
 - The full Journal workspace still supports richer editing, templates, filters, and search.
+- Journal should open with capture/search/filter controls and the entry list, not a stats dashboard.
 - Journal activity feeds threads, memory, extraction receipts, and downstream prioritization.
 
 ## User Flows

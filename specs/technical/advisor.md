@@ -38,3 +38,4 @@ Advisor remains the conversational engine, but Home is now the primary entry poi
 
 - Home defaults to capture and upgrades into advisor only when input clearly looks like a question or the user toggles Ask.
 - The advisor page is no longer part of the primary navigation model.
+- Home keeps the current thread inline for short exchanges and only links to `/advisor` when the user needs a longer continuation surface.

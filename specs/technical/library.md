@@ -10,7 +10,8 @@ Research is the durable reference workspace for uploaded documents, generated re
 
 - `src/web/routes/library.py`
 - `src/web/routes/research.py`
-- `web/src/app/(dashboard)/library/page.tsx`
+- `web/src/app/(dashboard)/research/page.tsx`
+- `web/src/components/research/ResearchWorkspace.tsx`
 
 ## Interfaces
 

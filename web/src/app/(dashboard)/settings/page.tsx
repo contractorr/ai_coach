@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Pencil, Check, X, RefreshCw, Rss, Loader2, Trash2, Plus } from "lucide-react";
+import { Pencil, Check, X, RefreshCw, Rss, Loader2, Trash2, Plus, ChevronDown } from "lucide-react";
 import { useToken } from "@/hooks/useToken";
 import { Button } from "@/components/ui/button";
 import {
@@ -500,19 +500,6 @@ export default function SettingsPage() {
   const [customProviderSaving, setCustomProviderSaving] = useState(false);
   const [testingCustomProviderId, setTestingCustomProviderId] = useState<string | null>(null);
 
-  const sectionLinks = [
-    { id: "account", label: "Account" },
-    { id: "ai-settings", label: "AI" },
-    { id: "usage", label: "Usage" },
-    { id: "api-keys", label: "Keys" },
-    { id: "features", label: "Features" },
-    { id: "rss-feeds", label: "RSS" },
-    { id: "watchlist", label: "Watchlist" },
-    { id: "profile", label: "Profile" },
-    { id: "memory", label: "Memory" },
-    { id: "danger-zone", label: "Danger" },
-  ];
-
   const isDirty = Object.keys(form).length > 0;
 
   useEffect(() => {
@@ -887,17 +874,9 @@ export default function SettingsPage() {
       <WorkspacePageHeader
         eyebrow="Control center"
         title="Settings"
-        description="Manage model access, private keys, radar inputs, and the profile StewardMe uses to personalise guidance."
+        description="Manage account, model access, and the profile StewardMe uses to personalise guidance. Advanced controls stay below."
         badge={settings.using_shared_key ? "Lite mode active" : "Full mode"}
       />
-
-      <nav aria-label="Settings sections" className="flex flex-wrap gap-2">
-        {sectionLinks.map((section) => (
-          <Button key={section.id} asChild size="sm" variant="outline">
-            <a href={`#${section.id}`}>{section.label}</a>
-          </Button>
-        ))}
-      </nav>
 
       <section id="account">
       <Card>
@@ -1203,6 +1182,18 @@ export default function SettingsPage() {
       </Card>
       </section>
 
+      <details className="group rounded-2xl border bg-card/60 p-5 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/70 sm:p-6">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
+          <div className="space-y-1">
+            <p className="text-base font-semibold">Advanced controls</p>
+            <p className="text-sm text-muted-foreground">
+              Usage, API keys, feature flags, radar inputs, memory, and account deletion.
+            </p>
+          </div>
+          <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180" />
+        </summary>
+
+        <div className="mt-6 space-y-6">
       <section id="usage">
       <Card>
         <CardHeader>
@@ -1752,6 +1743,8 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
       </section>
+        </div>
+      </details>
       <DeleteAccountModal open={deleteOpen} onOpenChange={setDeleteOpen} />
 
       {isDirty && (

@@ -8,19 +8,19 @@ Recommendations are exposed as small, obvious next steps in Home and Goals rathe
 
 ## Product Placement
 
-- `Home` shows at most three prioritized next-step cards
+- `Home` shows at most three prioritized next-step items in one short list
 - `Goals` shows best next moves and the weekly plan
 - Feedback remains available for improving future recommendation quality
 
 ## Current Behavior
 
-- Home prioritizes a short set of next-step cards near the top of the page.
+- Home prioritizes a short set of next-step items directly below the main composer.
 - Goals keeps recommendation cards close to active execution work.
 - Ratings and notes remain part of the recommendation feedback loop.
 
 ## User Flows
 
-- Review a next-step card from Home.
+- Review a next-step item from Home.
 - Track or score a recommendation from Goals.
 - Improve future suggestions through feedback.
 

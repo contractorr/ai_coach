@@ -29,4 +29,5 @@ Research remains available for power users, but it is entered from live work suc
 - `src/web/routes/research.py`
 - `src/web/routes/dossier_escalations.py`
 - `web/src/app/(dashboard)/radar/page.tsx`
-- `web/src/app/(dashboard)/library/page.tsx`
+- `web/src/app/(dashboard)/research/page.tsx`
+- `web/src/components/research/ResearchWorkspace.tsx`

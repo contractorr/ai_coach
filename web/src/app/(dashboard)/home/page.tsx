@@ -6,10 +6,8 @@ import { Check, ExternalLink, PenLine, Send, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 import { ChatAttachmentBadges, ChatPdfAttachmentPicker } from "@/components/ChatPdfAttachments";
-import { ActivityHeatmap } from "@/components/home/ActivityHeatmap";
 import { LearningSnapshotCard } from "@/components/home/LearningSnapshotCard";
 import { ReturnBriefCard } from "@/components/home/ReturnBriefCard";
-import { StatsRow } from "@/components/home/StatsRow";
 import { WhyNowChip } from "@/components/shared/WhyNowChip";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -102,8 +100,15 @@ function sourceWorkspace(item: SuggestionItem) {
   if (item.kind === "assumption_alert") {
     return "/settings#watchlist";
   }
-  return "/focus";
+  return "/goals";
 }
+
+const HOME_LINKS = [
+  { href: "/goals", label: "Goals" },
+  { href: "/research", label: "Research" },
+  { href: "/learn", label: "Guide Library" },
+  { href: "/journal", label: "Journal" },
+];
 
 export default function HomePage() {
   const token = useToken();
@@ -351,14 +356,10 @@ export default function HomePage() {
   if (!token || !greetingLoaded) {
     return (
       <div className="flex h-full flex-col">
-        <div className="mx-auto w-full max-w-7xl flex-1 animate-pulse space-y-4 px-4 py-8">
+        <div className="mx-auto w-full max-w-4xl flex-1 animate-pulse space-y-4 px-4 py-8">
           <div className="h-28 rounded-2xl bg-muted" />
-          <div className="h-32 rounded-2xl bg-muted" />
-          <div className="grid gap-3 md:grid-cols-3">
-            <div className="h-28 rounded-2xl bg-muted" />
-            <div className="h-28 rounded-2xl bg-muted" />
-            <div className="h-28 rounded-2xl bg-muted" />
-          </div>
+          <div className="h-44 rounded-2xl bg-muted" />
+          <div className="h-52 rounded-2xl bg-muted" />
         </div>
       </div>
     );
@@ -368,6 +369,7 @@ export default function HomePage() {
   const showReturnBrief = Boolean(returnBrief && returnBrief.generated_at !== dismissedReturnBriefAt);
   const replaceGreeting = Boolean(showReturnBrief && returnBrief && returnBrief.absent_hours >= 24 * 7);
   const composerCopy = MODE_COPY[mode];
+  const showLearningCard = stats.loading || Boolean(stats.learningStats) || Boolean(stats.learningToday);
   const modeStatus = modeLocked
     ? `${mode === "ask" ? "Ask" : "Capture"} is locked for this draft.`
     : mode === "ask"
@@ -377,7 +379,7 @@ export default function HomePage() {
   return (
     <div className="flex h-full flex-col">
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4">
-        <div className="mx-auto max-w-7xl space-y-4">
+        <div className="mx-auto max-w-4xl space-y-4 pb-8">
           {showReturnBrief && returnBrief ? (
             <ReturnBriefCard
               brief={returnBrief}
@@ -390,7 +392,7 @@ export default function HomePage() {
             <div className="relative animate-in fade-in-0 slide-in-from-bottom-2 duration-400 fill-mode-both">
               <div className="pointer-events-none absolute -inset-4 rounded-3xl bg-primary/8 blur-3xl" />
               <div className="relative rounded-2xl border bg-card/60 p-5 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/70 sm:p-6">
-                <div className="space-y-3">
+                <div className="space-y-4">
                   <div className="space-y-1">
                     <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
                       {timeGreeting()}{userName ? `, ${userName.split(" ")[0]}` : ""}
@@ -399,80 +401,116 @@ export default function HomePage() {
                       <p className="text-sm leading-relaxed text-muted-foreground">{greeting}</p>
                     ) : null}
                   </div>
-                  <StatsRow
-                    journalEntries={stats.journalEntries}
-                    activeGoals={stats.activeGoals}
-                    learningStats={stats.learningStats}
-                    loading={stats.loading}
-                  />
+                  <div className="flex flex-wrap gap-2">
+                    {HOME_LINKS.map((link) => (
+                      <Button key={link.href} variant="ghost" size="sm" asChild>
+                        <Link href={link.href}>{link.label}</Link>
+                      </Button>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
           ) : null}
 
-          <div className="grid animate-in gap-4 fade-in-0 slide-in-from-bottom-2 duration-400 fill-mode-both delay-100 lg:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]">
-            <LearningSnapshotCard
-              stats={stats.learningStats}
-              today={stats.learningToday}
-              loading={stats.loading}
-            />
-
-            <div className="rounded-2xl border bg-card/60 p-5 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/70 sm:p-6">
-              <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                Journal activity
-              </p>
-              <ActivityHeatmap entries={stats.journalEntries} />
-            </div>
-          </div>
-
-          {/* Suggestion cards */}
-          {nextSteps.length > 0 ? (
-            <div className="animate-in fade-in-0 slide-in-from-bottom-2 duration-400 fill-mode-both delay-200">
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 px-1 text-sm font-medium text-muted-foreground">
-                  <Sparkles className="h-4 w-4" />
-                  What to do next
+          <Card className="animate-in gap-4 border-primary/10 bg-card/70 py-5 shadow-sm fade-in-0 slide-in-from-bottom-2 duration-400 fill-mode-both delay-100">
+            <CardHeader className="space-y-3 px-5 pb-0 sm:px-6">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="space-y-1">
+                  <CardTitle className="text-xl">Capture or ask</CardTitle>
+                  <CardDescription>
+                    Start here with a note, a question, or the draft in front of you.
+                  </CardDescription>
                 </div>
-                <div className="grid gap-3 md:grid-cols-3">
-                  {nextSteps.map((item, index) => (
-                    <Card
-                      key={`${item.kind}-${item.title}-${index}`}
-                      className={`gap-3 border-l-4 py-4 transition-shadow hover:shadow-md ${SUGGESTION_ACCENT[item.kind] ?? "border-l-primary"}`}
+                <div className="flex items-center gap-1 rounded-full border bg-muted/30 p-1">
+                  <button
+                    type="button"
+                    aria-pressed={mode === "capture"}
+                    onClick={() => handleModeSelect("capture")}
+                    className={`rounded-full px-2.5 py-1 text-xs transition-colors ${mode === "capture" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                  >
+                    Capture
+                  </button>
+                  <button
+                    type="button"
+                    aria-pressed={mode === "ask"}
+                    onClick={() => handleModeSelect("ask")}
+                    className={`rounded-full px-2.5 py-1 text-xs transition-colors ${mode === "ask" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                  >
+                    Ask
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="secondary" className="text-[11px]">
+                  {modeLocked ? "Manual" : "Auto"}
+                </Badge>
+                <p className="text-xs text-muted-foreground">
+                  {modeLocked
+                    ? modeStatus
+                    : mode === "ask"
+                      ? "Question detected. Enter will ask for guidance."
+                      : "Enter will save this draft to Journal."}
+                </p>
+              </div>
+
+              <p className="text-sm text-muted-foreground">{composerCopy.helper}</p>
+            </CardHeader>
+
+            <CardContent className="space-y-3 px-5 sm:px-6">
+              {mode === "ask" ? (
+                <ChatPdfAttachmentPicker
+                  attachments={attachments}
+                  disabled={loading || uploading}
+                  onAddFiles={addFiles}
+                  onRemove={removeAttachment}
+                />
+              ) : null}
+
+              <div className="flex gap-2">
+                <Textarea
+                  ref={textareaRef}
+                  rows={3}
+                  placeholder={composerCopy.placeholder}
+                  value={input}
+                  onChange={(event) => handleInputChange(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && !event.shiftKey) {
+                      event.preventDefault();
+                      handleSubmit();
+                    }
+                  }}
+                  className="min-h-24 flex-1 resize-none"
+                />
+                <div className="flex flex-col gap-1 self-end">
+                  {captured ? (
+                    <Button size="icon" variant="ghost" disabled className="h-10 w-10">
+                      <Check className="h-4 w-4 text-green-600" />
+                    </Button>
+                  ) : (
+                    <Button
+                      size="icon"
+                      onClick={handleSubmit}
+                      disabled={!input.trim() || loading || uploading}
+                      className="h-10 w-10"
                     >
-                      <CardHeader className="px-4 pb-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Badge variant="secondary" className="text-[11px]">
-                            {item.kind.replaceAll("_", " ")}
-                          </Badge>
-                        </div>
-                        <CardTitle className="text-base leading-snug">{item.title}</CardTitle>
-                        <CardDescription>{item.description || item.action}</CardDescription>
-                      </CardHeader>
-                      <CardContent className="space-y-3 px-4">
-                        {item.why_now?.length ? (
-                          <div className="flex flex-wrap gap-2">
-                            {item.why_now.map((chip, chipIndex) => (
-                              <WhyNowChip key={`${chip.code}-${chipIndex}`} chip={chip} />
-                            ))}
-                          </div>
-                        ) : null}
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          asChild
-                          onClick={() => {
-                            if (token) logEngagement(token, "acted_on", "suggestion", item.title.slice(0, 200));
-                          }}
-                        >
-                          <Link href={sourceWorkspace(item)}>Open</Link>
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  ))}
+                      {effectiveMode === "ask" ? <Send className="h-4 w-4" /> : <PenLine className="h-4 w-4" />}
+                    </Button>
+                  )}
+                  <span className="text-center text-[10px] text-muted-foreground">
+                    {effectiveMode === "ask" ? "ask" : "save"}
+                  </span>
                 </div>
               </div>
-            </div>
-          ) : null}
+
+              <p className="text-xs text-muted-foreground">
+                {modeLocked
+                  ? "Clear the draft to return to automatic mode detection."
+                  : "Home switches between capture and ask automatically while you draft."}
+              </p>
+            </CardContent>
+          </Card>
 
           {lastCapturedNote ? (
             <Card className="border-primary/20 bg-primary/5 py-4 shadow-none">
@@ -493,150 +531,126 @@ export default function HomePage() {
             </Card>
           ) : null}
 
-          {messages.map((msg, index) => (
-            <div
-              key={`${msg.role}-${index}`}
-              className={
-                msg.role === "user"
-                  ? "ml-12 rounded-2xl rounded-br-sm bg-primary/10 px-4 py-2.5"
-                  : "mr-4 rounded-2xl rounded-bl-sm px-4 py-2.5"
-              }
-            >
-              {msg.role === "assistant" ? (
-                <MessageRenderer
-                  content={msg.content}
-                  onAction={(text) => {
-                    setInput(text);
-                    setMode("ask");
-                    setModeLocked(true);
-                    setTimeout(() => textareaRef.current?.focus(), 100);
-                  }}
-                />
-              ) : (
-                <div className="space-y-2">
-                  <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-                  {msg.attachments?.length ? <ChatAttachmentBadges attachments={msg.attachments} /> : null}
+          {/* Suggestion cards */}
+          {nextSteps.length > 0 ? (
+            <Card className="animate-in gap-4 py-4 shadow-sm fade-in-0 slide-in-from-bottom-2 duration-400 fill-mode-both delay-200">
+              <CardHeader className="space-y-1 px-4 pb-0">
+                <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                  <Sparkles className="h-4 w-4" />
+                  Next up
                 </div>
-              )}
-            </div>
-          ))}
+                <CardDescription>Keep the list short. Start with the strongest move.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3 px-4">
+                {nextSteps.map((item, index) => (
+                  <div
+                    key={`${item.kind}-${item.title}-${index}`}
+                    className={`rounded-2xl border-l-4 bg-background/80 p-4 ${SUGGESTION_ACCENT[item.kind] ?? "border-l-primary"}`}
+                  >
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="space-y-2">
+                        <Badge variant="secondary" className="text-[11px]">
+                          {item.kind.replaceAll("_", " ")}
+                        </Badge>
+                        <div className="space-y-1">
+                          <h2 className="text-base font-medium leading-snug">{item.title}</h2>
+                          <p className="text-sm text-muted-foreground">{item.description || item.action}</p>
+                        </div>
+                        {item.why_now?.length ? (
+                          <div className="flex flex-wrap gap-2">
+                            {item.why_now.map((chip, chipIndex) => (
+                              <WhyNowChip key={`${chip.code}-${chipIndex}`} chip={chip} />
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        asChild
+                        onClick={() => {
+                          if (token) logEngagement(token, "acted_on", "suggestion", item.title.slice(0, 200));
+                        }}
+                      >
+                        <Link href={sourceWorkspace(item)}>Open</Link>
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          ) : null}
 
-          {loading ? (
-            <div className="mr-4 rounded-2xl rounded-bl-sm px-4 py-2.5 text-sm text-muted-foreground">
-              {toolStatus || "Thinking..."}
-            </div>
+          {showLearningCard ? (
+            <LearningSnapshotCard
+              stats={stats.learningStats}
+              today={stats.learningToday}
+              loading={stats.loading}
+            />
+          ) : null}
+
+          {hasConversation || loading ? (
+            <Card className="py-4 shadow-sm">
+              <CardHeader className="px-4 pb-0">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="space-y-1">
+                    <CardTitle className="text-base">Current thread</CardTitle>
+                    <CardDescription>
+                      Stay here for a short exchange. Open full chat only when the thread needs more space.
+                    </CardDescription>
+                  </div>
+                  {conversationId ? (
+                    <Button variant="ghost" size="sm" className="h-8 gap-1 text-xs" asChild>
+                      <Link href={`/advisor?conv=${conversationId}`}>
+                        Open full chat <ExternalLink className="h-3 w-3" />
+                      </Link>
+                    </Button>
+                  ) : null}
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3 px-4">
+                {messages.map((msg, index) => (
+                  <div
+                    key={`${msg.role}-${index}`}
+                    className={
+                      msg.role === "user"
+                        ? "ml-8 rounded-2xl rounded-br-sm bg-primary/10 px-4 py-2.5"
+                        : "mr-2 rounded-2xl rounded-bl-sm bg-muted/30 px-4 py-2.5"
+                    }
+                  >
+                    {msg.role === "assistant" ? (
+                      <MessageRenderer
+                        content={msg.content}
+                        onAction={(text) => {
+                          setInput(text);
+                          setMode("ask");
+                          setModeLocked(true);
+                          setTimeout(() => textareaRef.current?.focus(), 100);
+                        }}
+                      />
+                    ) : (
+                      <div className="space-y-2">
+                        <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                        {msg.attachments?.length ? <ChatAttachmentBadges attachments={msg.attachments} /> : null}
+                      </div>
+                    )}
+                  </div>
+                ))}
+
+                {loading ? (
+                  <div className="mr-2 rounded-2xl rounded-bl-sm bg-muted/30 px-4 py-2.5 text-sm text-muted-foreground">
+                    {toolStatus || "Thinking..."}
+                  </div>
+                ) : null}
+              </CardContent>
+            </Card>
           ) : null}
 
           {!hasConversation && !loading ? (
-            <div className="pt-2 text-center text-sm text-muted-foreground">
+            <div className="pt-1 text-center text-sm text-muted-foreground">
               Write a note, ask a question, or pick up your next lesson in <Link href="/learn" className="underline underline-offset-4">Guide Library</Link>.
             </div>
           ) : null}
-        </div>
-      </div>
-
-      {conversationId ? (
-        <div className="flex justify-center border-t px-4 py-1">
-          <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs" asChild>
-            <Link href={`/advisor?conv=${conversationId}`}>
-              Open full chat <ExternalLink className="h-3 w-3" />
-            </Link>
-          </Button>
-        </div>
-      ) : null}
-
-      <div className="border-t px-4 py-3">
-        <div className="mx-auto max-w-7xl space-y-3">
-          <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span>Capture a note or ask for guidance</span>
-            <div className="flex items-center gap-1 rounded-full border bg-muted/30 p-1">
-              <button
-                type="button"
-                aria-pressed={mode === "capture"}
-                onClick={() => handleModeSelect("capture")}
-                className={`rounded-full px-2.5 py-1 transition-colors ${mode === "capture" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
-              >
-                Capture
-              </button>
-              <button
-                type="button"
-                aria-pressed={mode === "ask"}
-                onClick={() => handleModeSelect("ask")}
-                className={`rounded-full px-2.5 py-1 transition-colors ${mode === "ask" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
-              >
-                Ask
-              </button>
-            </div>
-          </div>
-
-          <div className="rounded-2xl border bg-muted/20 p-3">
-            <div className="flex flex-wrap items-start justify-between gap-2">
-              <div className="space-y-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <p className="text-sm font-medium">{composerCopy.title}</p>
-                  <Badge variant="secondary" className="text-[11px]">
-                    {modeLocked ? "Manual" : "Auto"}
-                  </Badge>
-                </div>
-                <p className="text-sm text-muted-foreground">{composerCopy.helper}</p>
-              </div>
-              <p className="max-w-xs text-right text-xs text-muted-foreground">
-                {!modeLocked && mode === "ask" ? "Question detected - Enter will ask for guidance." : modeStatus}
-              </p>
-            </div>
-
-
-            {mode === "ask" ? (
-              <ChatPdfAttachmentPicker
-                attachments={attachments}
-                disabled={loading || uploading}
-                onAddFiles={addFiles}
-                onRemove={removeAttachment}
-              />
-            ) : null}
-
-            <div className="mt-3 flex gap-2">
-              <Textarea
-                ref={textareaRef}
-                rows={1}
-                placeholder={composerCopy.placeholder}
-                value={input}
-                onChange={(event) => handleInputChange(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" && !event.shiftKey) {
-                    event.preventDefault();
-                    handleSubmit();
-                  }
-                }}
-                className="flex-1 resize-none"
-              />
-              <div className="flex flex-col gap-1 self-end">
-                {captured ? (
-                  <Button size="icon" variant="ghost" disabled className="h-9 w-9">
-                    <Check className="h-4 w-4 text-green-600" />
-                  </Button>
-                ) : (
-                  <Button
-                    size="icon"
-                    onClick={handleSubmit}
-                    disabled={!input.trim() || loading || uploading}
-                    className="h-9 w-9"
-                  >
-                    {effectiveMode === "ask" ? <Send className="h-4 w-4" /> : <PenLine className="h-4 w-4" />}
-                  </Button>
-                )}
-                <span className="text-center text-[10px] text-muted-foreground">
-                  {effectiveMode === "ask" ? "ask" : "save"}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <p className="text-xs text-muted-foreground">
-            {modeLocked
-              ? "Clear the draft to return to automatic mode detection."
-              : "Home can switch between capture and ask automatically while you draft."}
-          </p>
         </div>
       </div>
     </div>

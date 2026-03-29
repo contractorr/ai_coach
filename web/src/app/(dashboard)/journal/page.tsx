@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
@@ -319,17 +320,6 @@ export default function JournalPage() {
     return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
   };
 
-  const entryCounts = useMemo(
-    () => ({
-      all: entries.length,
-      daily: entries.filter((entry) => entry.type === "daily").length,
-      project: entries.filter((entry) => entry.type === "project").length,
-      goal: entries.filter((entry) => entry.type === "goal").length,
-      reflection: entries.filter((entry) => entry.type === "reflection").length,
-    }),
-    [entries]
-  );
-
   const availableTags = useMemo(
     () => [...new Set(entries.flatMap((entry) => entry.tags))].sort((left, right) => left.localeCompare(right)),
     [entries]
@@ -404,119 +394,85 @@ export default function JournalPage() {
         description="Capture context, then narrow it fast with local search, type filters, and tag chips."
         badge={!loading && entries.length > 0 ? `${entries.length} ${entries.length === 1 ? "entry" : "entries"}` : undefined}
         actions={
-          <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-            <SheetTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4" /> New Entry
-              </Button>
-            </SheetTrigger>
-          <SheetContent className="w-full sm:max-w-lg md:max-w-xl overflow-y-auto">
-            <SheetHeader>
-              <SheetTitle>New entry</SheetTitle>
-              <SheetDescription>What&apos;s on your mind? Capture thoughts, decisions, or progress.</SheetDescription>
-            </SheetHeader>
-            <div className="mt-6 space-y-4 px-6 pb-6">
-              <div className="space-y-1.5">
-                <Label>Title</Label>
-                <Input
-                  value={form.title}
-                  onChange={(e) =>
-                    setForm({ ...form, title: e.target.value })
-                  }
-                  placeholder="Optional title"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Leave this blank if you want StewardMe to generate a title for you.
-                </p>
-              </div>
-              <div className="space-y-1.5">
-                <Label>Type</Label>
-                <Select
-                  value={form.entry_type}
-                  onValueChange={(v) => setForm({ ...form, entry_type: v })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="daily">Daily</SelectItem>
-                    <SelectItem value="project">Project</SelectItem>
-                    <SelectItem value="goal">Goal</SelectItem>
-                    <SelectItem value="reflection">Reflection</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label>Tags (comma-separated)</Label>
-                <Input
-                  value={form.tags}
-                  onChange={(e) =>
-                    setForm({ ...form, tags: e.target.value })
-                  }
-                  placeholder="e.g. work, ideas"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Content</Label>
-                <Textarea
-                  rows={12}
-                  value={form.content}
-                  onChange={(e) =>
-                    setForm({ ...form, content: e.target.value })
-                  }
-                  placeholder="What happened, what you're thinking, or what you want to work through..."
-                />
-              </div>
-              <Button onClick={handleCreate} disabled={creating || !form.content.trim()}>
-                {creating ? "Saving..." : "Save Entry"}
-              </Button>
-            </div>
-          </SheetContent>
-        </Sheet>
+          <>
+            <Button variant="outline" asChild>
+              <Link href="/research">Open research</Link>
+            </Button>
+            <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+              <SheetTrigger asChild>
+                <Button>
+                  <Plus className="h-4 w-4" /> New Entry
+                </Button>
+              </SheetTrigger>
+              <SheetContent className="w-full sm:max-w-lg md:max-w-xl overflow-y-auto">
+                <SheetHeader>
+                  <SheetTitle>New entry</SheetTitle>
+                  <SheetDescription>What&apos;s on your mind? Capture thoughts, decisions, or progress.</SheetDescription>
+                </SheetHeader>
+                <div className="mt-6 space-y-4 px-6 pb-6">
+                  <div className="space-y-1.5">
+                    <Label>Title</Label>
+                    <Input
+                      value={form.title}
+                      onChange={(e) =>
+                        setForm({ ...form, title: e.target.value })
+                      }
+                      placeholder="Optional title"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Leave this blank if you want StewardMe to generate a title for you.
+                    </p>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Type</Label>
+                    <Select
+                      value={form.entry_type}
+                      onValueChange={(v) => setForm({ ...form, entry_type: v })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="daily">Daily</SelectItem>
+                        <SelectItem value="project">Project</SelectItem>
+                        <SelectItem value="goal">Goal</SelectItem>
+                        <SelectItem value="reflection">Reflection</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Tags (comma-separated)</Label>
+                    <Input
+                      value={form.tags}
+                      onChange={(e) =>
+                        setForm({ ...form, tags: e.target.value })
+                      }
+                      placeholder="e.g. work, ideas"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Content</Label>
+                    <Textarea
+                      rows={12}
+                      value={form.content}
+                      onChange={(e) =>
+                        setForm({ ...form, content: e.target.value })
+                      }
+                      placeholder="What happened, what you're thinking, or what you want to work through..."
+                    />
+                  </div>
+                  <Button onClick={handleCreate} disabled={creating || !form.content.trim()}>
+                    {creating ? "Saving..." : "Save Entry"}
+                  </Button>
+                </div>
+              </SheetContent>
+            </Sheet>
+          </>
         }
       />
 
       {!loading && entries.length > 0 && (
         <>
-          <div className="grid gap-3 sm:grid-cols-4">
-            <Card className="gap-3 py-4">
-              <CardHeader className="px-4 pb-0">
-                <CardDescription className="text-xs uppercase tracking-wide">All</CardDescription>
-                <CardTitle className="text-2xl">{entryCounts.all}</CardTitle>
-              </CardHeader>
-              <CardContent className="px-4 text-xs text-muted-foreground">
-                Everything currently loaded into the journal workspace.
-              </CardContent>
-            </Card>
-            <Card className="gap-3 py-4">
-              <CardHeader className="px-4 pb-0">
-                <CardDescription className="text-xs uppercase tracking-wide">Daily</CardDescription>
-                <CardTitle className="text-2xl">{entryCounts.daily}</CardTitle>
-              </CardHeader>
-              <CardContent className="px-4 text-xs text-muted-foreground">
-                Ongoing reflections and day-to-day context.
-              </CardContent>
-            </Card>
-            <Card className="gap-3 py-4">
-              <CardHeader className="px-4 pb-0">
-                <CardDescription className="text-xs uppercase tracking-wide">Project</CardDescription>
-                <CardTitle className="text-2xl">{entryCounts.project}</CardTitle>
-              </CardHeader>
-              <CardContent className="px-4 text-xs text-muted-foreground">
-                Delivery notes, project learnings, and progress logs.
-              </CardContent>
-            </Card>
-            <Card className="gap-3 py-4">
-              <CardHeader className="px-4 pb-0">
-                <CardDescription className="text-xs uppercase tracking-wide">Reflection</CardDescription>
-                <CardTitle className="text-2xl">{entryCounts.reflection}</CardTitle>
-              </CardHeader>
-              <CardContent className="px-4 text-xs text-muted-foreground">
-                Higher-signal entries you may want to revisit later.
-              </CardContent>
-            </Card>
-          </div>
-
           <Card className="gap-3 py-4">
             <CardContent className="flex flex-col gap-3 px-4">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
