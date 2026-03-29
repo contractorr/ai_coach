@@ -1,6 +1,6 @@
 // This file is generated. Do not edit manually.
 // Source: web/openapi.json
-// OpenAPI SHA256: a33f0f3cd20580d8a7d44636b0a9a1e954fe79e5b63d986b9a68dba81884083b
+// OpenAPI SHA256: fe513ae8df1cd66b9da8fe29085a47bb9bbd46354e5c85c82fe193a1358005bb
 export interface paths {
     "/api/admin/stats": {
         parameters: {

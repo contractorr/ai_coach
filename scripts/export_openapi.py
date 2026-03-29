@@ -40,7 +40,8 @@ def main() -> None:
 
     output_path = Path(args.output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(_canonical_schema_text(), encoding="utf-8")
+    with output_path.open("w", encoding="utf-8", newline="\n") as output_file:
+        output_file.write(_canonical_schema_text())
 
 
 if __name__ == "__main__":
