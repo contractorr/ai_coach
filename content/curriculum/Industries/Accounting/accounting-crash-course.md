@@ -140,16 +140,123 @@ Accounting/back-office = systems and processes for tracking financial transactio
 
 ### Modern Stack (Growth Company)
 
-```
-Banking ← Treasury → ERP/GL ← Close management
-    ↓                   ↓
-Corp card + Expense → AP automation → Payments
-                             ↑
-                    Procurement (if needed)
-                             ↓
-                    AR/Billing → Collections
-                             ↓
-                    Revenue recognition → Audit
+```diagram
+{
+  "title": "Modern accounting stack",
+  "note": "Treasury and the ERP/GL sit at the center while spend, billing, close, and audit workflows connect around them.",
+  "nodes": [
+    {
+      "id": "banking",
+      "title": "Banking",
+      "detail": "Cash accounts and bank data feeds.",
+      "column": 1,
+      "row": 1,
+      "tone": "muted"
+    },
+    {
+      "id": "treasury",
+      "title": "Treasury",
+      "detail": "Cash positioning and movement controls.",
+      "column": 2,
+      "row": 1,
+      "tone": "muted"
+    },
+    {
+      "id": "erp",
+      "title": "ERP / GL",
+      "detail": "Core ledger and accounting system of record.",
+      "column": 3,
+      "row": 1,
+      "tone": "accent"
+    },
+    {
+      "id": "close",
+      "title": "Close management",
+      "detail": "Checklist, reconciliations, and close orchestration.",
+      "column": 4,
+      "row": 1,
+      "tone": "muted"
+    },
+    {
+      "id": "expense",
+      "title": "Corp card and expense",
+      "detail": "Employee spend capture and expense workflows.",
+      "column": 1,
+      "row": 2,
+      "tone": "muted"
+    },
+    {
+      "id": "ap",
+      "title": "AP automation",
+      "detail": "Invoice intake, approvals, and payables operations.",
+      "column": 2,
+      "row": 2,
+      "tone": "accent"
+    },
+    {
+      "id": "payments",
+      "title": "Payments",
+      "detail": "Vendor disbursements and cash execution.",
+      "column": 3,
+      "row": 2,
+      "tone": "muted"
+    },
+    {
+      "id": "procurement",
+      "title": "Procurement",
+      "detail": "Optional intake and purchasing controls.",
+      "column": 2,
+      "row": 3,
+      "tone": "muted"
+    },
+    {
+      "id": "ar",
+      "title": "AR / Billing",
+      "detail": "Customer invoicing and receivables management.",
+      "column": 3,
+      "row": 3,
+      "tone": "accent"
+    },
+    {
+      "id": "collections",
+      "title": "Collections",
+      "detail": "Customer follow-up and cash application support.",
+      "column": 4,
+      "row": 3,
+      "tone": "muted"
+    },
+    {
+      "id": "revrec",
+      "title": "Revenue recognition",
+      "detail": "Policy-driven revenue timing and compliance.",
+      "column": 3,
+      "row": 4,
+      "tone": "muted"
+    },
+    {
+      "id": "audit",
+      "title": "Audit",
+      "detail": "Evidence, controls, and external review.",
+      "column": 4,
+      "row": 4,
+      "tone": "muted"
+    }
+  ],
+  "edges": [
+    { "from": "banking", "to": "treasury" },
+    { "from": "treasury", "to": "erp" },
+    { "from": "close", "to": "erp" },
+    { "from": "banking", "to": "expense" },
+    { "from": "erp", "to": "ap" },
+    { "from": "expense", "to": "ap" },
+    { "from": "ap", "to": "payments" },
+    { "from": "procurement", "to": "ap" },
+    { "from": "ap", "to": "ar" },
+    { "from": "ar", "to": "collections" },
+    { "from": "ar", "to": "revrec" },
+    { "from": "revrec", "to": "audit" }
+  ]
+}
 ```
 
 ### Integration Landscape
@@ -431,36 +538,58 @@ Players: Ramp, Brex, Airbase, Navan
 
 ## Quick Reference: Financial Close Process
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                  TRANSACTION PROCESSING                      │
-│  Daily: AP, AR, Expense, Payroll, Journal entries           │
-└─────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────┐
-│                   PERIOD CLOSE                               │
-│  Cut-off → Accruals → Reconciliations → Adjustments        │
-└─────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────┐
-│                  CONSOLIDATION                               │
-│  Entity close → Intercompany → Elimination → FX translation │
-└─────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────┐
-│                   REPORTING                                  │
-│  Trial balance → Financial statements → Analysis → Filing   │
-└─────────────────────────────────────────────────────────────┘
-```
-
-**Procure-to-pay (P2P):**
-```
-Req → PO → Receipt → Invoice → 3-way match → Approval → Payment
+```process-flow
+{
+  "title": "Financial close process",
+  "note": "Monthly close moves from daily posting through consolidation and reporting.",
+  "steps": [
+    {
+      "title": "Transaction processing",
+      "detail": "Daily AP, AR, expense, payroll, and journal entries."
+    },
+    {
+      "title": "Period close",
+      "detail": "Cut-off, accruals, reconciliations, and adjustments."
+    },
+    {
+      "title": "Consolidation",
+      "detail": "Entity close, intercompany, elimination, and FX translation."
+    },
+    {
+      "title": "Reporting",
+      "detail": "Trial balance, financial statements, analysis, and filing."
+    }
+  ]
+}
 ```
 
-**Order-to-cash (O2C):**
+```process-flow
+{
+  "title": "Procure-to-pay",
+  "steps": [
+    { "title": "Req" },
+    { "title": "PO" },
+    { "title": "Receipt" },
+    { "title": "Invoice" },
+    { "title": "3-way match" },
+    { "title": "Approval" },
+    { "title": "Payment" }
+  ]
+}
 ```
-Order → Fulfill → Invoice → Collections → Cash application → Rev rec
+
+```process-flow
+{
+  "title": "Order-to-cash",
+  "steps": [
+    { "title": "Order" },
+    { "title": "Fulfill" },
+    { "title": "Invoice" },
+    { "title": "Collections" },
+    { "title": "Cash application" },
+    { "title": "Revenue recognition" }
+  ]
+}
 ```
 
 ---

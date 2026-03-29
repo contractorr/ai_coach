@@ -101,8 +101,19 @@ GovTech = technology enabling government operations and citizen services. Govern
 
 ### Procurement Process
 
-```
-RFI → RFP → Proposals → Evaluation → Award → Protest period → Contract
+```process-flow
+{
+  "title": "Procurement process",
+  "steps": [
+    { "title": "RFI" },
+    { "title": "RFP" },
+    { "title": "Proposals" },
+    { "title": "Evaluation" },
+    { "title": "Award" },
+    { "title": "Protest period" },
+    { "title": "Contract" }
+  ]
+}
 ```
 
 **Timelines:**
@@ -408,31 +419,39 @@ RFI → RFP → Proposals → Evaluation → Award → Protest period → Contra
 
 ## Quick Reference: Procurement Flow
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                   REQUIREMENT                                │
-│  Agency identifies need → Acquisition planning → Funding    │
-└─────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────┐
-│                   SOLICITATION                               │
-│  RFI → Market research → RFP/RFQ → Q&A → Proposals         │
-└─────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────┐
-│                   EVALUATION                                 │
-│  Technical review → Price analysis → Best value decision    │
-└─────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────┐
-│                   AWARD & DELIVERY                           │
-│  Award → Protest period → Kickoff → Delivery → Closeout    │
-└─────────────────────────────────────────────────────────────┘
+```process-flow
+{
+  "title": "Procurement flow",
+  "steps": [
+    {
+      "title": "Requirement",
+      "detail": "Agency identifies need, plans the acquisition, and secures funding."
+    },
+    {
+      "title": "Solicitation",
+      "detail": "RFI, market research, RFP or RFQ, Q&A, and proposal intake."
+    },
+    {
+      "title": "Evaluation",
+      "detail": "Technical review, price analysis, and best-value decision."
+    },
+    {
+      "title": "Award and delivery",
+      "detail": "Award, protest period, kickoff, delivery, and closeout."
+    }
+  ]
+}
 ```
 
-**Contract vehicle usage:**
-```
-GWAC/Schedule → Agency issues task order → Contractor delivers
+```process-flow
+{
+  "title": "Contract vehicle usage",
+  "steps": [
+    { "title": "GWAC or schedule" },
+    { "title": "Agency issues task order" },
+    { "title": "Contractor delivers" }
+  ]
+}
 ```
 
 ---

@@ -14,28 +14,25 @@ By the end of this module, you will understand:
 
 ## 5.1 The Three Key Capital Concepts
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    CAPITAL CONCEPTS                              │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  COMMITMENT ──────► CONTRIBUTED CAPITAL ──────► DISTRIBUTIONS   │
-│  (Promise)          (Actual payment)            (Returns)       │
-│                                                                 │
-│  $100M              $85M called                 $120M received  │
-│  promised           so far                      back            │
-│                                                                 │
-│  ┌───────┐          ┌───────┐                  ┌───────┐       │
-│  │ Your  │          │ Money │                  │ Money │       │
-│  │ legal │   ────►  │ you   │    ────►         │ you   │       │
-│  │ obli- │  Capital │ sent  │   Distribution   │ get   │       │
-│  │ gation│  Call    │ to GP │                  │ back  │       │
-│  └───────┘          └───────┘                  └───────┘       │
-│                                                                 │
-│  UNFUNDED = COMMITMENT - CONTRIBUTED + RECALLABLE              │
-│  $15M = $100M - $85M + $0                                      │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+```process-flow
+{
+  "title": "Capital concepts",
+  "note": "Unfunded commitment is what remains after contributed capital, adjusted for any recallable distributions.",
+  "steps": [
+    {
+      "title": "Commitment",
+      "detail": "A legal promise to invest, for example $100M."
+    },
+    {
+      "title": "Contributed capital",
+      "detail": "Actual money sent to the GP, for example $85M called so far."
+    },
+    {
+      "title": "Distributions",
+      "detail": "Capital and profit returned to the LP, for example $120M received back."
+    }
+  ]
+}
 ```
 
 ### Definitions
@@ -88,27 +85,28 @@ When an LP commits capital, they:
 
 ### Commitment Timeline
 
-```
-COMMITMENT LIFECYCLE
-────────────────────
-
-FUND CLOSING                      FUND END
-     │                                │
-     │ $100M COMMITMENT               │
-     ▼                                ▼
-┌────┴────────────────────────────────┴────┐
-│                                          │
-│  Year 1: $20M called                     │
-│  Year 2: $25M called                     │
-│  Year 3: $30M called                     │
-│  Year 4: $15M called                     │
-│  Year 5: $10M called (investment period  │
-│           ends, $0 expires)              │
-│                                          │
-│  TOTAL CALLED: $100M                     │
-│  EXPIRED: $0                             │
-│                                          │
-└──────────────────────────────────────────┘
+```process-flow
+{
+  "title": "Commitment lifecycle",
+  "steps": [
+    {
+      "title": "Fund closing",
+      "detail": "LP makes a $100M commitment."
+    },
+    {
+      "title": "Years 1-4",
+      "detail": "Capital is called in stages: $20M, $25M, $30M, then $15M."
+    },
+    {
+      "title": "Year 5",
+      "detail": "$10M is called before the investment period ends."
+    },
+    {
+      "title": "Fund end",
+      "detail": "Total called equals $100M, leaving no expiry in this example."
+    }
+  ]
+}
 ```
 
 ### Over-Commitment Strategies
@@ -120,29 +118,31 @@ Sophisticated LPs often commit MORE than they can fund at once, banking on:
 - Not all commitments being fully drawn
 
 ```
-LP OVER-COMMITMENT EXAMPLE
-──────────────────────────
-
-LP has $100M to invest in PE
-
-Conservative approach:
-├── Fund A: $33M commitment
-├── Fund B: $33M commitment
-└── Fund C: $34M commitment
-    Total: $100M (1.0x over-commitment)
-
-Aggressive approach:
-├── Fund A: $50M commitment
-├── Fund B: $50M commitment
-├── Fund C: $50M commitment
-└── Fund D: $50M commitment
-    Total: $200M (2.0x over-commitment)
-
-WHY IT WORKS:
-• Funds don't call 100% immediately
-• Funds A & B will distribute before C & D fully call
-• Staggered vintages smooth cash flows
-• RISK: Market stress = all funds call at once
+```comparison-table
+{
+  "title": "Over-commitment example",
+  "note": "LPs may commit more than current cash on hand because calls are staggered over time.",
+  "columns": [
+    { "key": "approach", "label": "Approach" },
+    { "key": "commitments", "label": "Commitments" },
+    { "key": "total", "label": "Total Commitment" },
+    { "key": "risk", "label": "Key Tradeoff" }
+  ],
+  "rows": [
+    {
+      "approach": "Conservative",
+      "commitments": "Fund A $33M, Fund B $33M, Fund C $34M",
+      "total": "$100M (1.0x)",
+      "risk": "Lower liquidity stress."
+    },
+    {
+      "approach": "Aggressive",
+      "commitments": "Fund A $50M, Fund B $50M, Fund C $50M, Fund D $50M",
+      "total": "$200M (2.0x)",
+      "risk": "Works if vintages stagger; breaks if all funds call at once."
+    }
+  ]
+}
 ```
 
 ---
@@ -155,30 +155,28 @@ A **capital call** (or drawdown) is the GP's formal request for LPs to send mone
 
 ### Capital Call Process
 
-```
-CAPITAL CALL WORKFLOW
-─────────────────────
-
-DAY 0: GP DECISION
-├── GP identifies investment opportunity
-├── GP calculates capital needed
-└── GP prepares call notice
-
-DAY 1: NOTICE SENT
-├── Formal notice to all LPs
-├── Includes amount, purpose, due date
-└── Wire instructions
-
-DAY 1-10: LP PROCESSING
-├── LP receives notice
-├── Internal approvals
-├── Treasury arranges wire
-└── Funds sent
-
-DAY 10: DUE DATE
-├── Funds due in GP account
-├── Late fees apply if missed
-└── Default provisions if unpaid
+```process-flow
+{
+  "title": "Capital call workflow",
+  "steps": [
+    {
+      "title": "Day 0: GP decision",
+      "detail": "The GP identifies the need, sizes the call, and prepares the notice."
+    },
+    {
+      "title": "Day 1: Notice sent",
+      "detail": "LPs receive the amount, purpose, due date, and wire instructions."
+    },
+    {
+      "title": "Days 1-10: LP processing",
+      "detail": "LP teams route approvals and treasury arranges the wire."
+    },
+    {
+      "title": "Day 10: Due date",
+      "detail": "Funds must arrive; late fees or default provisions apply if missed."
+    }
+  ]
+}
 ```
 
 ### Sample Capital Call Notice
@@ -276,25 +274,24 @@ A **distribution** returns capital from the fund to LPs. This is how investors r
 
 ### Distribution Process
 
-```
-DISTRIBUTION WORKFLOW
-─────────────────────
-
-EXIT EVENT
-├── Portfolio company sold
-├── Dividend recap completed
-└── Other liquidity event
-
-GP CALCULATION
-├── Calculate total proceeds
-├── Allocate per LPA waterfall
-├── Determine LP shares
-└── Prepare distribution notice
-
-DISTRIBUTION
-├── Notice sent to LPs
-├── Wire funds (usually 5-10 days after notice)
-└── Update capital accounts
+```process-flow
+{
+  "title": "Distribution workflow",
+  "steps": [
+    {
+      "title": "Exit event",
+      "detail": "A sale, dividend recap, or other liquidity event generates proceeds."
+    },
+    {
+      "title": "GP calculation",
+      "detail": "The GP applies the waterfall, allocates proceeds, and prepares the notice."
+    },
+    {
+      "title": "Distribution",
+      "detail": "LPs receive notice, the wire arrives, and capital accounts are updated."
+    }
+  ]
+}
 ```
 
 ### Sample Distribution Notice

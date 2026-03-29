@@ -114,16 +114,32 @@ This is the money actually available to grow, pay dividends, or survive downturn
 
 ### How the Three Connect
 
-```
-Net Income (from P&L)
-    ↓
-Adjustments (depreciation, working capital changes)
-    ↓
-Operating Cash Flow (to Cash Flow Statement)
-    ↓
-Ending Cash (to Balance Sheet)
-    ↓
-Retained Earnings increases by Net Income (Balance Sheet)
+```process-flow
+{
+  "title": "How the three statements connect",
+  "steps": [
+    {
+      "title": "Net income",
+      "detail": "Starts on the P&L."
+    },
+    {
+      "title": "Adjustments",
+      "detail": "Add back depreciation and reflect working-capital changes."
+    },
+    {
+      "title": "Operating cash flow",
+      "detail": "Flows onto the cash flow statement."
+    },
+    {
+      "title": "Ending cash",
+      "detail": "Feeds the balance sheet."
+    },
+    {
+      "title": "Retained earnings",
+      "detail": "Increase with net income on the balance sheet."
+    }
+  ]
+}
 ```
 
 **Real example:** A SaaS company reports:

@@ -15,32 +15,29 @@ By the end of this module, you will understand:
 
 A typical private equity fund spans 10-12+ years through distinct phases:
 
-```
-┌────────────────────────────────────────────────────────────────────────────┐
-│                           FUND LIFECYCLE                                    │
-├────────────────────────────────────────────────────────────────────────────┤
-│                                                                            │
-│  Year:  -1    0    1    2    3    4    5    6    7    8    9   10   11  12│
-│          │    │    │    │    │    │    │    │    │    │    │    │    │    │
-│  ┌───────┴────┴────┴────┴────┴────┴────┴────┴────┴────┴────┴────┴────┴───┐│
-│  │                                                                        ││
-│  │ FUNDRAISING ►│◄───── INVESTMENT PERIOD ─────►│◄──── HARVEST ────►│EXT ││
-│  │   (12-18mo)  │        (Years 1-5)             │    (Years 6-10)   │    ││
-│  │              │                                │                   │    ││
-│  │ • Marketing  │ • Capital calls               │ • Value creation  │Wind││
-│  │ • Due dili-  │ • Deal sourcing               │ • Exits begin     │down││
-│  │   gence      │ • Investments made            │ • Distributions   │    ││
-│  │ • Closings   │ • Portfolio building          │ • Final exits     │    ││
-│  │              │                                │                   │    ││
-│  └──────────────┴────────────────────────────────┴───────────────────┴────┘│
-│                                                                            │
-│  Capital        ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓                                   │
-│  Calls:         (Heavy in years 1-4)                                       │
-│                                                                            │
-│  Distributions:                          ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ │
-│                                          (Begin year 4-5, peak year 7-10)  │
-│                                                                            │
-└────────────────────────────────────────────────────────────────────────────┘
+```process-flow
+{
+  "title": "Fund lifecycle",
+  "note": "Calls are concentrated in the investment period, while distributions become dominant during harvest and wind-down.",
+  "steps": [
+    {
+      "title": "Fundraising",
+      "detail": "12-18 months of marketing, diligence, and closings."
+    },
+    {
+      "title": "Investment period",
+      "detail": "Years 1-5 of capital calls, deal sourcing, investing, and portfolio construction."
+    },
+    {
+      "title": "Harvest",
+      "detail": "Years 6-10 focused on value creation, exits, and distributions."
+    },
+    {
+      "title": "Extension and wind-down",
+      "detail": "Years 11-12+ for remaining exits, final distributions, and closure."
+    }
+  ]
+}
 ```
 
 ---
@@ -96,30 +93,43 @@ Month 10-14: CLOSINGS
 
 ### Fund Size Targets
 
-```
-EXAMPLE: ABC PARTNERS FUND VIII
-───────────────────────────────
-
-Target Fund Size:    $3.0 billion
-Hard Cap:            $3.5 billion
-First Close Target:  $1.5 billion
-
-ACTUAL CLOSINGS:
-┌─────────────────────────────────────────────────┐
-│ First Close (March 2024)                        │
-│ • 15 LPs committed $1.8B                        │
-│ • Fund begins investing                         │
-├─────────────────────────────────────────────────┤
-│ Second Close (June 2024)                        │
-│ • 8 new LPs add $600M                           │
-│ • Cumulative: $2.4B                             │
-├─────────────────────────────────────────────────┤
-│ Final Close (September 2024)                    │
-│ • 5 new LPs add $500M                           │
-│ • Over-subscribed: $2.9B                        │
-│ • Some LPs scaled back to meet hard cap         │
-│ • Final fund size: $3.2B                        │
-└─────────────────────────────────────────────────┘
+```comparison-table
+{
+  "title": "Example fund closings",
+  "note": "Illustrative fundraising path for ABC Partners Fund VIII.",
+  "columns": [
+    { "key": "close", "label": "Close" },
+    { "key": "timing", "label": "Timing" },
+    { "key": "capital", "label": "Capital Raised" },
+    { "key": "notes", "label": "Notes" }
+  ],
+  "rows": [
+    {
+      "close": "Fund target",
+      "timing": "Launch plan",
+      "capital": "$3.0B target, $3.5B hard cap, $1.5B first-close target",
+      "notes": "Sets the fundraising frame."
+    },
+    {
+      "close": "First close",
+      "timing": "March 2024",
+      "capital": "$1.8B from 15 LPs",
+      "notes": "Fund can begin investing."
+    },
+    {
+      "close": "Second close",
+      "timing": "June 2024",
+      "capital": "$600M added, $2.4B cumulative",
+      "notes": "Additional LPs join."
+    },
+    {
+      "close": "Final close",
+      "timing": "September 2024",
+      "capital": "$500M added, $3.2B final size",
+      "notes": "Oversubscribed and scaled back to fit the hard cap."
+    }
+  ]
+}
 ```
 
 ---
@@ -158,21 +168,24 @@ YEAR 4-5
 
 ### Capital Deployment Pattern
 
-```
-Cumulative Capital Called (% of Commitment)
-    │
-100%┤                                    ────────────
-    │                               ────
- 80%┤                          ────
-    │                     ────
- 60%┤                ────
-    │           ────
- 40%┤      ────
-    │  ────
- 20%┤ ──
-    │
-  0%┼──────────────────────────────────────────────► Year
-    0     1     2     3     4     5     6     7
+```chart
+{
+  "title": "Capital deployment pattern",
+  "chartType": "line",
+  "xLabel": "Year",
+  "yLabel": "% Called",
+  "series": ["% Called"],
+  "data": [
+    { "Year": 0, "% Called": 0 },
+    { "Year": 1, "% Called": 20 },
+    { "Year": 2, "% Called": 40 },
+    { "Year": 3, "% Called": 60 },
+    { "Year": 4, "% Called": 80 },
+    { "Year": 5, "% Called": 100 },
+    { "Year": 6, "% Called": 100 },
+    { "Year": 7, "% Called": 100 }
+  ]
+}
 ```
 
 ### Investment Period Rules
@@ -242,27 +255,39 @@ WIND-DOWN (Years 10+)
 
 ### Exit Timing Considerations
 
-```
-FACTORS AFFECTING EXIT TIMING
-─────────────────────────────
-
-COMPANY-SPECIFIC
-├── • Business performance / growth trajectory
-├── • Value creation plan completion
-├── • Management team readiness
-└── • Competitive position
-
-MARKET CONDITIONS
-├── • M&A market activity
-├── • Credit availability for buyers
-├── • Industry multiples
-├── • IPO window
-
-FUND CONSIDERATIONS
-├── • Fund age / remaining life
-├── • LP return expectations
-├── • Carried interest crystallization
-└── • Follow-on fund timing
+```framework
+{
+  "title": "Factors affecting exit timing",
+  "pillars": [
+    {
+      "title": "Company-specific",
+      "bullets": [
+        "Business performance and growth trajectory",
+        "Value-creation plan completion",
+        "Management team readiness",
+        "Competitive position"
+      ]
+    },
+    {
+      "title": "Market conditions",
+      "bullets": [
+        "M&A activity",
+        "Credit availability for buyers",
+        "Industry multiples",
+        "IPO window"
+      ]
+    },
+    {
+      "title": "Fund considerations",
+      "bullets": [
+        "Fund age and remaining life",
+        "LP return expectations",
+        "Carry crystallization",
+        "Follow-on fund timing"
+      ]
+    }
+  ]
+}
 ```
 
 ---
@@ -290,27 +315,24 @@ Most funds allow 2-3 one-year extensions beyond the 10-year term:
 
 ### Wind-Down Process
 
-```
-FUND WIND-DOWN
-──────────────
-
-FINAL EXITS
-├── • Sell remaining assets (may accept lower prices)
-├── • Wind down portfolio companies
-└── • Liquidate any remaining positions
-
-FINAL DISTRIBUTIONS
-├── • Distribute remaining cash
-├── • In-kind distributions (rare)
-├── • Carried interest settlement
-└── • Clawback calculations (if applicable)
-
-ADMINISTRATIVE CLOSURE
-├── • Final audit
-├── • Final tax returns / K-1s
-├── • Dissolution filings
-├── • Record retention
-└── • Fund termination
+```process-flow
+{
+  "title": "Fund wind-down",
+  "steps": [
+    {
+      "title": "Final exits",
+      "detail": "Sell remaining assets, wind down companies, and liquidate residual positions."
+    },
+    {
+      "title": "Final distributions",
+      "detail": "Return remaining cash, settle carry, and run clawback calculations if needed."
+    },
+    {
+      "title": "Administrative closure",
+      "detail": "Complete the final audit, tax work, dissolution filings, record retention, and termination."
+    }
+  ]
+}
 ```
 
 ---
@@ -319,41 +341,26 @@ ADMINISTRATIVE CLOSURE
 
 ### Visualizing the Full Picture
 
-```
-                        CAPITAL FLOW OVER FUND LIFE
-                        ────────────────────────────
-
-   $M
-    │
-  80├                                      ┌───┐
-    │                                      │   │ Distributions
-  60├                                  ┌───┤   │
-    │                              ┌───┤   │   │
-  40├      ┌───┐               ┌───┤   │   │   │
-    │  ┌───┤   │           ┌───┤   │   │   │   │
-  20├──┤   │   │       ┌───┤   │   │   │   │   │
-    │  │   │   │   ┌───┤   │   │   │   │   │   │
-   0├──┴───┴───┴───┴───┴───┴───┴───┴───┴───┴───┴──────────────
-    │
- -20├  ┌───┐
-    │──┤   │
- -40├  │   ├───┐
-    │  │   │   ├───┐
- -60├  │   │   │   ├───┐
-    │  │   │   │   │   │   Capital Calls
- -80├  │   │   │   │   │   (negative = money out)
-    │
-    └──┴───┴───┴───┴───┴───┴───┴───┴───┴───┴───┴───────────────
-       1   2   3   4   5   6   7   8   9  10  11  12   Year
-
-NET POSITION:
-       ──────────────────────────────────────────────
-Year:   1    2    3    4    5    6    7    8    9   10
-       ─────────────────────────────────────────────────
-Calls: -40  -60  -80  -90  -95  -95  -95  -95  -95  -95
-Dist:   0    0   10   30   60  100  150  200  240  260
-       ─────────────────────────────────────────────────
-Net:  -40  -60  -70  -60  -35   +5  +55 +105 +145 +165
+```chart
+{
+  "title": "Capital flow over fund life",
+  "chartType": "line",
+  "xLabel": "Year",
+  "yLabel": "$M",
+  "series": ["Calls", "Distributions", "Net Position"],
+  "data": [
+    { "Year": 1, "Calls": -40, "Distributions": 0, "Net Position": -40 },
+    { "Year": 2, "Calls": -60, "Distributions": 0, "Net Position": -60 },
+    { "Year": 3, "Calls": -80, "Distributions": 10, "Net Position": -70 },
+    { "Year": 4, "Calls": -90, "Distributions": 30, "Net Position": -60 },
+    { "Year": 5, "Calls": -95, "Distributions": 60, "Net Position": -35 },
+    { "Year": 6, "Calls": -95, "Distributions": 100, "Net Position": 5 },
+    { "Year": 7, "Calls": -95, "Distributions": 150, "Net Position": 55 },
+    { "Year": 8, "Calls": -95, "Distributions": 200, "Net Position": 105 },
+    { "Year": 9, "Calls": -95, "Distributions": 240, "Net Position": 145 },
+    { "Year": 10, "Calls": -95, "Distributions": 260, "Net Position": 165 }
+  ]
+}
 ```
 
 ### Key Observations

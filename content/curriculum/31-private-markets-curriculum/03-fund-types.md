@@ -13,50 +13,69 @@ By the end of this module, you will understand:
 
 ## 3.1 Overview of Fund Types
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                   PRIVATE MARKETS UNIVERSE                       │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  PRIVATE EQUITY                   REAL ASSETS                   │
-│  ┌───────────────────────┐       ┌───────────────────────┐     │
-│  │ • Buyout              │       │ • Real Estate         │     │
-│  │ • Growth Equity       │       │ • Infrastructure      │     │
-│  │ • Venture Capital     │       │ • Natural Resources   │     │
-│  └───────────────────────┘       └───────────────────────┘     │
-│                                                                 │
-│  PRIVATE CREDIT                   MULTI-STRATEGY               │
-│  ┌───────────────────────┐       ┌───────────────────────┐     │
-│  │ • Direct Lending      │       │ • Fund of Funds       │     │
-│  │ • Mezzanine           │       │ • Secondary Funds     │     │
-│  │ • Distressed Debt     │       │ • Co-Investment       │     │
-│  │ • Special Situations  │       │   Programs            │     │
-│  └───────────────────────┘       └───────────────────────┘     │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+```framework
+{
+  "title": "Private markets universe",
+  "pillars": [
+    {
+      "title": "Private equity",
+      "bullets": [
+        "Buyout",
+        "Growth equity",
+        "Venture capital"
+      ]
+    },
+    {
+      "title": "Real assets",
+      "bullets": [
+        "Real estate",
+        "Infrastructure",
+        "Natural resources"
+      ]
+    },
+    {
+      "title": "Private credit",
+      "bullets": [
+        "Direct lending",
+        "Mezzanine",
+        "Distressed debt",
+        "Special situations"
+      ]
+    },
+    {
+      "title": "Multi-strategy",
+      "bullets": [
+        "Funds of funds",
+        "Secondary funds",
+        "Co-investment programs"
+      ]
+    }
+  ]
+}
 ```
 
 ### Risk/Return Spectrum
 
-```
-Expected Return
-      │
-  30% ┤                                              Venture Capital
-      │                                              (early stage) ●
-  25% ┤                                        ●
-      │                                   Venture Capital
-  20% ┤                              ●    (growth stage)
-      │                         Buyout
-  15% ┤                    ●    (small/mid)
-      │               Growth Equity
-  12% ┤          ●                     ● Buyout (large)
-      │     Mezzanine
-  10% ┤                    ● Real Estate (value-add)
-      │  ● Senior Debt
-   8% ┤         ● Infrastructure    ● Real Estate (core)
-      │
-      └──────────────────────────────────────────────────────► Risk
-           Low                                           High
+```comparison-table
+{
+  "title": "Illustrative risk / return spectrum",
+  "note": "More specialized and less mature strategies typically target higher returns but carry more risk.",
+  "columns": [
+    { "key": "strategy", "label": "Strategy" },
+    { "key": "risk", "label": "Relative Risk" },
+    { "key": "return", "label": "Indicative Return" }
+  ],
+  "rows": [
+    { "strategy": "Senior debt", "risk": "Low", "return": "8-10%" },
+    { "strategy": "Infrastructure", "risk": "Low-medium", "return": "~8%" },
+    { "strategy": "Core real estate", "risk": "Medium", "return": "~8%" },
+    { "strategy": "Mezzanine", "risk": "Medium", "return": "~12%" },
+    { "strategy": "Growth equity", "risk": "Medium-high", "return": "12-15%" },
+    { "strategy": "Buyout", "risk": "High", "return": "15-20%" },
+    { "strategy": "Value-add real estate", "risk": "High", "return": "~10%" },
+    { "strategy": "Venture capital", "risk": "Very high", "return": "20-30%+" }
+  ]
+}
 ```
 
 ---
@@ -80,33 +99,45 @@ Expected Return
 
 ### Value Creation Levers
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│              BUYOUT VALUE CREATION                           │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  1. OPERATIONAL IMPROVEMENT                                 │
-│     • Revenue growth (new products, markets, pricing)       │
-│     • Cost reduction (efficiency, procurement)              │
-│     • Management upgrades                                   │
-│     • Digital transformation                                │
-│                                                             │
-│  2. FINANCIAL ENGINEERING                                   │
-│     • Leverage (debt magnifies equity returns)              │
-│     • Working capital optimization                          │
-│     • Tax efficiency                                        │
-│                                                             │
-│  3. MULTIPLE EXPANSION                                      │
-│     • Buy at 8x EBITDA, sell at 10x EBITDA                 │
-│     • Improve company quality/growth profile                │
-│     • Better market conditions at exit                      │
-│                                                             │
-│  4. STRATEGIC TRANSACTIONS                                  │
-│     • Add-on acquisitions                                   │
-│     • Carve-outs and divestitures                          │
-│     • Platform building                                     │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
+```framework
+{
+  "title": "Buyout value creation",
+  "pillars": [
+    {
+      "title": "Operational improvement",
+      "bullets": [
+        "Revenue growth through products, markets, and pricing",
+        "Cost reduction and procurement efficiency",
+        "Management upgrades",
+        "Digital transformation"
+      ]
+    },
+    {
+      "title": "Financial engineering",
+      "bullets": [
+        "Leverage to magnify equity returns",
+        "Working-capital optimization",
+        "Tax efficiency"
+      ]
+    },
+    {
+      "title": "Multiple expansion",
+      "bullets": [
+        "Buy at 8x EBITDA and sell at 10x EBITDA",
+        "Improve quality and growth profile",
+        "Benefit from stronger exit markets"
+      ]
+    },
+    {
+      "title": "Strategic transactions",
+      "bullets": [
+        "Add-on acquisitions",
+        "Carve-outs and divestitures",
+        "Platform building"
+      ]
+    }
+  ]
+}
 ```
 
 ### Buyout Segments
@@ -120,6 +151,62 @@ Expected Return
 | **Small** | <$10M | <$100M | Smaller/local firms |
 
 ### Example Buyout Transaction
+
+```comparison-table
+{
+  "title": "Illustrative buyout transaction",
+  "note": "A five-year hold where operating improvement, multiple expansion, and debt paydown all contribute to equity value creation.",
+  "columns": [
+    { "key": "metric", "label": "Metric" },
+    { "key": "entry", "label": "Entry (Year 0)" },
+    { "key": "exit", "label": "Exit (Year 5)" }
+  ],
+  "rows": [
+    {
+      "metric": "Revenue",
+      "entry": "$200M",
+      "exit": "$350M"
+    },
+    {
+      "metric": "EBITDA",
+      "entry": "$40M",
+      "exit": "$70M"
+    },
+    {
+      "metric": "EV / EBITDA",
+      "entry": "8.0x",
+      "exit": "10.0x"
+    },
+    {
+      "metric": "Enterprise value",
+      "entry": "$320M",
+      "exit": "$700M"
+    },
+    {
+      "metric": "Debt",
+      "entry": "$200M (5.0x EBITDA)",
+      "exit": "$175M remaining"
+    },
+    {
+      "metric": "Equity value",
+      "entry": "$120M",
+      "exit": "$525M"
+    },
+    {
+      "metric": "Investor return",
+      "entry": "Initial equity: $120M",
+      "exit": "4.4x MOIC, ~35% IRR"
+    },
+    {
+      "metric": "Main value drivers",
+      "entry": "Underwrite EBITDA growth plan",
+      "exit": "$240M from EBITDA growth, $60M from multiple expansion, and $25M from debt paydown"
+    }
+  ]
+}
+```
+
+<!--
 
 ```
 ACME MANUFACTURING CO. - BUYOUT EXAMPLE
@@ -157,6 +244,8 @@ VALUE CREATION BRIDGE
 
 ---
 
+-->
+
 ## 3.3 Private Equity: Growth Equity
 
 ### What It Is
@@ -186,6 +275,42 @@ VALUE CREATION BRIDGE
 
 ### Example Growth Equity Investment
 
+```framework
+{
+  "title": "Illustrative growth equity investment",
+  "note": "Minority capital supports expansion while founders keep control.",
+  "pillars": [
+    {
+      "title": "Investment thesis",
+      "bullets": [
+        "B2B SaaS business with $50M ARR and 40% annual growth.",
+        "Company is already profitable, which lowers execution risk.",
+        "Capital funds sales expansion and European market entry.",
+        "Founders want growth capital, not a control sale."
+      ]
+    },
+    {
+      "title": "Transaction",
+      "bullets": [
+        "$100M investment for 25% ownership.",
+        "Pre-money valuation of $300M.",
+        "Post-money valuation of $400M."
+      ]
+    },
+    {
+      "title": "Exit outcome",
+      "bullets": [
+        "Revenue grows to $300M ARR by Year 5.",
+        "Exit at 8x revenue implies a $2.4B valuation.",
+        "The 25% stake is worth about $600M.",
+        "Resulting return is about 6.0x and ~43% IRR."
+      ]
+    }
+  ]
+}
+```
+
+<!--
 ```
 TECHSOLUTIONS INC. - GROWTH EQUITY EXAMPLE
 ──────────────────────────────────────────
@@ -208,6 +333,8 @@ EXIT (Year 5)
 • Return: 6.0x, ~43% IRR
 ```
 
+-->
+
 ---
 
 ## 3.4 Venture Capital
@@ -229,29 +356,38 @@ EXIT (Year 5)
 
 ### The VC Model: Power Law Returns
 
-```
-VC FUND RETURNS DISTRIBUTION (100 investments)
-──────────────────────────────────────────────
-
-  50% │ ████████████████████████████████████████████████
-     │ │                  50 investments
-     │ │                  Return: 0-1x (losses or breakeven)
-     │ │
-  30% │ ████████████████████████████████
-     │ │              30 investments
-     │ │              Return: 1-3x (modest returns)
-     │ │
-  15% │ ████████████████
-     │ │        15 investments
-     │ │        Return: 3-10x (good returns)
-     │ │
-   5% │ ████
-     │ │    5 investments
-     │ │    Return: 10-100x+ ("home runs")
-     │ │    ▲
-     │ │    └── These 5% drive most of fund returns
-     └─┴────────────────────────────────────────────────►
-              Return Multiple
+```comparison-table
+{
+  "title": "VC power-law return distribution",
+  "note": "A small set of winners typically drives most fund-level returns.",
+  "columns": [
+    { "key": "bucket", "label": "Return Bucket" },
+    { "key": "share", "label": "Share of Investments" },
+    { "key": "meaning", "label": "Typical Outcome" }
+  ],
+  "rows": [
+    {
+      "bucket": "0-1x",
+      "share": "50%",
+      "meaning": "Losses or breakeven outcomes."
+    },
+    {
+      "bucket": "1-3x",
+      "share": "30%",
+      "meaning": "Modest winners."
+    },
+    {
+      "bucket": "3-10x",
+      "share": "15%",
+      "meaning": "Good performers."
+    },
+    {
+      "bucket": "10-100x+",
+      "share": "5%",
+      "meaning": "Home runs that drive the fund."
+    }
+  ]
+}
 ```
 
 **Key insight**: VC funds expect most investments to fail. A few massive winners drive overall returns.
@@ -285,6 +421,46 @@ VC FUND RETURNS DISTRIBUTION (100 investments)
 
 ### Strategy Spectrum
 
+```comparison-table
+{
+  "title": "Real estate strategy spectrum",
+  "note": "Strategies move from stable income-oriented assets to high-risk, high-upside repositioning and development plays.",
+  "columns": [
+    { "key": "strategy", "label": "Strategy" },
+    { "key": "profile", "label": "Typical Asset Profile" },
+    { "key": "leverage", "label": "Typical Leverage" },
+    { "key": "target", "label": "Target IRR" }
+  ],
+  "rows": [
+    {
+      "strategy": "Core",
+      "profile": "Stabilized trophy assets with long leases.",
+      "leverage": "30-50%",
+      "target": "6-9%"
+    },
+    {
+      "strategy": "Core-Plus",
+      "profile": "Light renovation or moderate vacancy with some operational lift.",
+      "leverage": "40-60%",
+      "target": "9-12%"
+    },
+    {
+      "strategy": "Value-Add",
+      "profile": "Renovation, repositioning, and lease-up execution.",
+      "leverage": "60-75%",
+      "target": "12-18%"
+    },
+    {
+      "strategy": "Opportunistic",
+      "profile": "Development, distressed opportunities, or land plays.",
+      "leverage": "High and more variable",
+      "target": "18%+"
+    }
+  ]
+}
+```
+
+<!--
 ```
 RISK/RETURN SPECTRUM
 ────────────────────
@@ -306,6 +482,8 @@ RISK/RETURN SPECTRUM
     Target IRR:         Target IRR:     Target IRR:      Target IRR:
     6-9%               9-12%           12-18%           18%+
 ```
+
+-->
 
 ### Property Types
 
@@ -329,6 +507,43 @@ RISK/RETURN SPECTRUM
 
 ### Example Real Estate Investment
 
+```framework
+{
+  "title": "Illustrative value-add real estate deal",
+  "note": "The return comes from operational improvement, lease-up, and some leverage.",
+  "pillars": [
+    {
+      "title": "Entry",
+      "bullets": [
+        "Purchase price of $100M.",
+        "NOI of $5M at a 5% cap rate.",
+        "Occupancy starts at 70%.",
+        "Main issues are outdated amenities and building systems."
+      ]
+    },
+    {
+      "title": "Business plan",
+      "bullets": [
+        "Invest $15M into renovations and modernization.",
+        "Upgrade amenities such as the gym and conference space.",
+        "Improve leasing appeal and push rents higher.",
+        "Lease vacant space to lift occupancy."
+      ]
+    },
+    {
+      "title": "Exit and returns",
+      "bullets": [
+        "Year 5 NOI reaches $8.5M with 95% occupancy.",
+        "Exit cap rate is 5.5%, implying about $155M of value.",
+        "Total invested capital is $115M including capex.",
+        "Outcome is roughly $40M of profit, 1.35x MOIC, and ~20% equity IRR with 65% leverage."
+      ]
+    }
+  ]
+}
+```
+
+<!--
 ```
 DOWNTOWN OFFICE TOWER - VALUE-ADD EXAMPLE
 ─────────────────────────────────────────
@@ -359,6 +574,8 @@ MOIC: 1.35x on total investment
 Equity IRR: ~20% (with 65% leverage)
 ```
 
+-->
+
 ---
 
 ## 3.6 Real Assets: Infrastructure
@@ -379,6 +596,61 @@ Equity IRR: ~20% (with 65% leverage)
 
 ### Infrastructure Sectors
 
+```framework
+{
+  "title": "Infrastructure sectors",
+  "note": "Infrastructure funds span essential systems with different cash-flow profiles, regulatory overlays, and operating risks.",
+  "pillars": [
+    {
+      "title": "Transportation",
+      "bullets": [
+        "Toll roads",
+        "Airports",
+        "Seaports",
+        "Rail"
+      ]
+    },
+    {
+      "title": "Utilities",
+      "bullets": [
+        "Power generation",
+        "Transmission lines",
+        "Water and wastewater",
+        "Gas distribution"
+      ]
+    },
+    {
+      "title": "Energy",
+      "bullets": [
+        "Pipelines",
+        "Storage terminals",
+        "Renewables such as solar and wind",
+        "LNG facilities"
+      ]
+    },
+    {
+      "title": "Digital",
+      "bullets": [
+        "Cell towers",
+        "Fiber networks",
+        "Data centers",
+        "Satellite systems"
+      ]
+    },
+    {
+      "title": "Social",
+      "bullets": [
+        "Hospitals",
+        "Schools",
+        "Government buildings",
+        "Student housing"
+      ]
+    }
+  ]
+}
+```
+
+<!--
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                 INFRASTRUCTURE SECTORS                       │
@@ -402,6 +674,8 @@ Equity IRR: ~20% (with 65% leverage)
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+-->
 
 ### Risk Spectrum
 
@@ -430,6 +704,40 @@ After 2008 financial crisis:
 
 ### Strategy Types
 
+```comparison-table
+{
+  "title": "Private credit strategy spectrum",
+  "note": "As you move down the capital structure, contractual protection usually declines while target return and downside risk rise.",
+  "columns": [
+    { "key": "strategy", "label": "Strategy" },
+    { "key": "position", "label": "Capital Structure Position" },
+    { "key": "features", "label": "Typical Features" },
+    { "key": "return", "label": "Typical Return Profile" }
+  ],
+  "rows": [
+    {
+      "strategy": "Senior secured",
+      "position": "Highest priority and lowest risk",
+      "features": "First-lien, asset-backed loans with tighter covenants.",
+      "return": "8-12% yield"
+    },
+    {
+      "strategy": "Mezzanine",
+      "position": "Subordinated to senior debt",
+      "features": "Second-lien or unsecured exposure, sometimes with PIK or equity kickers.",
+      "return": "12-18% yield"
+    },
+    {
+      "strategy": "Distressed",
+      "position": "Investing into stressed or bankrupt situations",
+      "features": "Turnaround, restructuring, and control-oriented opportunities.",
+      "return": "20%+ IRR target"
+    }
+  ]
+}
+```
+
+<!--
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                 PRIVATE CREDIT SPECTRUM                      │
@@ -449,6 +757,8 @@ After 2008 financial crisis:
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+-->
 
 ### Key Characteristics
 
@@ -479,6 +789,62 @@ A **Fund of Funds (FoF)** is a fund that invests in other private equity funds r
 
 ### Structure
 
+```diagram
+{
+  "title": "Fund of funds structure",
+  "note": "The FoF sits between the LP and a diversified set of underlying managers.",
+  "nodes": [
+    {
+      "id": "lp",
+      "title": "Investor (LP)",
+      "detail": "Commits capital to one diversified vehicle.",
+      "column": 2,
+      "row": 1,
+      "tone": "accent"
+    },
+    {
+      "id": "fof",
+      "title": "Fund of funds manager",
+      "detail": "Allocates across 20-30 underlying funds and handles manager selection.",
+      "column": 2,
+      "row": 2,
+      "tone": "default"
+    },
+    {
+      "id": "buyout",
+      "title": "Buyout funds",
+      "detail": "Examples: multiple buyout managers across vintages.",
+      "column": 1,
+      "row": 3,
+      "tone": "muted"
+    },
+    {
+      "id": "venture",
+      "title": "VC funds",
+      "detail": "Adds earlier-stage growth exposure.",
+      "column": 2,
+      "row": 3,
+      "tone": "muted"
+    },
+    {
+      "id": "growth",
+      "title": "Growth and other strategies",
+      "detail": "Can include growth equity, credit, or secondary funds.",
+      "column": 3,
+      "row": 3,
+      "tone": "muted"
+    }
+  ],
+  "edges": [
+    { "from": "lp", "to": "fof", "label": "commit" },
+    { "from": "fof", "to": "buyout", "label": "allocate" },
+    { "from": "fof", "to": "venture", "label": "allocate" },
+    { "from": "fof", "to": "growth", "label": "allocate" }
+  ]
+}
+```
+
+<!--
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                                                             │
@@ -509,6 +875,8 @@ A **Fund of Funds (FoF)** is a fund that invests in other private equity funds r
 └─────────────────────────────────────────────────────────────┘
 ```
 
+-->
+
 ### Why Invest Through FoF?
 
 | Benefit | Explanation |
@@ -521,6 +889,34 @@ A **Fund of Funds (FoF)** is a fund that invests in other private equity funds r
 
 ### The Double Fee Layer
 
+```process-flow
+{
+  "title": "How the double fee layer works",
+  "note": "FoFs add a second economics layer on top of the underlying manager fees.",
+  "steps": [
+    {
+      "id": "underlying",
+      "title": "Underlying fund fees",
+      "detail": "Each underlying manager may charge about 1.5-2.0% management fee plus 20% carry.",
+      "emphasis": "Layer one"
+    },
+    {
+      "id": "fof",
+      "title": "FoF overlay",
+      "detail": "The FoF often adds another 0.5-1.0% management fee and 5-10% carry.",
+      "emphasis": "Layer two"
+    },
+    {
+      "id": "investor",
+      "title": "Net result to LP",
+      "detail": "A 15% gross underlying return might become ~12% after underlying fees and ~10% after the FoF layer.",
+      "emphasis": "~2-3% management fee equivalent and ~25-30% effective carry"
+    }
+  ]
+}
+```
+
+<!--
 ```
 FoF FEE STRUCTURE
 ─────────────────
@@ -547,6 +943,8 @@ IMPACT ON RETURNS
 • After FoF fees: ~10% net to investor
 ```
 
+-->
+
 ### FoF vs Direct Investing
 
 | Aspect | Fund of Funds | Direct LP |
@@ -568,6 +966,31 @@ IMPACT ON RETURNS
 
 ### How It Works
 
+```process-flow
+{
+  "title": "How a secondary transaction works",
+  "note": "A buyer purchases an existing LP interest from an investor that wants liquidity before the fund ends.",
+  "steps": [
+    {
+      "id": "commit",
+      "title": "Original LP commits to the fund",
+      "detail": "Example: the seller originally committed $50M and is now in Year 4 with a fund NAV of about $55M."
+    },
+    {
+      "id": "sale",
+      "title": "Secondary buyer offers liquidity",
+      "detail": "A secondary fund buys the LP interest at a negotiated discount, such as $49M or 89% of NAV."
+    },
+    {
+      "id": "transfer",
+      "title": "Ownership transfers",
+      "detail": "The buyer becomes the new LP, assumes future economics, and the seller gets immediate cash."
+    }
+  ]
+}
+```
+
+<!--
 ```
 SECONDARY TRANSACTION
 ─────────────────────
@@ -599,6 +1022,8 @@ SECONDARY SALE
 │   Year 4    │   of LP interest
 └─────────────┘
 ```
+
+-->
 
 ### Why Secondaries Exist
 

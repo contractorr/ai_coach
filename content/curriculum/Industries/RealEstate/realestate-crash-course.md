@@ -365,26 +365,40 @@ Spread to market cap rate = Development profit
 
 ## Quick Reference: Deal Structure
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    CAPITAL STACK                             │
-│  Senior Debt (60-70% LTV) → Mezz → Pref Equity → Common     │
-└─────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────┐
-│                    PROPERTY                                  │
-│  Land + Building → Generates NOI → Pays debt → Equity return│
-└─────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────┐
-│                    WATERFALL                                 │
-│  Return of capital → Pref return → Catch-up → Promote split │
-└─────────────────────────────────────────────────────────────┘
+```process-flow
+{
+  "title": "Deal structure",
+  "steps": [
+    {
+      "title": "Capital stack",
+      "detail": "Senior debt (60-70% LTV), mezzanine, preferred equity, and common equity."
+    },
+    {
+      "title": "Property",
+      "detail": "Land and building generate NOI, service debt, and create equity returns."
+    },
+    {
+      "title": "Waterfall",
+      "detail": "Return of capital, preferred return, catch-up, and promote split."
+    }
+  ]
+}
 ```
 
-**Transaction flow (residential):**
-```
-List → Show → Offer → Contract → Inspection → Appraisal → Clear title → Close
+```process-flow
+{
+  "title": "Residential transaction flow",
+  "steps": [
+    { "title": "List" },
+    { "title": "Show" },
+    { "title": "Offer" },
+    { "title": "Contract" },
+    { "title": "Inspection" },
+    { "title": "Appraisal" },
+    { "title": "Clear title" },
+    { "title": "Close" }
+  ]
+}
 ```
 
 ---

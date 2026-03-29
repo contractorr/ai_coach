@@ -43,8 +43,17 @@ Financial services = intermediating between those with capital and those who nee
 
 ### Payments Ecosystem
 
-```
-Cardholder → Merchant → Acquirer → Card Network → Issuer
+```process-flow
+{
+  "title": "Payments ecosystem",
+  "steps": [
+    { "title": "Cardholder" },
+    { "title": "Merchant" },
+    { "title": "Acquirer" },
+    { "title": "Card network" },
+    { "title": "Issuer" }
+  ]
+}
 ```
 
 | Player | Role | Examples |
@@ -374,28 +383,38 @@ Financial services integrated into non-financial products
 
 ## Quick Reference: Money Flow
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                   CAPITAL SOURCES                            │
-│  Depositors │ Investors │ Central Bank │ Capital Markets    │
-└─────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────┐
-│                   INTERMEDIARIES                             │
-│  Banks │ Asset Managers │ Lenders │ Payment Networks        │
-└─────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────┐
-│                   CAPITAL USERS                              │
-│  Consumers │ Businesses │ Governments │ Investors           │
-└─────────────────────────────────────────────────────────────┘
+```process-flow
+{
+  "title": "Financial system money flow",
+  "steps": [
+    {
+      "title": "Capital sources",
+      "detail": "Depositors, investors, the central bank, and capital markets."
+    },
+    {
+      "title": "Intermediaries",
+      "detail": "Banks, asset managers, lenders, and payment networks."
+    },
+    {
+      "title": "Capital users",
+      "detail": "Consumers, businesses, governments, and investors."
+    }
+  ]
+}
 ```
 
-**Payment flow:**
-```
-Consumer → Merchant → Acquirer → Network → Issuer
-    ←——————— Authorization ———————←
-    ←——————— Settlement (T+1/2) ———←
+```process-flow
+{
+  "title": "Payment flow",
+  "note": "Authorization and settlement messages move back from issuer toward merchant after the transaction request moves forward.",
+  "steps": [
+    { "title": "Consumer" },
+    { "title": "Merchant" },
+    { "title": "Acquirer" },
+    { "title": "Network" },
+    { "title": "Issuer" }
+  ]
+}
 ```
 
 ---

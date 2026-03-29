@@ -407,38 +407,96 @@ HR/People tech = software and services enabling organizations to attract, hire, 
 
 ## Quick Reference: Employee Lifecycle
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    ATTRACT                                   │
-│  Employer brand │ Job posting │ Sourcing │ Careers site     │
-└─────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────┐
-│                     HIRE                                     │
-│  Apply → Screen → Interview → Offer → Background → Accept   │
-└─────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────┐
-│                   ONBOARD                                    │
-│  Paperwork │ Setup │ Training │ Integration │ 30/60/90     │
-└─────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────┐
-│                MANAGE & DEVELOP                              │
-│  Performance │ Feedback │ Learning │ Career │ Compensation  │
-└─────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────┐
-│                  RETAIN / EXIT                               │
-│  Engagement │ Recognition │ Growth │ OR │ Offboard         │
-└─────────────────────────────────────────────────────────────┘
+```process-flow
+{
+  "title": "Employee lifecycle",
+  "steps": [
+    {
+      "title": "Attract",
+      "detail": "Employer brand, job posting, sourcing, and careers site."
+    },
+    {
+      "title": "Hire",
+      "detail": "Apply, screen, interview, offer, background check, and accept."
+    },
+    {
+      "title": "Onboard",
+      "detail": "Paperwork, setup, training, integration, and 30/60/90 plans."
+    },
+    {
+      "title": "Manage and develop",
+      "detail": "Performance, feedback, learning, career, and compensation."
+    },
+    {
+      "title": "Retain or exit",
+      "detail": "Engagement, recognition, growth, or offboarding."
+    }
+  ]
+}
 ```
 
-**HR system integration:**
-```
-ATS → HRIS (hire) → Payroll (pay) → Benefits (enroll) → Time (track)
-                          ↓
-              Performance/Learning (develop)
+```diagram
+{
+  "title": "HR system integration",
+  "note": "The HRIS acts as the core system of record while adjacent tools handle recruiting, pay, benefits, time, and development.",
+  "nodes": [
+    {
+      "id": "ats",
+      "title": "ATS",
+      "detail": "Candidate pipeline and recruiting workflow.",
+      "column": 1,
+      "row": 1,
+      "tone": "muted"
+    },
+    {
+      "id": "hris",
+      "title": "HRIS",
+      "detail": "System of record for employees and org data.",
+      "column": 2,
+      "row": 1,
+      "tone": "accent"
+    },
+    {
+      "id": "payroll",
+      "title": "Payroll",
+      "detail": "Compensation, tax withholding, and pay runs.",
+      "column": 3,
+      "row": 1,
+      "tone": "muted"
+    },
+    {
+      "id": "benefits",
+      "title": "Benefits",
+      "detail": "Enrollment and plan administration.",
+      "column": 4,
+      "row": 1,
+      "tone": "muted"
+    },
+    {
+      "id": "time",
+      "title": "Time",
+      "detail": "Hours, leave, and attendance tracking.",
+      "column": 5,
+      "row": 1,
+      "tone": "muted"
+    },
+    {
+      "id": "learning",
+      "title": "Performance and learning",
+      "detail": "Development, reviews, and growth planning.",
+      "column": 3,
+      "row": 2,
+      "tone": "muted"
+    }
+  ],
+  "edges": [
+    { "from": "ats", "to": "hris", "label": "hire" },
+    { "from": "hris", "to": "payroll", "label": "pay" },
+    { "from": "payroll", "to": "benefits", "label": "enroll" },
+    { "from": "benefits", "to": "time", "label": "track" },
+    { "from": "hris", "to": "learning", "label": "develop" }
+  ]
+}
 ```
 
 ---

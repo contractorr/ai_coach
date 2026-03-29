@@ -391,28 +391,37 @@ Home price - Land cost - Hard costs - Soft costs - SG&A = Profit
 
 ## Quick Reference: Project Flow
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                 PRE-CONSTRUCTION                             │
-│  Planning → Design → Permitting → Bidding → Contracts       │
-└─────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────┐
-│                   CONSTRUCTION                               │
-│  Mobilize → Sitework → Structure → MEP → Finishes → Punch   │
-└─────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────┐
-│                    CLOSEOUT                                  │
-│  Substantial completion → Punchlist → Final → Warranty      │
-└─────────────────────────────────────────────────────────────┘
+```process-flow
+{
+  "title": "Project flow",
+  "steps": [
+    {
+      "title": "Pre-construction",
+      "detail": "Planning, design, permitting, bidding, and contracts."
+    },
+    {
+      "title": "Construction",
+      "detail": "Mobilize, sitework, structure, MEP, finishes, and punch work."
+    },
+    {
+      "title": "Closeout",
+      "detail": "Substantial completion, punchlist, final turnover, and warranty."
+    }
+  ]
+}
 ```
 
-**Payment flow:**
-```
-Owner → GC → Subcontractors → Suppliers
-         ↑        ↑              ↑
-    Retainage   Retainage    Pay-when-paid
+```process-flow
+{
+  "title": "Payment flow",
+  "note": "Retainage is common at the GC and subcontractor levels, and supplier terms often depend on pay-when-paid clauses.",
+  "steps": [
+    { "title": "Owner" },
+    { "title": "GC" },
+    { "title": "Subcontractors" },
+    { "title": "Suppliers" }
+  ]
+}
 ```
 
 ---

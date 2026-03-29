@@ -365,30 +365,45 @@ Key: Volume, carrier relationships, technology for efficiency
 
 ## Quick Reference: Physical Flow
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    SUPPLIERS                                 │
-│  Raw materials │ Components │ Manufacturers                 │
-└─────────────────────────────────────────────────────────────┘
-                              ↓ Inbound logistics
-┌─────────────────────────────────────────────────────────────┐
-│                 DISTRIBUTION NETWORK                         │
-│  Ports │ Regional DCs │ Fulfillment Centers │ Stores        │
-└─────────────────────────────────────────────────────────────┘
-                              ↓ Outbound / Last-mile
-┌─────────────────────────────────────────────────────────────┐
-│                     CUSTOMERS                                │
-│  B2B buyers │ Retailers │ Consumers                         │
-└─────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────┐
-│                  REVERSE LOGISTICS                           │
-│  Returns │ Repairs │ Recycling │ Disposal                   │
-└─────────────────────────────────────────────────────────────┘
+```process-flow
+{
+  "title": "Physical flow",
+  "steps": [
+    {
+      "title": "Suppliers",
+      "detail": "Raw materials, components, and manufacturers.",
+      "emphasis": "Inbound logistics"
+    },
+    {
+      "title": "Distribution network",
+      "detail": "Ports, regional DCs, fulfillment centers, and stores.",
+      "emphasis": "Outbound and last-mile"
+    },
+    {
+      "title": "Customers",
+      "detail": "B2B buyers, retailers, and consumers."
+    },
+    {
+      "title": "Reverse logistics",
+      "detail": "Returns, repairs, recycling, and disposal."
+    }
+  ]
+}
 ```
 
-**Information flow (parallel):**
-Orders → Forecasts → Inventory status → Shipment visibility → POD
+```process-flow
+{
+  "title": "Information flow",
+  "note": "Data moves alongside the physical network rather than after it.",
+  "steps": [
+    { "title": "Orders" },
+    { "title": "Forecasts" },
+    { "title": "Inventory status" },
+    { "title": "Shipment visibility" },
+    { "title": "POD" }
+  ]
+}
+```
 
 ---
 

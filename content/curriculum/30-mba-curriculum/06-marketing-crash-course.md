@@ -266,16 +266,33 @@ Classical economics assumes rational actors. Behavioral economics shows we're pr
 - Upgrade path (land and expand)
 
 **Good/Better/Best:**
-```
-BASIC          PRO             ENTERPRISE
-$10/mo         $30/mo          $100/mo
-- Feature A    - Everything    - Everything
-- Feature B      in Basic        in Pro
-               - Feature C     - Feature D
-               - Feature D     - Feature E
-                              - Support
-
-Most popular → PRO (where you make money)
+```comparison-table
+{
+  "title": "Good / better / best pricing",
+  "note": "The middle tier is usually where you want demand to concentrate.",
+  "columns": [
+    { "key": "tier", "label": "Tier" },
+    { "key": "price", "label": "Price" },
+    { "key": "offer", "label": "Offer" }
+  ],
+  "rows": [
+    {
+      "tier": "Basic",
+      "price": "$10/mo",
+      "offer": "Feature A, Feature B"
+    },
+    {
+      "tier": "Pro",
+      "price": "$30/mo",
+      "offer": "Everything in Basic, Feature C, Feature D, most popular"
+    },
+    {
+      "tier": "Enterprise",
+      "price": "$100/mo",
+      "offer": "Everything in Pro, Feature E, support"
+    }
+  ]
+}
 ```
 
 ### Freemium Strategy

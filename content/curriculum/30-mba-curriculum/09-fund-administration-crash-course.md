@@ -55,13 +55,29 @@ LIMITED PARTNERS (LPs)          GENERAL PARTNER (GP)
 
 ### Fund Lifecycle
 
-```
-FUNDRAISING → INVESTMENT → HARVEST → WIND-DOWN
-(1-2 years)   (3-5 years)  (3-5 years) (1-2 years)
-
-Capital calls ──────────────────► Distributions
-        Investment period        │  Exits/returns
-                                 ▼
+```process-flow
+{
+  "title": "Fund lifecycle",
+  "note": "Capital calls dominate early in the fund life; distributions dominate after exits begin.",
+  "steps": [
+    {
+      "title": "Fundraising",
+      "detail": "1-2 years."
+    },
+    {
+      "title": "Investment",
+      "detail": "3-5 years. Capital calls fund new deals."
+    },
+    {
+      "title": "Harvest",
+      "detail": "3-5 years. Exits begin returning capital."
+    },
+    {
+      "title": "Wind-down",
+      "detail": "1-2 years. Final distributions and termination."
+    }
+  ]
+}
 ```
 
 **Fundraising:** GP raises commitments from LPs

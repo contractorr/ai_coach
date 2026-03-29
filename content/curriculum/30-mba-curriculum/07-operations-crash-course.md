@@ -215,16 +215,28 @@ Lead Time = WIP / Throughput
 **Bottleneck paradox:** Improving non-bottlenecks doesn't improve system throughput—and may make things worse (creates more WIP at bottleneck).
 
 **Example:**
+```process-flow
+{
+  "title": "Bottleneck dynamics",
+  "note": "System throughput stays constrained by the narrowest step until that constraint changes.",
+  "steps": [
+    {
+      "title": "Design",
+      "detail": "Capacity: 10 per week."
+    },
+    {
+      "title": "Dev",
+      "detail": "Capacity: 5 per week and the bottleneck."
+    },
+    {
+      "title": "QA",
+      "detail": "Capacity: 8 per week."
+    }
+  ]
+}
 ```
-Design (capacity: 10/week) → Dev (capacity: 5/week) → QA (capacity: 8/week)
 
-Bottleneck = Dev
-
-If we double Design capacity to 20:
-- Dev still only ships 5/week
-- Now 15 designs pile up waiting for Dev
-- Longer lead times, more WIP, same throughput
-```
+If Design doubles to 20 per week, Dev still ships only 5 per week. The result is more WIP and longer lead times, not more throughput.
 
 **Correct approach:**
 1. Don't increase design capacity

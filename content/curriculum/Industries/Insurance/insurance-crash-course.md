@@ -344,25 +344,43 @@ Pays based on trigger event, not actual loss
 
 ## Quick Reference: Who Does What
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    RISK TAKERS                              │
-│  Carriers (primary) → Reinsurers (excess/cat)              │
-└─────────────────────────────────────────────────────────────┘
-                            ↑
-                    Premium flows up
-                    Claims flow down
-                            ↓
-┌─────────────────────────────────────────────────────────────┐
-│                   INTERMEDIARIES                            │
-│  MGAs (underwrite) │ Brokers (distribute) │ TPAs (service) │
-└─────────────────────────────────────────────────────────────┘
-                            ↑
-                            ↓
-┌─────────────────────────────────────────────────────────────┐
-│                   POLICYHOLDERS                             │
-│  Individuals │ Businesses │ Other insurers                 │
-└─────────────────────────────────────────────────────────────┘
+```diagram
+{
+  "title": "Insurance market roles",
+  "note": "Premiums move up toward risk bearers, while claims and servicing move back down toward policyholders.",
+  "nodes": [
+    {
+      "id": "risk",
+      "title": "Risk takers",
+      "detail": "Primary carriers and reinsurers.",
+      "column": 2,
+      "row": 1,
+      "tone": "accent"
+    },
+    {
+      "id": "intermediaries",
+      "title": "Intermediaries",
+      "detail": "MGAs underwrite, brokers distribute, and TPAs service.",
+      "column": 2,
+      "row": 2,
+      "tone": "muted"
+    },
+    {
+      "id": "policyholders",
+      "title": "Policyholders",
+      "detail": "Individuals, businesses, and other insurers.",
+      "column": 2,
+      "row": 3,
+      "tone": "default"
+    }
+  ],
+  "edges": [
+    { "from": "policyholders", "to": "intermediaries", "label": "premium + submissions" },
+    { "from": "intermediaries", "to": "risk", "label": "placement + premium" },
+    { "from": "risk", "to": "intermediaries", "label": "capacity + claims funding" },
+    { "from": "intermediaries", "to": "policyholders", "label": "distribution + service" }
+  ]
+}
 ```
 
 ---

@@ -418,32 +418,54 @@ Revenue (PPA price × output)
 
 ## Quick Reference: Electricity Flow
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    GENERATION                                │
-│  Nuclear │ Gas │ Coal │ Hydro │ Wind │ Solar │ Storage      │
-└─────────────────────────────────────────────────────────────┘
-                              ↓ High voltage (115-765kV)
-┌─────────────────────────────────────────────────────────────┐
-│                   TRANSMISSION                               │
-│  Bulk power │ RTO/ISO markets │ Interconnections            │
-└─────────────────────────────────────────────────────────────┘
-                              ↓ Substations (step down)
-┌─────────────────────────────────────────────────────────────┐
-│                   DISTRIBUTION                               │
-│  Local delivery │ Feeders │ Transformers │ DERs             │
-└─────────────────────────────────────────────────────────────┘
-                              ↓ Service voltage
-┌─────────────────────────────────────────────────────────────┐
-│                    CUSTOMERS                                 │
-│  Residential │ Commercial │ Industrial │ EVs                │
-└─────────────────────────────────────────────────────────────┘
+```process-flow
+{
+  "title": "Electricity flow",
+  "steps": [
+    {
+      "title": "Generation",
+      "detail": "Nuclear, gas, coal, hydro, wind, solar, and storage.",
+      "emphasis": "High voltage: 115-765 kV"
+    },
+    {
+      "title": "Transmission",
+      "detail": "Bulk power movement, RTO/ISO markets, and interconnections.",
+      "emphasis": "Substations step power down"
+    },
+    {
+      "title": "Distribution",
+      "detail": "Local delivery through feeders, transformers, and DER connections.",
+      "emphasis": "Service voltage"
+    },
+    {
+      "title": "Customers",
+      "detail": "Residential, commercial, industrial, and EV demand."
+    }
+  ]
+}
 ```
 
-**Market structure:**
-```
-Regulated (vertically integrated): Generation → T&D → Retail (all one utility)
-Deregulated: Generation (IPPs) → T&D (utility) → Retail (competitive)
+```comparison-table
+{
+  "title": "Market structure",
+  "columns": [
+    { "key": "model", "label": "Model" },
+    { "key": "flow", "label": "Flow" },
+    { "key": "meaning", "label": "Meaning" }
+  ],
+  "rows": [
+    {
+      "model": "Regulated (vertically integrated)",
+      "flow": "Generation -> T&D -> Retail",
+      "meaning": "One utility owns and operates the chain."
+    },
+    {
+      "model": "Deregulated",
+      "flow": "Generation (IPPs) -> T&D (utility) -> Retail (competitive)",
+      "meaning": "Generation and retail can be competitive while the grid remains utility-operated."
+    }
+  ]
+}
 ```
 
 ---

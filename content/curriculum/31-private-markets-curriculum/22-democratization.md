@@ -15,70 +15,77 @@ By the end of this module, you will understand:
 
 ### Why Democratization Now?
 
-```
-FORCES DRIVING RETAIL PE ACCESS
-───────────────────────────────
-
-DEMAND FACTORS:
-├── Institutional PE returns outperforming public markets
-├── Wealth concentration (more HNW/UHNW investors)
-├── Financial advisor interest
-├── Low yield environment (seeking alternatives)
-├── Retirement savings need for diversification
-└── "Institutional quality" for individuals
-
-SUPPLY FACTORS:
-├── GP desire for permanent capital
-├── New distribution channels (wirehouses)
-├── Product innovation (interval funds, etc.)
-├── Regulatory evolution (accredited definitions)
-├── Technology enabling smaller investments
-└── Fee pressure on traditional products
-
-MARKET SIZE:
-┌─────────────────────────────────────────────────────────────────┐
-│                                                                 │
-│ Institutional PE market: ~$5-6 trillion                        │
-│ Retail/HNW allocation to alts: ~$1-2 trillion                  │
-│ Potential retail PE: Estimated $3-5 trillion                   │
-│                                                                 │
-│ "DEMOCRATIZATION" PRODUCTS:                                     │
-│ ├── Interval funds: $70B+ AUM (growing rapidly)               │
-│ ├── BDCs (public): $100B+ AUM                                 │
-│ ├── Tender offer funds: $50B+ AUM                             │
-│ ├── Non-traded REITs: $100B+ AUM                              │
-│ └── ELTIFs (Europe): €10B+ AUM (newer)                        │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+```framework
+{
+  "title": "Forces driving retail PE access",
+  "pillars": [
+    {
+      "title": "Demand factors",
+      "bullets": [
+        "Institutional PE returns have outperformed public markets",
+        "Wealth concentration has created more HNW and UHNW demand",
+        "Financial advisors want alternative allocations",
+        "Low-yield environments push investors toward alternatives",
+        "Retirement portfolios need more diversification"
+      ]
+    },
+    {
+      "title": "Supply factors",
+      "bullets": [
+        "GPs want permanent capital",
+        "Wirehouses and new distribution channels expanded access",
+        "Interval funds and similar products broadened packaging",
+        "Regulation evolved around accredited access",
+        "Technology reduced minimum-investment friction"
+      ]
+    },
+    {
+      "title": "Market size",
+      "bullets": [
+        "Institutional PE market: about $5-6T",
+        "Retail and HNW alternatives allocation: about $1-2T",
+        "Potential retail PE opportunity: about $3-5T",
+        "Interval funds: $70B+ AUM",
+        "Public BDCs: $100B+ AUM"
+      ]
+    }
+  ]
+}
 ```
 
 ### Product Spectrum
 
-```
-RETAIL PE ACCESS SPECTRUM
-─────────────────────────
-
-            LIQUIDITY ──────────────────────────────────►
-            Low                                      High
-
-TRADITIONAL │                    │                    │ PUBLIC
-LP INTEREST │                    │                    │ EQUITIES
-            │                    │                    │
-    ┌───────┴───────┐    ┌───────┴───────┐    ┌──────┴──────┐
-    │ Drawdown      │    │ Semi-Liquid   │    │ Liquid      │
-    │ Structures    │    │ Structures    │    │ Structures  │
-    │               │    │               │    │             │
-    │ • Traditional │    │ • Interval    │    │ • Public    │
-    │   PE funds    │    │   funds       │    │   BDCs      │
-    │ • Co-invest   │    │ • Tender      │    │ • Listed PE │
-    │   vehicles    │    │   offer funds │    │ • PE ETFs   │
-    │               │    │ • Non-traded  │    │             │
-    │               │    │   BDCs        │    │             │
-    │               │    │ • ELTIFs      │    │             │
-    └───────────────┘    └───────────────┘    └─────────────┘
-
-    Accredited          Accredited or        All investors
-    investors only      qualified clients
+```comparison-table
+{
+  "title": "Retail PE access spectrum",
+  "note": "Products trade off liquidity, investor eligibility, and closeness to traditional drawdown structures.",
+  "columns": [
+    { "key": "bucket", "label": "Structure Type" },
+    { "key": "liquidity", "label": "Liquidity" },
+    { "key": "examples", "label": "Examples" },
+    { "key": "access", "label": "Typical Access" }
+  ],
+  "rows": [
+    {
+      "bucket": "Drawdown structures",
+      "liquidity": "Low",
+      "examples": "Traditional PE funds, co-investment vehicles",
+      "access": "Accredited investors only"
+    },
+    {
+      "bucket": "Semi-liquid structures",
+      "liquidity": "Medium",
+      "examples": "Interval funds, tender offer funds, non-traded BDCs, ELTIFs",
+      "access": "Accredited or qualified clients"
+    },
+    {
+      "bucket": "Liquid structures",
+      "liquidity": "High",
+      "examples": "Public BDCs, listed PE vehicles, PE ETFs",
+      "access": "All investors"
+    }
+  ]
+}
 ```
 
 ---
@@ -87,77 +94,136 @@ LP INTEREST │                    │                    │ EQUITIES
 
 ### What Are Interval Funds?
 
-```
-INTERVAL FUND STRUCTURE
-───────────────────────
-
-LEGAL STRUCTURE:
-├── Registered under Investment Company Act of 1940
-├── Closed-end fund (not open-end like mutual fund)
-├── SEC-regulated
-├── Can hold illiquid assets
-└── Offer periodic repurchases (hence "interval")
-
-KEY CHARACTERISTICS:
-┌─────────────────────────────────────────────────────────────────┐
-│                                                                 │
-│ CONTINUOUS OFFERING:                                            │
-│ ├── New shares sold daily/monthly at NAV                       │
-│ ├── Unlike closed-end funds (fixed shares)                     │
-│ └── Grows AUM over time                                        │
-│                                                                 │
-│ PERIODIC REDEMPTIONS:                                           │
-│ ├── Typically quarterly                                        │
-│ ├── 5-25% of NAV offered for repurchase                       │
-│ ├── Pro-rata if oversubscribed                                │
-│ └── NOT daily liquidity like mutual funds                      │
-│                                                                 │
-│ PRICING:                                                        │
-│ ├── NAV calculated (daily, weekly, or monthly)                │
-│ ├── Shares offered at NAV + sales load                        │
-│ └── Repurchases at NAV                                         │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+```framework
+{
+  "title": "Interval fund structure",
+  "note": "Interval funds package illiquid assets inside a regulated vehicle with periodic, not daily, liquidity.",
+  "pillars": [
+    {
+      "title": "Legal structure",
+      "bullets": [
+        "Registered under the Investment Company Act of 1940",
+        "Closed-end rather than open-end",
+        "SEC-regulated",
+        "Can hold illiquid assets",
+        "Offers periodic repurchases"
+      ]
+    },
+    {
+      "title": "Continuous offering",
+      "bullets": [
+        "New shares sold daily or monthly at NAV",
+        "Unlike fixed-share closed-end funds",
+        "AUM can grow over time"
+      ]
+    },
+    {
+      "title": "Periodic redemptions and pricing",
+      "bullets": [
+        "Usually quarterly repurchases",
+        "Often 5-25% of NAV is offered for repurchase",
+        "Oversubscription is handled pro rata",
+        "NAV is calculated daily, weekly, or monthly"
+      ]
+    }
+  ]
+}
 ```
 
 ### Interval Fund Mechanics
 
+```comparison-table
+{
+  "title": "Interval fund repurchase example",
+  "note": "Assume a $1B fund with a quarterly repurchase offer equal to 5% of NAV, or $50M.",
+  "columns": [
+    { "key": "scenario", "label": "Scenario" },
+    { "key": "requests", "label": "Requests Received" },
+    { "key": "result", "label": "Repurchase Result" }
+  ],
+  "rows": [
+    {
+      "scenario": "Undersubscribed",
+      "requests": "$30M",
+      "result": "All requests are honored and $20M of capacity goes unused."
+    },
+    {
+      "scenario": "Oversubscribed",
+      "requests": "$80M",
+      "result": "Only 62.5% of each request is filled, so a $100K request receives $62,500."
+    }
+  ]
+}
 ```
-INTERVAL FUND REPURCHASE EXAMPLE
-────────────────────────────────
 
-FUND: ABC Private Markets Interval Fund
-AUM: $1 billion
-Quarterly repurchase offer: 5% of NAV
-
-QUARTER 1 REPURCHASE:
-┌─────────────────────────────────────────────────────────────────┐
-│                                                                 │
-│ Repurchase offer: 5% × $1B = $50M available                    │
-│                                                                 │
-│ Scenario A: Undersubscribed                                     │
-│ ├── Requests received: $30M                                    │
-│ ├── All requests honored: $30M repurchased                     │
-│ └── Fund has $20M capacity unused                              │
-│                                                                 │
-│ Scenario B: Oversubscribed                                      │
-│ ├── Requests received: $80M                                    │
-│ ├── Pro-rata allocation: 50M/80M = 62.5%                       │
-│ ├── Investor requesting $100K gets $62,500                     │
-│ └── Remaining position carried forward (or not)                │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-
-REPURCHASE TIMELINE:
-Day 1:     Fund announces repurchase offer
-Day 1-21:  Repurchase window open (investor requests)
-Day 21:    Repurchase request deadline
-Day 21-28: Fund calculates repurchase NAV
-Day 30:    Payment made to redeeming investors
+```process-flow
+{
+  "title": "Repurchase timeline",
+  "steps": [
+    {
+      "title": "Day 1",
+      "detail": "Fund announces the repurchase offer."
+    },
+    {
+      "title": "Days 1-21",
+      "detail": "Repurchase window stays open for investor requests."
+    },
+    {
+      "title": "Day 21",
+      "detail": "Repurchase deadline."
+    },
+    {
+      "title": "Days 21-28",
+      "detail": "Fund calculates the repurchase NAV."
+    },
+    {
+      "title": "Day 30",
+      "detail": "Cash is paid to redeeming investors."
+    }
+  ]
+}
 ```
 
 ### Interval Fund Considerations
 
+```framework
+{
+  "title": "Interval fund trade-offs",
+  "note": "Interval funds improve access and operational simplicity, but they still behave like semi-liquid alternatives rather than daily-liquid public funds.",
+  "pillars": [
+    {
+      "title": "Why investors like them",
+      "bullets": [
+        "Lower minimums such as $10-25K.",
+        "Some periodic liquidity through quarterly repurchases.",
+        "SEC registration and 1099 tax reporting.",
+        "Daily or monthly visibility on reported value.",
+        "Easy access through brokerage or advisor channels."
+      ]
+    },
+    {
+      "title": "Main trade-offs",
+      "bullets": [
+        "Liquidity is capped and can be prorated in oversubscription.",
+        "Managers need cash buffers, which can create cash drag.",
+        "Investors have less control over portfolio construction.",
+        "Blind-pool risk and NAV volatility still matter."
+      ]
+    },
+    {
+      "title": "Cost stack",
+      "bullets": [
+        "Management fees often run about 1.25-2.0%.",
+        "Incentive fees can range from 0-20%.",
+        "Distribution costs can add another 0.5-2.5%.",
+        "All-in economics can rival or exceed traditional PE once retail distribution is layered in."
+      ]
+    }
+  ]
+}
+```
+
+<!--
 ```
 INTERVAL FUND PROS AND CONS
 ───────────────────────────
@@ -183,19 +249,46 @@ CONS:
 ├── Blind pool risk
 └── Potential NAV volatility
 
-FEE COMPARISON:
-┌─────────────────────────────────────────────────────────────────┐
-│                Traditional PE    Interval Fund                  │
-│                ──────────────    ─────────────                  │
-│ Management fee    2%              1.5%                          │
-│ Carry/Incentive   20%             10-15%                        │
-│ Distribution      None            1-2.5%                        │
-│ Other expenses    0.5%            0.5%                          │
-│ ─────────────────────────────────────────────                  │
-│ ALL-IN COST       ~3.5%*          ~3-4.5%                      │
-│                                                                 │
-│ *PE costs vary significantly; carry only on gains              │
-└─────────────────────────────────────────────────────────────────┘
+-->
+
+**Fee comparison:**
+
+```comparison-table
+{
+  "title": "Traditional PE vs interval fund fees",
+  "columns": [
+    { "key": "fee", "label": "Fee Component" },
+    { "key": "traditional", "label": "Traditional PE" },
+    { "key": "interval", "label": "Interval Fund" }
+  ],
+  "rows": [
+    {
+      "fee": "Management fee",
+      "traditional": "2%",
+      "interval": "1.5%"
+    },
+    {
+      "fee": "Carry / incentive fee",
+      "traditional": "20%",
+      "interval": "10-15%"
+    },
+    {
+      "fee": "Distribution costs",
+      "traditional": "None",
+      "interval": "1-2.5%"
+    },
+    {
+      "fee": "Other expenses",
+      "traditional": "0.5%",
+      "interval": "0.5%"
+    },
+    {
+      "fee": "Indicative all-in cost",
+      "traditional": "~3.5%",
+      "interval": "~3-4.5%"
+    }
+  ]
+}
 ```
 
 ---
@@ -204,45 +297,90 @@ FEE COMPARISON:
 
 ### What Are BDCs?
 
-```
-BDC STRUCTURE
-─────────────
-
-LEGAL STRUCTURE:
-├── Regulated under Investment Company Act of 1940
-├── Pass-through entity (RIC tax treatment)
-├── Must distribute 90%+ of income
-├── Invests in private companies
-└── Can be publicly traded or non-traded
-
-PURPOSE:
-├── Provide capital to middle-market companies
-├── Similar to PE/private credit funds
-├── Accessible to retail investors
-└── Required to offer managerial assistance
-
-KEY REQUIREMENTS:
-┌─────────────────────────────────────────────────────────────────┐
-│                                                                 │
-│ INVESTMENT RESTRICTIONS:                                        │
-│ ├── 70%+ in "qualifying assets" (private US companies)        │
-│ ├── Companies with <$250M market cap                           │
-│ └── Diversification requirements                               │
-│                                                                 │
-│ LEVERAGE LIMITS:                                                │
-│ ├── Asset coverage ratio: 150% minimum                         │
-│ ├── Effectively 2:1 debt-to-equity maximum                     │
-│ └── Was 200% (1:1) until 2018 law change                       │
-│                                                                 │
-│ DISTRIBUTION REQUIREMENTS:                                      │
-│ ├── Distribute 90%+ of investment company taxable income      │
-│ └── Avoid corporate-level taxation                             │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+```framework
+{
+  "title": "BDC structure",
+  "note": "BDCs are retail-accessible, regulated vehicles that provide private-company exposure with explicit leverage and distribution rules.",
+  "pillars": [
+    {
+      "title": "Legal structure",
+      "bullets": [
+        "Regulated under the Investment Company Act of 1940",
+        "RIC pass-through tax treatment",
+        "Must distribute 90%+ of income",
+        "Can be public or non-traded"
+      ]
+    },
+    {
+      "title": "Purpose",
+      "bullets": [
+        "Provide capital to middle-market companies",
+        "Look economically similar to PE or private credit",
+        "Give retail investors access to private assets",
+        "Require managerial assistance"
+      ]
+    },
+    {
+      "title": "Key requirements",
+      "bullets": [
+        "70%+ in qualifying private US assets",
+        "Target companies often below $250M market cap",
+        "150% minimum asset coverage",
+        "Effectively up to 2:1 debt-to-equity",
+        "Distribute 90%+ of taxable income"
+      ]
+    }
+  ]
+}
 ```
 
 ### Public vs Non-Traded BDCs
 
+```comparison-table
+{
+  "title": "Public vs non-traded BDCs",
+  "note": "The key trade-off is public-market liquidity and price volatility versus NAV-based pricing and more limited liquidity windows.",
+  "columns": [
+    { "key": "attribute", "label": "Attribute" },
+    { "key": "public", "label": "Public BDC" },
+    { "key": "non_traded", "label": "Non-Traded BDC" }
+  ],
+  "rows": [
+    {
+      "attribute": "Listing and access",
+      "public": "Listed on NYSE or NASDAQ and accessible through a brokerage account.",
+      "non_traded": "Not exchange-listed and commonly sold through broker-dealers."
+    },
+    {
+      "attribute": "Liquidity",
+      "public": "Daily market liquidity.",
+      "non_traded": "Tender-based or limited periodic liquidity, often quarterly."
+    },
+    {
+      "attribute": "Pricing",
+      "public": "Market price can trade at a discount or premium to NAV.",
+      "non_traded": "NAV-based pricing without public-market discount or premium."
+    },
+    {
+      "attribute": "Volatility",
+      "public": "More visible day-to-day volatility.",
+      "non_traded": "Lower quoted volatility because pricing is appraised."
+    },
+    {
+      "attribute": "Minimum investment",
+      "public": "As low as one share.",
+      "non_traded": "$2,500-25,000 is typical."
+    },
+    {
+      "attribute": "Fees",
+      "public": "No sales load, but management and incentive fees still apply.",
+      "non_traded": "Can include upfront selling costs on top of management and incentive fees."
+    }
+  ]
+}
+```
+
+<!--
 ```
 BDC TYPES COMPARISON
 ────────────────────
@@ -278,8 +416,49 @@ COMPARISON:
 └─────────────────────────────────────────────────────────────────┘
 ```
 
+-->
+
 ### BDC Investment Profile
 
+```framework
+{
+  "title": "BDC investment profile",
+  "note": "BDCs are usually income-oriented vehicles with middle-market credit exposure and manager-dependent downside protection.",
+  "pillars": [
+    {
+      "title": "Typical portfolio mix",
+      "bullets": [
+        "First-lien senior secured loans often represent 60-70% of assets.",
+        "Second-lien loans are commonly 10-20%.",
+        "Mezzanine debt may be 5-15%.",
+        "Equity co-investments may add another 5-15%.",
+        "Underlying borrowers are usually middle-market companies."
+      ]
+    },
+    {
+      "title": "Return profile",
+      "bullets": [
+        "Dividend yields often run about 8-12%.",
+        "NAV growth is usually modest at 0-5% annually.",
+        "Total return targets often land in the 10-15% range.",
+        "The structure behaves more like an income vehicle than PE equity."
+      ]
+    },
+    {
+      "title": "Main risks",
+      "bullets": [
+        "Credit losses in the underlying portfolio.",
+        "Interest-rate and economic-cycle sensitivity.",
+        "Leverage risk under the 2:1 maximum framework.",
+        "Manager selection risk.",
+        "For public BDCs, discount-to-NAV risk."
+      ]
+    }
+  ]
+}
+```
+
+<!--
 ```
 BDC INVESTMENT CHARACTERISTICS
 ──────────────────────────────
@@ -321,10 +500,46 @@ HISTORICAL RETURNS (Public BDCs):
 
 ---
 
+-->
+
 ## 22.4 Tender Offer Funds
 
 ### What Are Tender Offer Funds?
 
+```framework
+{
+  "title": "Tender offer fund structure",
+  "note": "Tender offer funds look similar to interval funds from the outside, but managers have more discretion over when and how much liquidity they provide.",
+  "pillars": [
+    {
+      "title": "Legal setup",
+      "bullets": [
+        "Often registered under the 1940 Act, though private variants also exist.",
+        "Closed-end structure with periodic tenders instead of continuous redemption."
+      ]
+    },
+    {
+      "title": "Difference from interval funds",
+      "bullets": [
+        "Interval funds must follow a periodic repurchase policy.",
+        "Tender offer funds may offer tenders at board discretion.",
+        "Boards can reduce, skip, or suspend tenders more flexibly."
+      ]
+    },
+    {
+      "title": "Typical operating terms",
+      "bullets": [
+        "Quarterly tenders are common but not guaranteed.",
+        "Offer sizes around 5% of NAV are common.",
+        "Oversubscription is usually handled pro rata.",
+        "Many are structured as Delaware statutory trusts."
+      ]
+    }
+  ]
+}
+```
+
+<!--
 ```
 TENDER OFFER FUND STRUCTURE
 ───────────────────────────
@@ -360,8 +575,50 @@ COMMON STRUCTURE:
 └── Often structured as Delaware statutory trust
 ```
 
+-->
+
 ### Evergreen Structures
 
+```comparison-table
+{
+  "title": "Traditional PE vs evergreen structures",
+  "note": "Evergreen vehicles trade the simplicity of a fixed fund life for continuous capital management and more ongoing liquidity planning.",
+  "columns": [
+    { "key": "aspect", "label": "Aspect" },
+    { "key": "traditional", "label": "Traditional PE" },
+    { "key": "evergreen", "label": "Evergreen / Perpetual" }
+  ],
+  "rows": [
+    {
+      "aspect": "Fund life",
+      "traditional": "Fixed 10-12 year life.",
+      "evergreen": "No fixed termination."
+    },
+    {
+      "aspect": "Capital cycle",
+      "traditional": "Commit, invest, harvest, and distribute back to LPs.",
+      "evergreen": "Continuous operations with potential reinvestment."
+    },
+    {
+      "aspect": "Investor experience",
+      "traditional": "LPs must recommit to maintain exposure.",
+      "evergreen": "Exposure can continue without re-underwriting a new fund."
+    },
+    {
+      "aspect": "Benefits",
+      "traditional": "Clear vintage boundaries and defined exit timing.",
+      "evergreen": "Less pacing friction, automatic continuity, and potential compounding."
+    },
+    {
+      "aspect": "Challenges",
+      "traditional": "J-curve and reinvestment burden.",
+      "evergreen": "Valuation complexity, liquidity management, fee debates, and vintage-mix questions."
+    }
+  ]
+}
+```
+
+<!--
 ```
 EVERGREEN FUND CONCEPT
 ──────────────────────
@@ -402,10 +659,48 @@ CHALLENGES:
 
 ---
 
+-->
+
 ## 22.5 European Long-Term Investment Funds (ELTIFs)
 
 ### What Are ELTIFs?
 
+```framework
+{
+  "title": "ELTIF structure",
+  "note": "ELTIFs are the EU's regulated wrapper for long-term private-market assets with a retail distribution path.",
+  "pillars": [
+    {
+      "title": "Regulatory framework",
+      "bullets": [
+        "EU regime introduced in 2015 and expanded through ELTIF 2.0.",
+        "Pan-European passport enables cross-border distribution.",
+        "Can be sold to retail investors with suitability controls."
+      ]
+    },
+    {
+      "title": "Eligible investments",
+      "bullets": [
+        "Private equity and unlisted companies.",
+        "Infrastructure and real estate.",
+        "Debt instruments and SME loans.",
+        "Assets must support a long-term investment profile."
+      ]
+    },
+    {
+      "title": "Key ELTIF 2.0 features",
+      "bullets": [
+        "Retail minimum investment threshold was removed.",
+        "55% of assets must be in eligible long-term holdings, down from 70%.",
+        "Redemption and secondary-trade mechanisms are more flexible.",
+        "Retail leverage can reach 50% of NAV, while professional-only structures can go higher."
+      ]
+    }
+  ]
+}
+```
+
+<!--
 ```
 ELTIF STRUCTURE
 ───────────────
@@ -450,8 +745,50 @@ KEY FEATURES (ELTIF 2.0 - 2024):
 └─────────────────────────────────────────────────────────────────┘
 ```
 
+-->
+
 ### ELTIF 2.0 Changes
 
+```comparison-table
+{
+  "title": "ELTIF 1.0 vs ELTIF 2.0",
+  "note": "ELTIF 2.0 widened the retail-access channel and gave product sponsors much more flexibility, which is why adoption expectations stepped up.",
+  "columns": [
+    { "key": "area", "label": "Area" },
+    { "key": "eltif1", "label": "ELTIF 1.0" },
+    { "key": "eltif2", "label": "ELTIF 2.0" }
+  ],
+  "rows": [
+    {
+      "area": "Minimum investment",
+      "eltif1": "Retail minimum of about EUR10K.",
+      "eltif2": "Minimum removed."
+    },
+    {
+      "area": "Redemptions",
+      "eltif1": "Strict and less flexible.",
+      "eltif2": "More flexible redemption framework."
+    },
+    {
+      "area": "Leverage",
+      "eltif1": "Roughly 30% cap.",
+      "eltif2": "Up to 50% for retail and 100% for professional-only structures."
+    },
+    {
+      "area": "Eligible assets",
+      "eltif1": "Narrower long-term asset set.",
+      "eltif2": "Broader asset eligibility and master-feeder flexibility."
+    },
+    {
+      "area": "Market effect",
+      "eltif1": "Adoption stayed limited.",
+      "eltif2": "Industry expects materially higher growth from a roughly EUR13B starting base."
+    }
+  ]
+}
+```
+
+<!--
 ```
 ELTIF EVOLUTION
 ───────────────
@@ -493,10 +830,58 @@ MARKET EXPECTATIONS:
 
 ---
 
+-->
+
 ## 22.6 Retail Access Trends
 
 ### Distribution Channels
 
+```comparison-table
+{
+  "title": "Retail private-markets distribution channels",
+  "note": "Distribution is broadening from traditional broker channels into advisor platforms, digital marketplaces, and retirement wrappers.",
+  "columns": [
+    { "key": "channel", "label": "Channel" },
+    { "key": "who", "label": "Typical Investor Base" },
+    { "key": "role", "label": "How It Works" },
+    { "key": "minimum", "label": "Typical Minimum" }
+  ],
+  "rows": [
+    {
+      "channel": "Wirehouses and full-service broker-dealers",
+      "who": "High-net-worth clients",
+      "role": "Largest distribution channel with due-diligence platforms and curated product shelves.",
+      "minimum": "$50K-250K"
+    },
+    {
+      "channel": "Registered investment advisors",
+      "who": "Advised wealth clients",
+      "role": "Access often runs through iCapital, CAIS, or similar platforms.",
+      "minimum": "$25K-100K"
+    },
+    {
+      "channel": "Family offices",
+      "who": "Ultra-high-net-worth capital",
+      "role": "Can use direct GP relationships and customized structures.",
+      "minimum": "Varies widely"
+    },
+    {
+      "channel": "Digital platforms",
+      "who": "Self-directed or digitally served investors",
+      "role": "Technology lowers friction and can widen access.",
+      "minimum": "Often below traditional private-fund thresholds"
+    },
+    {
+      "channel": "Defined contribution plans",
+      "who": "Retirement savers",
+      "role": "Emerging channel through target-date or diversified wrappers.",
+      "minimum": "Embedded in plan design"
+    }
+  ]
+}
+```
+
+<!--
 ```
 RETAIL PE DISTRIBUTION CHANNELS
 ───────────────────────────────
@@ -533,8 +918,87 @@ RETAIL PE DISTRIBUTION CHANNELS
    └── Future growth area
 ```
 
+-->
+
 ### Technology Platforms
 
+```comparison-table
+{
+  "title": "Alternative-access platforms",
+  "note": "Platforms package sourcing, onboarding, reporting, and compliance so private-market products can be distributed more like wealth products.",
+  "columns": [
+    { "key": "platform", "label": "Platform" },
+    { "key": "focus", "label": "Focus" },
+    { "key": "clients", "label": "Primary Clients" },
+    { "key": "minimum", "label": "Typical Entry Point" },
+    { "key": "notes", "label": "Notes" }
+  ],
+  "rows": [
+    {
+      "platform": "iCapital",
+      "focus": "Broad alternatives marketplace across PE, private credit, and hedge funds.",
+      "clients": "Wirehouses, RIAs, and banks.",
+      "minimum": "$25K-100K",
+      "notes": "Large platform footprint with subscription, reporting, and education tooling."
+    },
+    {
+      "platform": "CAIS",
+      "focus": "Marketplace and diligence workflow for alternatives.",
+      "clients": "RIAs and broker-dealers.",
+      "minimum": "$25K+",
+      "notes": "Strong advisor workflow and trading orientation."
+    },
+    {
+      "platform": "Moonfare",
+      "focus": "European private-equity access.",
+      "clients": "High-net-worth individuals.",
+      "minimum": "EUR50K",
+      "notes": "Known for direct GP relationships and Europe-heavy distribution."
+    },
+    {
+      "platform": "Yieldstreet",
+      "focus": "Retail-facing access to a broader set of alternative assets.",
+      "clients": "Individual investors.",
+      "minimum": "$10K+",
+      "notes": "Retail-oriented positioning across multiple alternative categories."
+    }
+  ]
+}
+```
+
+```framework
+{
+  "title": "What the platforms actually do",
+  "pillars": [
+    {
+      "title": "Sourcing and diligence",
+      "bullets": [
+        "Fund and product sourcing",
+        "Manager due diligence",
+        "Product shelf curation"
+      ]
+    },
+    {
+      "title": "Execution",
+      "bullets": [
+        "Digital subscription workflows",
+        "Capital call and distribution processing",
+        "Compliance and suitability checks"
+      ]
+    },
+    {
+      "title": "Operations and reporting",
+      "bullets": [
+        "Consolidated reporting",
+        "Tax document aggregation",
+        "Education and advisor enablement"
+      ]
+    }
+  ]
+}
+```
+
+<!--
 ```
 ALTS ACCESS PLATFORMS
 ─────────────────────
@@ -587,8 +1051,45 @@ PLATFORM FUNCTIONS:
 └─────────────────────────────────────────────────────────────────┘
 ```
 
+-->
+
 ### Regulatory Developments
 
+```framework
+{
+  "title": "Regulatory evolution shaping retail access",
+  "note": "The direction of travel is broader access, but still through suitability, disclosure, and liquidity-control frameworks.",
+  "pillars": [
+    {
+      "title": "US developments",
+      "bullets": [
+        "The accredited-investor definition widened to include some professional credentials and knowledgeable employees.",
+        "Defined-contribution access gained a pathway through diversified retirement structures.",
+        "Semi-liquid wrappers such as interval funds and tender offer funds gained acceptance."
+      ]
+    },
+    {
+      "title": "European developments",
+      "bullets": [
+        "ELTIF 2.0 materially liberalized the retail wrapper.",
+        "MiFID II and PRIIPs reinforced disclosure, suitability, and cost transparency.",
+        "Cross-border product distribution became easier within a clearer framework."
+      ]
+    },
+    {
+      "title": "What may come next",
+      "bullets": [
+        "Further expansion of access definitions.",
+        "More retirement-plan integration.",
+        "More ESG or impact-oriented retail products.",
+        "Greater global harmonization of wrapper design."
+      ]
+    }
+  ]
+}
+```
+
+<!--
 ```
 REGULATORY EVOLUTION
 ────────────────────
@@ -637,10 +1138,47 @@ FUTURE TRENDS:
 
 ---
 
+-->
+
 ## 22.7 Considerations for Retail Investors
 
 ### Due Diligence Framework
 
+```process-flow
+{
+  "title": "Retail due-diligence sequence",
+  "note": "A simple review order helps retail investors avoid treating product wrappers as substitutes for real underwriting.",
+  "steps": [
+    {
+      "id": "structure",
+      "title": "Understand the structure",
+      "detail": "Identify the vehicle type, redemption mechanics, and whether the wrapper is registered or private."
+    },
+    {
+      "id": "fees",
+      "title": "Evaluate fees",
+      "detail": "Review management, performance, sales, and distribution fees on an all-in basis."
+    },
+    {
+      "id": "manager",
+      "title": "Assess the manager",
+      "detail": "Look at strategy track record, team stability, process quality, and alignment."
+    },
+    {
+      "id": "risks",
+      "title": "Map the real risks",
+      "detail": "Focus on illiquidity, valuation uncertainty, leverage, concentration, and correlation."
+    },
+    {
+      "id": "portfolio",
+      "title": "Check portfolio fit",
+      "detail": "Confirm sizing, liquidity needs, time horizon, and diversification benefit."
+    }
+  ]
+}
+```
+
+<!--
 ```
 RETAIL PE DUE DILIGENCE
 ───────────────────────
@@ -678,8 +1216,62 @@ RETAIL PE DUE DILIGENCE
    □ Diversification benefit?
 ```
 
+-->
+
 ### Common Mistakes
 
+```framework
+{
+  "title": "Retail mistakes to avoid",
+  "note": "Most mistakes come from treating semi-liquid alternative wrappers as if they were simple public-market products.",
+  "pillars": [
+    {
+      "title": "Overestimating liquidity",
+      "bullets": [
+        "Quarterly redemption does not mean truly liquid.",
+        "Gates, suspensions, and proration can still apply."
+      ]
+    },
+    {
+      "title": "Ignoring total fees",
+      "bullets": [
+        "Management fee is only part of the cost stack.",
+        "Sales and distribution fees can materially reduce net returns."
+      ]
+    },
+    {
+      "title": "Chasing yield",
+      "bullets": [
+        "High stated yield can reflect higher credit or structure risk.",
+        "Look through to asset quality and the source of distributions."
+      ]
+    },
+    {
+      "title": "Underestimating complexity",
+      "bullets": [
+        "Tax forms, capital logistics, and estate-planning issues can matter.",
+        "Operational friction is still part of the product."
+      ]
+    },
+    {
+      "title": "Using the wrong time horizon",
+      "bullets": [
+        "Private-market exposure still needs multi-year patience.",
+        "Emergency-fund or short-term capital should stay out."
+      ]
+    },
+    {
+      "title": "Taking too much concentration",
+      "bullets": [
+        "Alternatives should usually be a measured sleeve, not the whole portfolio.",
+        "Diversify within the alternative allocation as well."
+      ]
+    }
+  ]
+}
+```
+
+<!--
 ```
 RETAIL PE MISTAKES TO AVOID
 ───────────────────────────
@@ -723,6 +1315,8 @@ RETAIL PE MISTAKES TO AVOID
 
 ---
 
+-->
+
 ## 22.8 Summary
 
 ### Product Comparison
@@ -738,6 +1332,41 @@ RETAIL PE MISTAKES TO AVOID
 
 ### Key Takeaways
 
+```process-flow
+{
+  "title": "Democratization summary",
+  "note": "Retail access is expanding, but wrapper convenience does not eliminate the core private-markets trade-offs.",
+  "steps": [
+    {
+      "id": "momentum",
+      "title": "The trend has real momentum",
+      "detail": "GP interest, LP demand, and regulatory support are all pushing access wider."
+    },
+    {
+      "id": "wrappers",
+      "title": "There are now multiple wrapper choices",
+      "detail": "Interval funds, BDCs, tender offer funds, and ELTIFs each solve access differently."
+    },
+    {
+      "id": "liquidity",
+      "title": "Liquidity is still limited",
+      "detail": "Semi-liquid wrappers improve access but do not make private assets truly liquid."
+    },
+    {
+      "id": "fees",
+      "title": "Fees can stay high",
+      "detail": "Distribution, administration, and wrapper design often keep retail cost stacks above institutional ones."
+    },
+    {
+      "id": "discipline",
+      "title": "Sizing and due diligence still matter",
+      "detail": "Manager quality, product fit, and measured allocation sizing remain the core investor safeguards."
+    }
+  ]
+}
+```
+
+<!--
 ```
 DEMOCRATIZATION SUMMARY
 ───────────────────────
@@ -765,6 +1394,8 @@ DEMOCRATIZATION SUMMARY
 ```
 
 ---
+
+-->
 
 ## Knowledge Check
 

@@ -62,25 +62,37 @@ Apple Inc.                          SpaceX
 
 Investors accept illiquidity (locked-up capital) in exchange for potentially higher returns:
 
-```
-Expected Return
-     │
-     │                              ┌─────────────────┐
-     │                              │ Private Equity  │
- 15% ┤                              │  Target: 15-20% │
-     │                              └────────┬────────┘
-     │                    ┌─────────────────┐│
- 10% ┤                    │ Public Equities ││
-     │                    │  Historical: ~10%│
-     │                    └────────┬────────┘│
-     │          ┌─────────────────┐│         │
-  5% ┤          │ Bonds           ││         │
-     │          │ ~4-6%           ││         │
-     │          └────────┬────────┘│         │
-     │                   │         │         │
-     └───────────────────┴─────────┴─────────┴──────► Illiquidity
-                       Liquid              10+ years
-                                          locked up
+```comparison-table
+{
+  "title": "Illiquidity premium",
+  "note": "Private assets usually ask investors to trade liquidity for higher expected returns.",
+  "columns": [
+    { "key": "asset", "label": "Asset Class" },
+    { "key": "liquidity", "label": "Liquidity" },
+    { "key": "horizon", "label": "Typical Lock-Up" },
+    { "key": "return", "label": "Expected Return" }
+  ],
+  "rows": [
+    {
+      "asset": "Bonds",
+      "liquidity": "High",
+      "horizon": "Daily liquidity",
+      "return": "4-6%"
+    },
+    {
+      "asset": "Public equities",
+      "liquidity": "Medium-high",
+      "horizon": "Daily liquidity",
+      "return": "~10%"
+    },
+    {
+      "asset": "Private equity",
+      "liquidity": "Low",
+      "horizon": "10+ years locked up",
+      "return": "15-20% target"
+    }
+  ]
+}
 ```
 
 ### Benefits of Private Market Investing
@@ -118,32 +130,59 @@ Individual investors (even wealthy ones) face challenges investing directly in p
 
 **Pooled investment vehicles** (funds) solve these problems:
 
-```
-                    ┌─────────────────────────┐
-                    │      PRIVATE FUND       │
-                    │   (e.g., $2 billion)    │
-                    └───────────┬─────────────┘
-                                │
-        ┌───────────────────────┼───────────────────────┐
-        │                       │                       │
-        ▼                       ▼                       ▼
-┌───────────────┐     ┌───────────────┐     ┌───────────────┐
-│  Investor A   │     │  Investor B   │     │  Investor C   │
-│  $100M (5%)   │     │  $50M (2.5%)  │     │  $200M (10%)  │
-│  Pension Fund │     │  Endowment    │     │  Sovereign    │
-└───────────────┘     └───────────────┘     └───────────────┘
-        │                       │                       │
-        │   All investors pool capital into one fund    │
-        │                       │                       │
-        └───────────────────────┼───────────────────────┘
-                                │
-                                ▼
-        ┌───────────────────────────────────────────────┐
-        │              PORTFOLIO COMPANIES               │
-        ├─────────────┬─────────────┬─────────────┬─────┤
-        │ Company A   │ Company B   │ Company C   │ ... │
-        │ $150M       │ $200M       │ $175M       │     │
-        └─────────────┴─────────────┴─────────────┴─────┘
+```diagram
+{
+  "title": "Pooled fund structure",
+  "note": "Many LPs combine capital into one vehicle so the GP can build a diversified portfolio.",
+  "nodes": [
+    {
+      "id": "investor-a",
+      "title": "Investor A",
+      "detail": "$100M commitment from a pension fund.",
+      "column": 1,
+      "row": 1,
+      "tone": "muted"
+    },
+    {
+      "id": "investor-b",
+      "title": "Investor B",
+      "detail": "$50M commitment from an endowment.",
+      "column": 2,
+      "row": 1,
+      "tone": "muted"
+    },
+    {
+      "id": "investor-c",
+      "title": "Investor C",
+      "detail": "$200M commitment from a sovereign investor.",
+      "column": 3,
+      "row": 1,
+      "tone": "muted"
+    },
+    {
+      "id": "fund",
+      "title": "Private fund",
+      "detail": "A pooled vehicle, for example a $2B fund.",
+      "column": 2,
+      "row": 2,
+      "tone": "accent"
+    },
+    {
+      "id": "portfolio",
+      "title": "Portfolio companies",
+      "detail": "The fund invests across multiple companies rather than one single deal.",
+      "column": 2,
+      "row": 3,
+      "tone": "default"
+    }
+  ],
+  "edges": [
+    { "from": "investor-a", "to": "fund", "label": "pool capital" },
+    { "from": "investor-b", "to": "fund", "label": "pool capital" },
+    { "from": "investor-c", "to": "fund", "label": "pool capital" },
+    { "from": "fund", "to": "portfolio", "label": "invest" }
+  ]
+}
 ```
 
 ### Benefits of Pooling
@@ -191,34 +230,52 @@ Before diving deeper, internalize these foundational terms:
 
 ## 1.5 The Private Markets Ecosystem
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    PRIVATE MARKETS ECOSYSTEM                     │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  CAPITAL PROVIDERS (LPs)          FUND MANAGERS (GPs)           │
-│  ┌─────────────────────┐         ┌─────────────────────┐       │
-│  │ • Pension Funds     │────────►│ • Blackstone        │       │
-│  │ • Endowments        │ Commit  │ • KKR               │       │
-│  │ • Sovereign Wealth  │ Capital │ • Carlyle           │       │
-│  │ • Insurance         │         │ • Apollo            │       │
-│  │ • Family Offices    │◄────────│ • Sequoia           │       │
-│  └─────────────────────┘ Return  │ • Andreessen        │       │
-│                          Capital └──────────┬──────────┘       │
-│                                             │                   │
-│                                             │ Invest in         │
-│                                             ▼                   │
-│                               ┌─────────────────────┐           │
-│  SERVICE PROVIDERS            │ PORTFOLIO COMPANIES │           │
-│  ┌─────────────────────┐      │ ┌───┐ ┌───┐ ┌───┐  │           │
-│  │ • Fund Admins       │      │ │ A │ │ B │ │ C │  │           │
-│  │ • Auditors          │      │ └───┘ └───┘ └───┘  │           │
-│  │ • Law Firms         │      │ Private companies   │           │
-│  │ • Placement Agents  │      │ Real estate assets  │           │
-│  │ • Consultants       │      │ Infrastructure      │           │
-│  └─────────────────────┘      └─────────────────────┘           │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+```diagram
+{
+  "title": "Private markets ecosystem",
+  "note": "LPs fund GPs, GPs invest in portfolio assets, and service providers support the operating system around the fund.",
+  "nodes": [
+    {
+      "id": "lps",
+      "title": "Capital providers (LPs)",
+      "detail": "Pension funds, endowments, sovereign wealth, insurance companies, and family offices.",
+      "column": 1,
+      "row": 1,
+      "tone": "muted"
+    },
+    {
+      "id": "gps",
+      "title": "Fund managers (GPs)",
+      "detail": "Managers such as Blackstone, KKR, Carlyle, Apollo, Sequoia, and Andreessen.",
+      "column": 2,
+      "row": 1,
+      "tone": "accent"
+    },
+    {
+      "id": "service",
+      "title": "Service providers",
+      "detail": "Fund admins, auditors, law firms, placement agents, and consultants.",
+      "column": 1,
+      "row": 2,
+      "tone": "muted"
+    },
+    {
+      "id": "portfolio",
+      "title": "Portfolio companies",
+      "detail": "Private companies, real estate assets, and infrastructure investments.",
+      "column": 2,
+      "row": 2,
+      "tone": "default"
+    }
+  ],
+  "edges": [
+    { "from": "lps", "to": "gps", "label": "commit capital" },
+    { "from": "gps", "to": "lps", "label": "return capital" },
+    { "from": "gps", "to": "portfolio", "label": "invest" },
+    { "from": "service", "to": "gps", "label": "support" },
+    { "from": "service", "to": "portfolio", "label": "advise" }
+  ]
+}
 ```
 
 ---

@@ -37,15 +37,61 @@ Same information. Radically different processing burden.
 
 ### The Structure
 
-```
-                    MAIN POINT
-                   (the answer)
-                        |
-        ┌───────────────┼───────────────┐
-        │               │               │
-   KEY SUPPORT 1   KEY SUPPORT 2   KEY SUPPORT 3
-        │               │               │
-   sub-points       sub-points      sub-points
+```diagram
+{
+  "title": "Pyramid structure",
+  "note": "Lead with the answer, then group the supporting logic underneath it.",
+  "nodes": [
+    {
+      "id": "main-point",
+      "title": "Main point",
+      "detail": "The answer or recommendation.",
+      "column": 2,
+      "row": 1,
+      "tone": "accent"
+    },
+    {
+      "id": "support-1",
+      "title": "Key support 1",
+      "detail": "First major supporting argument.",
+      "column": 1,
+      "row": 2,
+      "tone": "muted"
+    },
+    {
+      "id": "support-2",
+      "title": "Key support 2",
+      "detail": "Second major supporting argument.",
+      "column": 2,
+      "row": 2,
+      "tone": "muted"
+    },
+    {
+      "id": "support-3",
+      "title": "Key support 3",
+      "detail": "Third major supporting argument.",
+      "column": 3,
+      "row": 2,
+      "tone": "muted"
+    },
+    {
+      "id": "subpoints",
+      "title": "Sub-points",
+      "detail": "Drill into detail only as needed.",
+      "column": 2,
+      "row": 3,
+      "tone": "default"
+    }
+  ],
+  "edges": [
+    { "from": "main-point", "to": "support-1" },
+    { "from": "main-point", "to": "support-2" },
+    { "from": "main-point", "to": "support-3" },
+    { "from": "support-1", "to": "subpoints" },
+    { "from": "support-2", "to": "subpoints" },
+    { "from": "support-3", "to": "subpoints" }
+  ]
+}
 ```
 
 **Rules:**

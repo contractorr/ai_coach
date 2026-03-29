@@ -391,31 +391,52 @@ Moving beyond hourly billing:
 
 ## Quick Reference: Legal Service Delivery
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    CLIENT NEED                               │
-│  Transaction │ Dispute │ Compliance │ Advisory              │
-└─────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────┐
-│               SERVICE PROVIDERS                              │
-│  Law Firms │ ALSPs │ In-house │ Legal Tech                  │
-└─────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────┐
-│                 DELIVERY MODEL                               │
-│  Hourly │ Fixed │ Success │ Subscription │ Self-service    │
-└─────────────────────────────────────────────────────────────┘
-```
-
-**Matter lifecycle:**
-```
-Intake → Conflict check → Engagement → Work → Billing → Close
+```process-flow
+{
+  "title": "Legal service delivery",
+  "steps": [
+    {
+      "title": "Client need",
+      "detail": "Transaction, dispute, compliance, or advisory work."
+    },
+    {
+      "title": "Service providers",
+      "detail": "Law firms, ALSPs, in-house teams, and legal tech."
+    },
+    {
+      "title": "Delivery model",
+      "detail": "Hourly, fixed, success-based, subscription, or self-service."
+    }
+  ]
+}
 ```
 
-**Litigation timeline:**
+```process-flow
+{
+  "title": "Matter lifecycle",
+  "steps": [
+    { "title": "Intake" },
+    { "title": "Conflict check" },
+    { "title": "Engagement" },
+    { "title": "Work" },
+    { "title": "Billing" },
+    { "title": "Close" }
+  ]
+}
 ```
-Complaint → Answer → Discovery → Motions → Trial → Appeal
+
+```process-flow
+{
+  "title": "Litigation timeline",
+  "steps": [
+    { "title": "Complaint" },
+    { "title": "Answer" },
+    { "title": "Discovery" },
+    { "title": "Motions" },
+    { "title": "Trial" },
+    { "title": "Appeal" }
+  ]
+}
 ```
 
 ---

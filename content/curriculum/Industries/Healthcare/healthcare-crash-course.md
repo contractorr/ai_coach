@@ -98,9 +98,18 @@ ACA requires: 80% (individual/small group), 85% (large group)
 
 ### Value-Based Care Progression
 
-```
-FFS → Pay-for-Performance → Bundled → Shared Savings → Full Capitation
-     ←—— Increasing provider risk ——→
+```process-flow
+{
+  "title": "Value-based care progression",
+  "note": "Provider risk generally increases as the model moves from fee-for-service toward capitation.",
+  "steps": [
+    { "title": "FFS" },
+    { "title": "Pay-for-performance" },
+    { "title": "Bundled" },
+    { "title": "Shared savings" },
+    { "title": "Full capitation" }
+  ]
+}
 ```
 
 ---
@@ -314,26 +323,52 @@ FFS → Pay-for-Performance → Bundled → Shared Savings → Full Capitation
 
 ## Quick Reference: Money Flow
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                      PAYERS                                  │
-│  Commercial │ Medicare │ Medicaid │ Self-insured employers  │
-└─────────────────────────────────────────────────────────────┘
-          ↓ Premiums ↑               ↓ Claims payments ↑
-┌─────────────────────────────────────────────────────────────┐
-│                   INTERMEDIARIES                             │
-│  PBMs │ TPAs │ Care Management │ RCM vendors                │
-└─────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────┐
-│                     PROVIDERS                                │
-│  Hospitals │ Physicians │ Post-acute │ Pharmacy             │
-└─────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────┐
-│                      PATIENTS                                │
-│  Cost sharing: Deductibles + Copays + Coinsurance           │
-└─────────────────────────────────────────────────────────────┘
+```diagram
+{
+  "title": "Healthcare money flow",
+  "note": "Care, premiums, reimbursement, and cost sharing move through different parts of the stack at different times.",
+  "nodes": [
+    {
+      "id": "payers",
+      "title": "Payers",
+      "detail": "Commercial plans, Medicare, Medicaid, and self-insured employers.",
+      "column": 2,
+      "row": 1,
+      "tone": "accent"
+    },
+    {
+      "id": "intermediaries",
+      "title": "Intermediaries",
+      "detail": "PBMs, TPAs, care management, and RCM vendors.",
+      "column": 2,
+      "row": 2,
+      "tone": "muted"
+    },
+    {
+      "id": "providers",
+      "title": "Providers",
+      "detail": "Hospitals, physicians, post-acute providers, and pharmacies.",
+      "column": 2,
+      "row": 3,
+      "tone": "accent"
+    },
+    {
+      "id": "patients",
+      "title": "Patients",
+      "detail": "Care recipients who also fund part of the system through deductibles, copays, and coinsurance.",
+      "column": 2,
+      "row": 4,
+      "tone": "default"
+    }
+  ],
+  "edges": [
+    { "from": "patients", "to": "payers", "label": "premiums" },
+    { "from": "payers", "to": "intermediaries", "label": "claims admin" },
+    { "from": "intermediaries", "to": "providers", "label": "network + claims" },
+    { "from": "providers", "to": "patients", "label": "care delivery" },
+    { "from": "patients", "to": "providers", "label": "cost sharing" }
+  ]
+}
 ```
 
 ---

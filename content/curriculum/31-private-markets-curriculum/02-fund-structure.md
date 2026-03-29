@@ -25,49 +25,51 @@ Private equity funds are almost universally structured as **Limited Partnerships
 
 ### Legal Structure Diagram
 
-```
-┌────────────────────────────────────────────────────────────────┐
-│                    FUND STRUCTURE                               │
-├────────────────────────────────────────────────────────────────┤
-│                                                                │
-│  ┌──────────────────────────────────────────────────────────┐ │
-│  │              LIMITED PARTNERSHIP ("The Fund")             │ │
-│  │                   ABC Partners Fund VII, LP               │ │
-│  │                                                           │ │
-│  │  ┌─────────────────┐      ┌────────────────────────────┐ │ │
-│  │  │ GENERAL PARTNER │      │    LIMITED PARTNERS        │ │ │
-│  │  │    (1-2% of     │      │      (98-99% of            │ │ │
-│  │  │     capital)    │      │        capital)            │ │ │
-│  │  │                 │      │                            │ │ │
-│  │  │ ABC GP VII LLC  │      │ • State Pension Fund       │ │ │
-│  │  │                 │      │ • University Endowment     │ │ │
-│  │  │ Responsibilities│      │ • Sovereign Wealth Fund    │ │ │
-│  │  │ • Make all      │      │ • Insurance Company        │ │ │
-│  │  │   investment    │      │ • Family Office            │ │ │
-│  │  │   decisions     │      │                            │ │ │
-│  │  │ • Manage fund   │      │ Rights:                    │ │ │
-│  │  │   operations    │      │ • Limited liability        │ │ │
-│  │  │ • Unlimited     │      │ • Receive reports          │ │ │
-│  │  │   liability     │      │ • Vote on key matters      │ │ │
-│  │  │                 │      │ • No management control    │ │ │
-│  │  └────────┬────────┘      └────────────────────────────┘ │ │
-│  │           │                                               │ │
-│  └───────────┼───────────────────────────────────────────────┘ │
-│              │                                                  │
-│              │  Management                                      │
-│              │  Agreement                                       │
-│              ▼                                                  │
-│  ┌──────────────────────────────────────────────────────────┐ │
-│  │              MANAGEMENT COMPANY                           │ │
-│  │                ABC Capital Management LLC                 │ │
-│  │                                                           │ │
-│  │  • Employs investment professionals                       │ │
-│  │  • Receives management fees                               │ │
-│  │  • Provides services to the fund                          │ │
-│  │  • Separate legal entity from the fund                    │ │
-│  └──────────────────────────────────────────────────────────┘ │
-│                                                                │
-└────────────────────────────────────────────────────────────────┘
+```diagram
+{
+  "title": "Fund legal structure",
+  "note": "The fund, GP, LP base, and management company are distinct legal actors with different rights and obligations.",
+  "nodes": [
+    {
+      "id": "gp",
+      "title": "General partner",
+      "detail": "ABC GP VII LLC. Usually 1-2% of capital, controls investments, and bears unlimited liability.",
+      "column": 1,
+      "row": 1,
+      "tone": "accent"
+    },
+    {
+      "id": "fund",
+      "title": "Limited partnership fund",
+      "detail": "ABC Partners Fund VII, LP. The legal vehicle that pools LP and GP capital.",
+      "column": 2,
+      "row": 1,
+      "tone": "default"
+    },
+    {
+      "id": "lps",
+      "title": "Limited partners",
+      "detail": "State pension funds, endowments, sovereign wealth funds, insurers, and family offices. Usually 98-99% of capital.",
+      "column": 3,
+      "row": 1,
+      "tone": "muted"
+    },
+    {
+      "id": "mgmtco",
+      "title": "Management company",
+      "detail": "ABC Capital Management LLC. Employs the team, receives management fees, and services the fund.",
+      "column": 2,
+      "row": 2,
+      "tone": "muted"
+    }
+  ],
+  "edges": [
+    { "from": "gp", "to": "fund", "label": "controls" },
+    { "from": "lps", "to": "fund", "label": "provide capital" },
+    { "from": "mgmtco", "to": "fund", "label": "services" },
+    { "from": "gp", "to": "mgmtco", "label": "manages" }
+  ]
+}
 ```
 
 ---
@@ -92,30 +94,30 @@ The GP is typically a dedicated legal entity (usually an LLC) controlled by the 
 
 The GP makes money in two ways:
 
-```
-┌────────────────────────────────────────────────────────────┐
-│                    GP COMPENSATION                          │
-├────────────────────────────────────────────────────────────┤
-│                                                            │
-│  1. MANAGEMENT FEE (Steady Income)                         │
-│     ─────────────────────────────────                      │
-│     • 1.5-2.0% of committed capital annually               │
-│     • Covers salaries, office, operations                  │
-│     • Paid regardless of performance                       │
-│                                                            │
-│     Example: $2B fund × 2% = $40M/year                     │
-│                                                            │
-│  2. CARRIED INTEREST (Performance Fee)                     │
-│     ─────────────────────────────────                      │
-│     • Typically 20% of profits                             │
-│     • Only earned after hurdle rate achieved               │
-│     • Aligns GP interest with LP returns                   │
-│                                                            │
-│     Example: $2B fund returns $3.5B                        │
-│              Profit = $1.5B                                │
-│              Carry = $1.5B × 20% = $300M                   │
-│                                                            │
-└────────────────────────────────────────────────────────────┘
+```framework
+{
+  "title": "GP compensation",
+  "pillars": [
+    {
+      "title": "Management fee",
+      "detail": "Steady income, usually 1.5-2.0% of committed capital annually.",
+      "bullets": [
+        "Covers salaries, office costs, and operations.",
+        "Paid regardless of performance.",
+        "Example: a $2B fund at 2% generates $40M per year."
+      ]
+    },
+    {
+      "title": "Carried interest",
+      "detail": "Performance fee, usually 20% of profits after the hurdle is met.",
+      "bullets": [
+        "Aligns GP economics with LP returns.",
+        "Earned only after profit is created.",
+        "Example: $2B returned as $3.5B implies $1.5B of profit and $300M of carry at 20%."
+      ]
+    }
+  ]
+}
 ```
 
 ### GP Commitment ("Skin in the Game")
@@ -143,47 +145,58 @@ LPs are the investors who provide the vast majority (typically 98-99%) of fund c
 
 ### LP Categories
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                      LP UNIVERSE                                 │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  INSTITUTIONAL INVESTORS (Majority of PE capital)               │
-│  ┌──────────────────────────────────────────────────────────┐  │
-│  │                                                           │  │
-│  │  Pension Funds          │  Endowments & Foundations       │  │
-│  │  ───────────────        │  ────────────────────────       │  │
-│  │  • CalPERS ($450B)      │  • Yale Endowment ($40B)        │  │
-│  │  • Ontario Teachers     │  • Harvard Management           │  │
-│  │  • Dutch ABP            │  • Ford Foundation              │  │
-│  │  • UK USS               │  • Gates Foundation             │  │
-│  │                         │                                  │  │
-│  │  Sovereign Wealth       │  Insurance Companies            │  │
-│  │  ───────────────        │  ──────────────────             │  │
-│  │  • GIC (Singapore)      │  • Prudential                   │  │
-│  │  • ADIA (Abu Dhabi)     │  • MetLife                      │  │
-│  │  • Norway GPFG          │  • AXA                          │  │
-│  │  • CIC (China)          │  • Allianz                      │  │
-│  │                         │                                  │  │
-│  └──────────────────────────────────────────────────────────┘  │
-│                                                                 │
-│  OTHER INVESTORS                                                │
-│  ┌──────────────────────────────────────────────────────────┐  │
-│  │                                                           │  │
-│  │  Family Offices         │  Fund of Funds                  │  │
-│  │  ──────────────         │  ─────────────                  │  │
-│  │  • Walton Enterprises   │  • HarbourVest                  │  │
-│  │  • Koch Industries      │  • Pantheon                     │  │
-│  │  • Pritzker Group       │  • Hamilton Lane                │  │
-│  │                         │                                  │  │
-│  │  High Net Worth         │  Banks / Asset Managers         │  │
-│  │  ──────────────         │  ────────────────────           │  │
-│  │  • Accredited investors │  • Goldman Sachs                │  │
-│  │  • $5-25M minimums      │  • JPMorgan                     │  │
-│  │                         │                                  │  │
-│  └──────────────────────────────────────────────────────────┘  │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+```framework
+{
+  "title": "LP universe",
+  "note": "Institutional investors dominate private markets, but several other channels participate as well.",
+  "pillars": [
+    {
+      "title": "Pension funds",
+      "bullets": [
+        "CalPERS",
+        "Ontario Teachers'",
+        "Dutch ABP",
+        "UK USS"
+      ]
+    },
+    {
+      "title": "Endowments and foundations",
+      "bullets": [
+        "Yale Endowment",
+        "Harvard Management",
+        "Ford Foundation",
+        "Gates Foundation"
+      ]
+    },
+    {
+      "title": "Sovereign wealth",
+      "bullets": [
+        "GIC",
+        "ADIA",
+        "Norway GPFG",
+        "CIC"
+      ]
+    },
+    {
+      "title": "Insurance companies",
+      "bullets": [
+        "Prudential",
+        "MetLife",
+        "AXA",
+        "Allianz"
+      ]
+    },
+    {
+      "title": "Other investors",
+      "bullets": [
+        "Family offices",
+        "Funds of funds",
+        "High-net-worth investors",
+        "Banks and asset managers"
+      ]
+    }
+  ]
+}
 ```
 
 ### LP Rights and Obligations
@@ -216,26 +229,50 @@ To maintain limited liability, LPs must remain **passive**:
 
 The Management Company is distinct from both the GP entity and the Fund:
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                                                             │
-│   ABC CAPITAL MANAGEMENT LLC (Management Company)           │
-│   ───────────────────────────────────────────────           │
-│   • Employs the investment team                             │
-│   • Owns office space and equipment                         │
-│   • Receives management fees                                │
-│   • Manages multiple funds simultaneously                   │
-│                                                             │
-│         │                    │                    │         │
-│         │ Provides           │ Provides           │         │
-│         │ Services           │ Services           │         │
-│         ▼                    ▼                    ▼         │
-│   ┌───────────┐        ┌───────────┐       ┌───────────┐   │
-│   │  Fund V   │        │  Fund VI  │       │ Fund VII  │   │
-│   │ (mature)  │        │ (invest)  │       │ (raising) │   │
-│   └───────────┘        └───────────┘       └───────────┘   │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
+```diagram
+{
+  "title": "Management company as a separate entity",
+  "note": "One management company can operate across several vintages at the same time.",
+  "nodes": [
+    {
+      "id": "mgmtco",
+      "title": "ABC Capital Management LLC",
+      "detail": "Employs the team, receives management fees, and owns the operating infrastructure.",
+      "column": 2,
+      "row": 1,
+      "tone": "accent"
+    },
+    {
+      "id": "fund-v",
+      "title": "Fund V",
+      "detail": "Mature vintage.",
+      "column": 1,
+      "row": 2,
+      "tone": "muted"
+    },
+    {
+      "id": "fund-vi",
+      "title": "Fund VI",
+      "detail": "Currently investing.",
+      "column": 2,
+      "row": 2,
+      "tone": "default"
+    },
+    {
+      "id": "fund-vii",
+      "title": "Fund VII",
+      "detail": "Currently fundraising.",
+      "column": 3,
+      "row": 2,
+      "tone": "muted"
+    }
+  ],
+  "edges": [
+    { "from": "mgmtco", "to": "fund-v", "label": "services" },
+    { "from": "mgmtco", "to": "fund-vi", "label": "services" },
+    { "from": "mgmtco", "to": "fund-vii", "label": "services" }
+  ]
+}
 ```
 
 ### Why Separate?
@@ -353,31 +390,61 @@ Marketing document provided during fundraising:
 
 ### Information Flow
 
-```
-                    ┌─────────────────────┐
-                    │         GP          │
-                    └──────────┬──────────┘
-                               │
-           ┌───────────────────┼───────────────────┐
-           │                   │                   │
-           ▼                   ▼                   ▼
-    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
-    │  Quarterly  │    │   Annual    │    │   Capital   │
-    │   Report    │    │   Report    │    │Call/Distrib │
-    │             │    │             │    │   Notices   │
-    │ • NAV       │    │ • Audited   │    │             │
-    │ • IRR/TVPI  │    │   financials│    │ • Amount    │
-    │ • Portfolio │    │ • Detailed  │    │ • Purpose   │
-    │   updates   │    │   portfolio │    │ • Due date  │
-    │ • Activity  │    │ • K-1 tax   │    │ • Wire info │
-    └──────┬──────┘    └──────┬──────┘    └──────┬──────┘
-           │                   │                   │
-           └───────────────────┼───────────────────┘
-                               │
-                               ▼
-                    ┌─────────────────────┐
-                    │         LP          │
-                    └─────────────────────┘
+```diagram
+{
+  "title": "LP-GP information flow",
+  "note": "The GP communicates through recurring reporting plus event-driven notices.",
+  "nodes": [
+    {
+      "id": "gp",
+      "title": "GP",
+      "detail": "Produces reports and notices for LPs.",
+      "column": 2,
+      "row": 1,
+      "tone": "accent"
+    },
+    {
+      "id": "quarterly",
+      "title": "Quarterly report",
+      "detail": "NAV, IRR/TVPI, portfolio updates, and fund activity.",
+      "column": 1,
+      "row": 2,
+      "tone": "muted"
+    },
+    {
+      "id": "annual",
+      "title": "Annual report",
+      "detail": "Audited financials, detailed portfolio detail, and K-1 tax information.",
+      "column": 2,
+      "row": 2,
+      "tone": "muted"
+    },
+    {
+      "id": "notices",
+      "title": "Capital call and distribution notices",
+      "detail": "Amount, purpose, due date, and wire instructions.",
+      "column": 3,
+      "row": 2,
+      "tone": "muted"
+    },
+    {
+      "id": "lp",
+      "title": "LP",
+      "detail": "Receives recurring reporting and funds or receives cash accordingly.",
+      "column": 2,
+      "row": 3,
+      "tone": "default"
+    }
+  ],
+  "edges": [
+    { "from": "gp", "to": "quarterly" },
+    { "from": "gp", "to": "annual" },
+    { "from": "gp", "to": "notices" },
+    { "from": "quarterly", "to": "lp" },
+    { "from": "annual", "to": "lp" },
+    { "from": "notices", "to": "lp" }
+  ]
+}
 ```
 
 ### Trust but Verify
