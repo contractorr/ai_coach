@@ -124,7 +124,7 @@ export default function ReviewSessionPage() {
           </p>
         )}
         <Link href="/learn">
-          <Button className="mt-4">Back to Library</Button>
+          <Button className="mt-4">Back to Guide Library</Button>
         </Link>
       </div>
     );

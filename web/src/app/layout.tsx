@@ -16,11 +16,11 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "StewardMe",
-  description: "AI tutor and steward that teaches what matters, tracks your learning, and scans the world so you know what's next",
+  description: "Your personal intelligence steward for focus, monitoring, learning, and reflection.",
   metadataBase: new URL("https://stewardme.ai"),
   openGraph: {
     title: "StewardMe",
-    description: "AI tutor and steward that teaches what matters, tracks your learning, and scans the world so you know what's next",
+    description: "Your personal intelligence steward for focus, monitoring, learning, and reflection.",
     url: "https://stewardme.ai",
     siteName: "StewardMe",
     images: [{ url: "/og-image.jpg", width: 1024, height: 1024 }],
@@ -29,7 +29,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "StewardMe",
-    description: "AI tutor and steward that teaches what matters, tracks your learning, and scans the world so you know what's next",
+    description: "Your personal intelligence steward for focus, monitoring, learning, and reflection.",
     images: ["/og-image.jpg"],
   },
 };

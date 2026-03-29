@@ -43,7 +43,7 @@ Each thread has a persistent inbox state that controls what actions are availabl
 | `active` | Visible in inbox, awaiting user triage |
 | `dismissed` | User dismissed; hidden unless new matching entries arrive |
 | `goal_created` | Thread converted to a goal; shown as resolved |
-| `research_started` | Deep research triggered from this thread |
+| `research_started` | Research triggered from this thread |
 | `dossier_started` | Dossier creation triggered from this thread |
 | `dormant` | No recent activity; deprioritized automatically |
 

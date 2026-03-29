@@ -80,31 +80,31 @@ const ALL_LLM_PROVIDERS = ["claude", "openai", "gemini"] as const;
 const introSections = [
   {
     icon: Newspaper,
-    title: "Intelligence Radar",
+    title: "Radar",
     description:
-      "Scans HN, GitHub trending, arXiv, Reddit & RSS. Surfaces what matters, skips the noise.",
+      "Watches HN, GitHub, arXiv, Reddit, and RSS so the strongest signals rise to the top.",
   },
   {
     icon: Brain,
-    title: "AI Steward",
+    title: "Guidance",
     description:
-      "Proactive guidance grounded in your context and real-time intel. Spots opportunities, flags what needs attention.",
+      "Turns your notes, goals, and live signals into grounded help with what to do next.",
   },
   {
     icon: Target,
-    title: "Goal Alignment",
+    title: "Goals",
     description:
-      "Tracks objectives against trends and opportunities. Flags when priorities should shift.",
+      "Keeps your priorities visible so StewardMe can rank what matters against them.",
   },
   {
     icon: BookOpen,
     title: "Journal",
     description:
-      "Capture reflections, decisions, and observations. Every entry sharpens your steward's guidance.",
+      "Capture reflections, decisions, and observations. Every entry sharpens future guidance.",
   },
   {
     icon: FlaskConical,
-    title: "Deep Research",
+    title: "Research",
     description:
       "Deep dives into opportunities, technologies, or trends — driven by your goals and interests.",
   },
@@ -113,13 +113,13 @@ const introSections = [
 export const guideCards = [
   {
     icon: Home,
-    title: "Check your brief",
+    title: "Start at Home",
     description:
       "Your daily dashboard — prioritized tasks, goal updates, and signals. Start here each day.",
   },
   {
     icon: Target,
-    title: "Set goals in Focus",
+    title: "Set goals",
     description:
       "Track goals and milestones. Your steward uses these to prioritize your brief and surface relevant intel.",
   },
@@ -131,19 +131,19 @@ export const guideCards = [
   },
   {
     icon: MessageSquare,
-    title: "Ask anything",
+    title: "Ask for guidance",
     description:
       "Decisions, priorities, strategy — tap any item or type a question to start a conversation.",
   },
   {
     icon: Newspaper,
-    title: "Intel runs in background",
+    title: "Radar runs in the background",
     description:
       "Scrapers watch HN, GitHub, arXiv, Reddit & RSS. Relevant items surface automatically.",
   },
   {
     icon: FileText,
-    title: "Browse your Library",
+    title: "Browse Research",
     description:
       "Research reports, uploaded PDFs, and saved content — all searchable in one place.",
   },
@@ -467,7 +467,7 @@ export default function OnboardingPage() {
               </div>
               <h1 className="text-xl font-semibold text-primary">StewardMe</h1>
               <p className="text-sm text-muted-foreground">
-                Scans the world. Learns your context. Tells you what matters
+                Watches your world, learns your context, and helps you decide
                 next.
               </p>
             </div>
@@ -490,8 +490,8 @@ export default function OnboardingPage() {
                 <span className="font-medium text-foreground">
                   How it connects:
                 </span>{" "}
-                Journal + intel feed your steward. Goals shape what surfaces.
-                More context = sharper guidance.
+                Journal and goals shape what matters. Radar watches the world.
+                Research helps when a topic needs a deeper dive.
               </div>
             </div>
 

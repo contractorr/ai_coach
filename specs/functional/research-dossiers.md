@@ -4,25 +4,25 @@
 
 ## Purpose
 
-Dossiers now have a clear lifecycle: active work lives in Radar and archived outputs live in Library.
+Dossiers now have a clear lifecycle: active work lives in Radar and archived outputs live in Research.
 
 ## Product Placement
 
 - Active dossiers: `Radar` > `Dossiers`
-- Archived dossier outputs: `Library`
+- Archived dossier outputs: `Research`
 - Primary job: keep tracking evolving topics that deserve sustained attention
 
 ## Current Behavior
 
 - Users can start dossiers from escalations or threads.
 - Active dossiers can be refreshed from Radar.
-- Archiving moves the dossier into Library for durable reference.
+- Archiving moves the dossier into Research for durable reference.
 
 ## User Flows
 
 - Start a dossier from a signal or thread.
 - Refresh it while the topic remains active.
-- Archive it to Library once active tracking is done.
+- Archive it to Research once active tracking is done.
 
 ## Key System Components
 

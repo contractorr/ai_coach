@@ -82,18 +82,18 @@ export function LearningSnapshotCard({ stats, today, loading }: Props) {
                 </Link>
               </Button>
               <Button size="sm" variant="outline" asChild>
-                <Link href="/learn">Open Library</Link>
+                <Link href="/learn">Open Guide Library</Link>
               </Button>
             </div>
           </div>
         ) : (
           <div className="rounded-2xl border bg-background/80 p-4">
             <p className="text-sm text-muted-foreground">
-              Nothing is in progress yet. Open Library and pick one guide to start.
+              Nothing is in progress yet. Open your Guide Library and pick one guide to start.
             </p>
             <Button size="sm" className="mt-3" asChild>
               <Link href="/learn">
-                Open Library
+                Open Guide Library
                 <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
               </Link>
             </Button>

@@ -4,7 +4,7 @@
 
 ## Problem statement
 
-Journal capture is strong at collecting raw context, but weak at helping the user quickly see how ideas, recurring themes, constraints, next steps, and relevant outside evidence connect. Long-form entries are easy to save and hard to synthesize later. Users also build context across deep research runs, RSS-fed intelligence, and prior conversations with StewardMe, but that context stays fragmented across surfaces. The product needs a lightweight way to turn journal context into a visual structure that combines the user's own note with the most relevant external and conversational signals without slowing capture or overstating low-confidence AI output.
+Journal capture is strong at collecting raw context, but weak at helping the user quickly see how ideas, recurring themes, constraints, next steps, and relevant outside evidence connect. Long-form entries are easy to save and hard to synthesize later. Users also build context across Research runs, RSS-fed intelligence, and prior conversations with StewardMe, but that context stays fragmented across surfaces. The product needs a lightweight way to turn journal context into a visual structure that combines the user's own note with the most relevant external and conversational signals without slowing capture or overstating low-confidence AI output.
 
 ## Product approach
 
@@ -18,7 +18,7 @@ StewardMe should generate a compact mind map from a journal entry when there is 
 
 The updated version should still favor user agency and capture speed by generating maps from the Journal entry detail view, then caching the result per entry. Unlike the first version, the generated map should also augment the entry with matched:
 
-- deep research reports and dossier updates
+- Research reports and dossier updates
 - relevant RSS-derived intelligence items
 - prior user-app conversations
 

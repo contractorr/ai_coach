@@ -327,9 +327,9 @@ export default function LibraryPage() {
   return (
     <div className="mx-auto max-w-7xl space-y-6 p-4 md:p-6">
       <WorkspacePageHeader
-        eyebrow="Reference"
-        title="Library"
-        description="Keep your durable documents, reports, and completed dossier outputs in one reference workspace."
+        eyebrow="Research"
+        title="Research"
+        description="Keep your durable documents, reports, and completed dossier outputs in one research workspace."
       />
 
       <div className="grid gap-6 lg:grid-cols-[360px_minmax(0,1fr)]">
@@ -393,7 +393,7 @@ export default function LibraryPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Browse library</CardTitle>
+              <CardTitle>Browse research</CardTitle>
               <CardDescription>
                 Filter by content type, search durable material, and jump back into the right workspace quickly.
               </CardDescription>
@@ -403,7 +403,7 @@ export default function LibraryPage() {
                 <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
                   className="pl-9"
-                  placeholder="Search reference material"
+                  placeholder="Search research material"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                 />
@@ -446,15 +446,15 @@ export default function LibraryPage() {
               </div>
 
               <div className="space-y-2">
-                {contentFilter !== "dossiers" && loadingList && <p className="text-sm text-muted-foreground">Loading library items...</p>}
+                {contentFilter !== "dossiers" && loadingList && <p className="text-sm text-muted-foreground">Loading research items...</p>}
                 {contentFilter === "dossiers" && dossiers.length === 0 && (
                   <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-                    No archived dossiers yet. Active dossiers live in Radar until you archive them to the Library.
+                    No archived dossiers yet. Active dossiers live in Radar until you archive them to Research.
                   </div>
                 )}
                 {contentFilter !== "dossiers" && !loadingList && visibleReports.length === 0 && (
                   <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-                    No matching items yet. Upload a document or generate a report to start your library.
+                    No matching items yet. Upload a document or generate a report to start your research workspace.
                   </div>
                 )}
                 {contentFilter === "dossiers" &&
@@ -535,7 +535,7 @@ export default function LibraryPage() {
                 <div className="space-y-1">
                   <p className="font-medium">Pick a dossier</p>
                   <p className="text-sm text-muted-foreground">
-                    Archived dossiers stay in Library once the active tracking work is done.
+                    Archived dossiers stay in Research once the active tracking work is done.
                   </p>
                 </div>
               </div>

@@ -4,13 +4,13 @@
 
 ## Overview
 
-Research orchestration powers deep dives, dossier refreshes, and durable report generation behind Radar and Library.
+Research orchestration powers deep dives, dossier refreshes, and durable report generation behind Radar and Research.
 
 ## Key Modules
 
 - research runners and summarizers
 - `src/web/routes/research.py`
-- Library report surfaces and Radar dossier actions
+- Research report surfaces and Radar dossier actions
 
 ## Interfaces
 
@@ -21,4 +21,4 @@ Research orchestration powers deep dives, dossier refreshes, and durable report 
 ## Simplified Product Notes
 
 - Research is entered from concrete work such as a thread, escalation, or active dossier.
-- Archived outputs belong in Library for later reuse.
+- Archived outputs belong in Research for later reuse.

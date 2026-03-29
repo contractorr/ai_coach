@@ -30,9 +30,9 @@ import { guideCards, behindTheScenesCards } from "@/app/(dashboard)/onboarding/p
 
 const primaryNav = [
   { href: "/home", label: "Home", icon: Home },
-  { href: "/focus", label: "Focus", icon: Target },
+  { href: "/focus", label: "Goals", icon: Target },
   { href: "/radar", label: "Radar", icon: Newspaper },
-  { href: "/library", label: "Library", icon: FileText },
+  { href: "/library", label: "Research", icon: FileText },
   { href: "/learn", label: "Learn", icon: GraduationCap },
   { href: "/journal", label: "Journal", icon: BookOpen },
 ];

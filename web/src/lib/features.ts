@@ -1,4 +1,4 @@
-import { Database, Search, Target, Wrench } from "lucide-react";
+import { BookOpen, Brain, Newspaper, Target } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 export interface Feature {
@@ -9,27 +9,27 @@ export interface Feature {
 
 export const FEATURES: Feature[] = [
   {
+    icon: Newspaper,
+    title: "Radar",
+    description:
+      "Follow the few changes worth your attention across the sources you care about.",
+  },
+  {
+    icon: Brain,
+    title: "Guidance",
+    description:
+      "Ask for grounded advice shaped by your notes, goals, and live signals.",
+  },
+  {
     icon: Target,
-    title: "Goal tracking",
+    title: "Goals",
     description:
-      "Set objectives with milestones. Get nudged when priorities should shift.",
+      "Turn priorities into milestones and keep your next steps visible.",
   },
   {
-    icon: Search,
-    title: "Deep research",
+    icon: BookOpen,
+    title: "Guide Library",
     description:
-      "Multi-source research reports synthesised and cited by AI on any topic.",
-  },
-  {
-    icon: Database,
-    title: "Memory",
-    description:
-      "Remembers your context across conversations — advice gets sharper over time.",
-  },
-  {
-    icon: Wrench,
-    title: "MCP server",
-    description:
-      "52 tools for Claude Code and other AI agents. Your data, programmable.",
+      "Work through practical guides and return for reviews when you need them.",
   },
 ];

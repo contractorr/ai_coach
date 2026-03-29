@@ -43,11 +43,11 @@ specs/
 | [deep-research](functional/deep-research.md) | Experimental | Topic selection, web search, synthesis |
 | [research-dossiers](functional/research-dossiers.md) | Experimental | Persistent research topics, timeline updates, advisor retrieval |
 | [goal-tracking](functional/goal-tracking.md) | Experimental | Goals, milestones, check-ins |
-| [projects-opportunities](functional/projects-opportunities.md) | Stable | Matched issues, project ideas, dedicated workspace |
+| [projects-opportunities](functional/projects-opportunities.md) | Stable | Matched issues, project ideas, secondary workspace |
 | [settings-account](functional/settings-account.md) | Stable | Multi-provider keys, council preferences, lite mode, watchlist, profile editing, account deletion |
 | [memory-threads](functional/memory-threads.md) | Experimental | Persistent facts, recurring topic detection, document-derived memory |
-| [library-reports](functional/library-reports.md) | Partially Implemented | Library workspace for durable AI-generated reports and uploaded PDFs, manual generation, document storage, refresh, collections |
-| [curriculum](functional/curriculum.md) | Implemented | Structured learning with spaced repetition, Bloom's taxonomy quizzes, guide enrollment, progress tracking |
+| [library-reports](functional/library-reports.md) | Partially Implemented | Research workspace for durable AI-generated reports and uploaded PDFs, manual generation, document storage, refresh, collections |
+| [curriculum](functional/curriculum.md) | Implemented | Learn workspace with guide library, chapter progress, reviews, and spaced repetition |
 | [v2-simplified-product](functional/archive/v2-simplified-product.md) | Accepted (Archived decision) | Simplified information architecture, merged workflows, progressive disclosure across existing features |
 
 ## Technical Specs (modules)
@@ -65,7 +65,7 @@ specs/
 | [memory](technical/memory.md) | FactStore, FactExtractor, ConflictResolver, MemoryPipeline |
 | [llm](technical/llm.md) | Provider factory, Claude/OpenAI/Gemini adapters |
 | [web](technical/web.md) | FastAPI app, JWT auth, route modules, canonical user-state storage, onboarding and attachment invariants |
-| [library](technical/library.md) | ReportStore, Library routes, Library workspace MVP |
+| [library](technical/library.md) | ReportStore, Library routes, Research workspace MVP |
 | [mcp](technical/mcp.md) | MCP server, bootstrap, 52 tools across 13 modules |
 | [curriculum](technical/curriculum.md) | CurriculumScanner, CurriculumStore, SM-2, QuestionGenerator, 12 API endpoints |
 | [cli](technical/cli.md) | Click commands, config validation, logging |

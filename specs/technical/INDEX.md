@@ -4,11 +4,11 @@ This index summarizes each file in `specs/technical/` after the v2 simplificatio
 
 | Filename | Purpose | Key system components referenced | Key user flows described |
 | --- | --- | --- | --- |
-| `action-plans.md` | Focus action tracking and weekly planning | Recommendations route, shared goal-path resolver, Focus page | Read weekly plan, update tracked action, link to a real goal |
+| `action-plans.md` | Goals action tracking and weekly planning | Recommendations route, shared goal-path resolver, Goals page | Read weekly plan, update tracked action, link to a real goal |
 | `advisor.md` | Conversational engine behind Home Ask mode | Advisor route, Home page, full chat page | Ask question, stream answer, continue long thread |
-| `architecture.md` | Five-job product architecture | Dashboard pages, route modules, ranking/storage services, canonical user-state store | Land on Home, move through Focus/Radar/Library/Settings |
+| `architecture.md` | Six-job product architecture | Dashboard pages, route modules, ranking/storage services, canonical user-state store | Land on Home, move through Goals/Radar/Research/Learn/Settings |
 | `assumption-watchlist.md` | Settings-driven tracked topics and assumptions | Assumptions route, intel route, suggestions | Add tracked topic, surface relevant signal |
-| `attach-to-ask-bridge.md` | Same-turn attachment flow for Ask mode | Attachment hook, advisor route, Library storage | Attach, ask, retrieve later |
+| `attach-to-ask-bridge.md` | Same-turn attachment flow for Ask mode | Attachment hook, advisor route, Research storage | Attach, ask, retrieve later |
 | `cli.md` | Operator/developer command surface | CLI entry points, config, ingestion jobs | Run maintenance, trigger ingestion, debug locally |
 | `company-movement-pipeline.md` | Company-signal ingestion feeding Radar | Intel route, suggestions route, ranking pipeline | Scan and surface company changes |
 | `dossier-escalation-engine.md` | Escalation logic from signal to dossier | Dossier routes, research routes, Radar page | Accept/snooze/dismiss escalation |
@@ -21,7 +21,7 @@ This index summarizes each file in `specs/technical/` after the v2 simplificatio
 | `intelligence.md` | Unified intelligence layer for Radar/Home | Intel route, suggestions route, Radar page | Run scan, review feed, save follow-up |
 | `journal.md` | Journal APIs for Home and deep Journal page | Journal route, Home page, Journal page | Quick capture, browse history, edit entry |
 | `landing-page.md` | Public marketing page at root route | Middleware, root page.tsx, Landing component, shared features constant | Auth fork, SSR landing, redirect to dashboard |
-| `library.md` | Durable reports, docs, archived dossiers + semantic embeddings | Library route, research route, Library page, LibraryEmbeddingManager | Browse reference items, hybrid search, refresh report |
+| `library.md` | Durable reports, docs, archived dossiers + semantic embeddings | Library route, research route, Research page, LibraryEmbeddingManager | Browse reference items, hybrid search, refresh report |
 | `llm.md` | Shared model/provider configuration | Settings route, advisor, onboarding, research | Set key, test model access, run generation |
 | `mcp.md` | Advanced integration surface | MCP server, tool adapters, auth helpers | Call tools from integration clients |
 | `memory.md` | Durable memory storage and management | Memory route, memory services, Settings page | List facts, show stats, delete fact |
@@ -29,8 +29,8 @@ This index summarizes each file in `specs/technical/` after the v2 simplificatio
 | `profile.md` | User profile data and onboarding behavior | Profile/user routes, onboarding, Settings, user-state store | Start onboarding, progress interview, read/update profile |
 | `recurring-thread-inbox.md` | Thread APIs now consumed by Radar | Threads route, Radar page | Review thread, convert to goal/research/dossier |
 | `regulatory-change-pipeline.md` | Regulatory-signal ingestion for Radar | Intel route, suggestions route, ranking | Scan and prioritize regulatory changes |
-| `research-dossiers.md` | Active/archived dossier lifecycle | Research route, escalation route, Radar, Library | Refresh dossier, archive to Library |
-| `research.md` | Research orchestration and outputs | Research services, research route, Library | Start research, produce report, persist output |
+| `research-dossiers.md` | Active/archived dossier lifecycle | Research route, escalation route, Radar, Research workspace | Refresh dossier, archive to Research |
+| `research.md` | Research orchestration and outputs | Research services, research route, Research workspace | Start research, produce report, persist output |
 | `since-you-were-away-why-now.md` | Timing/prioritization evidence | Greeting route, suggestions, why-now chips | Re-orient returning user, explain priority |
 | `infra-hardening.md` | Expanded redaction (25+ patterns), RedactingFormatter, MCP traceback removal, thread-safe Metrics with cost tracking | `services/redact.py`, `cli/logging_config.py`, `coach_mcp/server.py`, `observability.py` | Redact, log, track costs |
 | `unified-tool-registry.md` | Single ToolRegistry replacing MCP tuples + advisor registry, with check_fn gates and uniform dispatch | `services/tool_registry.py`, `coach_mcp/server.py`, `advisor/agentic.py`, `advisor/tools.py` | Register, gate, execute |
@@ -48,4 +48,4 @@ This index summarizes each file in `specs/technical/` after the v2 simplificatio
 | `configurable-embeddings.md` | Pluggable embedding factory mirroring LLM auto-detection | `src/embeddings/`, `src/chroma_utils.py`, `src/memory/store.py` | Auto-detect, instantiate, fallback to hash |
 | `x-list-scraper.md` | X API v2 List tweets scraper | `src/intelligence/sources/x_list.py`, `src/shared_types.py`, scheduler | Fetch, map, dedup tweets |
 | `TEMPLATE.md` | Template for future technical docs | Module paths, interfaces, product mapping | Describe module, boundaries, consumers |
-| `web.md` | Frontend route map plus web-surface persistence invariants | Sidebar, dashboard pages, FastAPI app, canonical user-state store | Navigate five workspaces, chat with attachments, complete onboarding |
+| `web.md` | Frontend route map plus web-surface persistence invariants | Sidebar, dashboard pages, FastAPI app, canonical user-state store | Navigate six product jobs, chat with attachments, complete onboarding |

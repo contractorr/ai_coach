@@ -33,14 +33,14 @@ const MODE_COPY: Record<
   { title: string; helper: string; placeholder: string }
 > = {
   capture: {
-    title: "Capture to journal",
-    helper: "Use this when you want to save a thought, reflection, or rough note before deciding what to do with it.",
-    placeholder: "Write a note worth saving to your journal",
+    title: "Capture",
+    helper: "Save a thought, reflection, or rough note to your journal before deciding what to do with it.",
+    placeholder: "Write a note worth keeping",
   },
   ask: {
-    title: "Ask Steward",
-    helper: "Use this when you want grounded guidance, prioritization help, or a response to the draft in front of you.",
-    placeholder: "Ask a question or paste context for advice",
+    title: "Ask for guidance",
+    helper: "Use this when you want grounded help with a decision, a priority, or the draft in front of you.",
+    placeholder: "Ask a question or paste context",
   },
 };
 
@@ -529,7 +529,7 @@ export default function HomePage() {
 
           {!hasConversation && !loading ? (
             <div className="pt-2 text-center text-sm text-muted-foreground">
-              Write a note, ask a question, or pick up your next lesson in <Link href="/learn" className="underline underline-offset-4">Learn</Link>.
+              Write a note, ask a question, or pick up your next lesson in <Link href="/learn" className="underline underline-offset-4">Guide Library</Link>.
             </div>
           ) : null}
         </div>
@@ -548,7 +548,7 @@ export default function HomePage() {
       <div className="border-t px-4 py-3">
         <div className="mx-auto max-w-7xl space-y-3">
           <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span>Write a note or ask a question</span>
+            <span>Capture a note or ask for guidance</span>
             <div className="flex items-center gap-1 rounded-full border bg-muted/30 p-1">
               <button
                 type="button"
@@ -580,7 +580,9 @@ export default function HomePage() {
                 </div>
                 <p className="text-sm text-muted-foreground">{composerCopy.helper}</p>
               </div>
-              <p className="max-w-xs text-right text-xs text-muted-foreground">{modeStatus}</p>
+              <p className="max-w-xs text-right text-xs text-muted-foreground">
+                {!modeLocked && mode === "ask" ? "Question detected - Enter will ask for guidance." : modeStatus}
+              </p>
             </div>
 
 

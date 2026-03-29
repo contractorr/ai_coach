@@ -195,7 +195,7 @@ Note: `shared_types.EntryType` also defines `quick`, but it is intentionally exc
 | Tool | Required args | Optional args (defaults) | Description |
 |---|---|---|---|
 | `research_topics` | — | — | Auto-suggested topics from journal/goals via `IntelScheduler.get_research_topics()`. No LLM call. Returns `{topics: [...], count}` |
-| `research_run` | — | `topic` | Triggers deep research via `IntelScheduler.run_research_now(topic=topic)`. Auto-selects topic if omitted. **This is the one tool that transitively calls an LLM** (in the research synthesis layer, not the MCP layer). `summary` truncated to 1000 chars. Returns `{reports: [...], count}` |
+| `research_run` | — | `topic` | Triggers Research via `IntelScheduler.run_research_now(topic=topic)`. Auto-selects topic if omitted. **This is the one tool that transitively calls an LLM** (in the research synthesis layer, not the MCP layer). `summary` truncated to 1000 chars. Returns `{reports: [...], count}` |
 
 ---
 

@@ -10,11 +10,11 @@ Users need a single prioritized feed of actionable next steps drawn from multipl
 
 ## Users
 
-All web app users. Suggestions surface in Home and Focus.
+All web app users. Suggestions surface in Home and Goals.
 
 ## Product Placement
 
-- Workspace: `Home` (top next steps), `Focus` (suggested next actions)
+- Workspace: `Home` (top next steps), `Goals` (suggested next actions)
 - Each suggestion carries a `why_now` annotation explaining its timeliness
 
 ## Desired Behavior

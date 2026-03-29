@@ -4,7 +4,7 @@
 
 ## Purpose
 
-Onboarding should get the user to a personalized Home quickly. The goal is enough context to personalize Home, Focus, and Radar without forcing a long setup flow.
+Onboarding should get the user to a personalized Home quickly. The goal is enough context to personalize Home, Goals, and Radar without forcing a long setup flow.
 
 ## Product Placement
 

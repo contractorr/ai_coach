@@ -4,7 +4,7 @@
 
 ## Overview
 
-The user-facing architecture is organized around five jobs: `Home`, `Focus`, `Radar`, `Library`, and `Settings`. Advanced routes still exist, but the primary navigation explains the product through those five destinations.
+The user-facing architecture is organized around six jobs: `Home`, `Goals`, `Radar`, `Research`, `Learn`, and `Settings`. Advanced routes still exist, but the primary navigation explains the product through those six destinations.
 
 ## Key Modules
 
@@ -17,13 +17,14 @@ The user-facing architecture is organized around five jobs: `Home`, `Focus`, `Ra
 ## Interfaces
 
 - Home consumes greeting, suggestions, journal quick-capture, and advisor streaming APIs.
-- Focus consumes goals, recommendations, tracked actions, and weekly-plan APIs.
+- Goals consumes goals, recommendations, tracked actions, and weekly-plan APIs.
 - Radar consumes suggestions, watchlist, threads, dossier-escalation, dossier, and follow-up APIs.
-- Library consumes report and archived-dossier APIs.
+- Research consumes report and archived-dossier APIs.
+- Learn consumes curriculum APIs.
 - Settings consumes account, profile, watchlist, and memory APIs.
 - Web persistence bootstraps through the canonical `src/user_state_store.py` schema, with `src/web/user_store.py` acting as a compatibility import layer.
 
 ## Simplified Product Notes
 
 - `/advisor`, `/intel`, and `/projects` remain as secondary deep-link pages.
-- The primary experience should always be explainable through the five simplified jobs.
+- The primary experience should always be explainable through the six simplified jobs.

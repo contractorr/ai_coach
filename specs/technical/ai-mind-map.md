@@ -2,7 +2,7 @@
 
 ## Overview
 
-The mind-map feature adds a derived, user-scoped artifact for a journal entry. It reuses the existing journal, receipt, thread, and memory signals, then augments them with matched deep research, RSS-fed intelligence, and prior advisor conversations to assemble a small graph of concepts and relationships that the Journal UI can render inline. The feature remains per-entry and user-triggered, but cached artifacts should also be refreshable when relevant external context changes.
+The mind-map feature adds a derived, user-scoped artifact for a journal entry. It reuses the existing journal, receipt, thread, and memory signals, then augments them with matched Research artifacts, RSS-fed intelligence, and prior advisor conversations to assemble a small graph of concepts and relationships that the Journal UI can render inline. The feature remains per-entry and user-triggered, but cached artifacts should also be refreshable when relevant external context changes.
 
 ## Dependencies
 
@@ -21,7 +21,7 @@ Use a dedicated per-user SQLite store for derived mind-map artifacts plus a dete
 - the current journal entry title, tags, content, and timestamps
 - any existing extraction receipt for that entry
 - lightweight fallback concept extraction from the entry text itself
-- matched deep research entries from the user's journal store
+- matched Research entries from the user's journal store
 - matched RSS-fed intelligence items from shared `intel.db`
 - matched prior conversations from `users.db`
 
@@ -52,7 +52,7 @@ This keeps the feature:
 2. Extraction receipt memory facts
 3. Extraction receipt goal candidates
 4. Extraction receipt thread label
-5. Related deep research reports and dossier updates
+5. Related Research reports and dossier updates
 6. Relevant RSS-fed intelligence items
 7. Relevant prior advisor conversations
 8. Journal tags
@@ -67,7 +67,7 @@ The generator should normalize signals into a small node set:
 - `action` nodes: plans, next steps, or follow-through language
 - `memory` nodes: durable facts or constraints surfaced by the memory pipeline
 - `thread` node: recurring-topic context when present
-- `research` nodes: matched deep research or dossier topics
+- `research` nodes: matched Research artifacts or dossier topics
 - `intel` nodes: matched RSS-derived external developments
 - `conversation` nodes: relevant prior advisor discussion snippets
 - `tag` nodes: explicit user tags when they add non-duplicate context

@@ -55,7 +55,7 @@ Users who write code and track goals related to building, shipping, or maintaini
 
 ### Goal linkage
 
-1. User can link a monitored repo to an existing goal from Focus or Settings.
+1. User can link a monitored repo to an existing goal from Goals or Settings.
 2. When a repo is linked to a goal, repo activity feeds into that goal's progress signals.
 3. A goal linked to a repo can show:
    - last commit date

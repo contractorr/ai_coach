@@ -4,7 +4,7 @@
 
 ## Overview
 
-Research dossiers now have a clear active-versus-archived lifecycle mapped to Radar and Library.
+Research dossiers now have a clear active-versus-archived lifecycle mapped to Radar and Research.
 
 ## Key Modules
 
@@ -22,4 +22,4 @@ Research dossiers now have a clear active-versus-archived lifecycle mapped to Ra
 ## Simplified Product Notes
 
 - Active work stays in Radar.
-- The new archive route moves a finished dossier into Library for durable reference.
+- The new archive route moves a finished dossier into Research for durable reference.

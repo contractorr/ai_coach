@@ -23,7 +23,6 @@ const ENABLE_TEST_AUTH =
   process.env.NEXT_PUBLIC_ENABLE_TEST_AUTH === "true";
 const TEST_USERS = ["junior_dev", "founder", "switcher"] as const;
 
-
 export default function LoginPage() {
   const [testUser, setTestUser] = useState<string>("junior_dev");
   const [testPass, setTestPass] = useState("");
@@ -37,8 +36,8 @@ export default function LoginPage() {
           </div>
           <CardTitle className="text-2xl text-primary">StewardMe</CardTitle>
           <CardDescription className="text-balance">
-            AI tutor and steward that teaches what matters, tracks your learning
-            with spaced repetition, and scans the world so you know what&apos;s next.
+            Your private AI steward for focus, monitoring, learning, and
+            reflection.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">

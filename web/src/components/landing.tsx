@@ -26,37 +26,41 @@ const SOURCE_ICONS = [
 const PILLARS = [
   {
     icon: BookOpen,
-    title: "Master new topics",
+    title: "Capture your context",
     description:
-      "50+ structured guides with quizzes that adapt to what you remember and what you forget.",
+      "Journal entries, goals, and saved research give StewardMe the context to personalize your brief.",
   },
   {
     icon: Newspaper,
-    title: "Stay ahead",
+    title: "Monitor what changed",
     description:
-      "Live intel from HN, arXiv, GitHub, Reddit and RSS — filtered to what matters to you.",
+      "Radar watches the sources you care about and surfaces the few signals worth your attention.",
   },
   {
     icon: MessageCircle,
-    title: "Reflect and grow",
+    title: "Decide your next move",
     description:
-      "Journal your thinking, set goals, and get advice grounded in your own context.",
+      "Ask for grounded guidance when you need help deciding what to do next and why.",
   },
 ];
 
 const COMPARISON_ROWS = [
   {
-    axis: "Structured learning",
-    detail: "50+ guides, SM-2 spaced repetition, teach-back, Bloom's quizzes",
+    axis: "Grounded in your context",
+    detail: "Uses your notes, goals, and saved material to shape guidance",
+  },
+  {
+    axis: "Helps you decide next steps",
+    detail: "Prioritizes what matters now instead of just answering prompts",
+  },
+  {
+    axis: "Scans live sources for you",
+    detail: "Tracks HN, arXiv, GitHub, Reddit, RSS, and more",
   },
   { axis: "Your data stays local", detail: "SQLite + markdown files" },
   {
-    axis: "Scans live sources for you",
-    detail: "10 async scrapers (HN, arXiv, GitHub, Reddit, RSS, ...)",
-  },
-  {
-    axis: "Learns from your feedback",
-    detail: "Per-category scoring adjusts over time",
+    axis: "Structured learning",
+    detail: "Guide library, chapter progress, and review sessions",
   },
   { axis: "Self-hosted", detail: "Docker one-liner or bare metal" },
   {
@@ -75,20 +79,20 @@ const TECH_STACK = [
   "SQLite",
   "Tailwind CSS",
 ];
+
 export default function Landing() {
   return (
     <div className="flex min-h-screen flex-col items-center bg-muted/40">
-      {/* Hero */}
       <section className="flex flex-col items-center px-4 pt-[15vh] pb-10 text-center">
         <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
           <Brain className="h-7 w-7 text-primary" />
         </div>
         <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">
-          An e-bike for the mind
+          Know what matters next
         </h1>
         <p className="mt-4 max-w-md text-lg text-muted-foreground">
-          AI that guides you through new topics, professional growth and
-          personal reflection — grounded in live data, personalised to you.
+          StewardMe watches your world, remembers your context, and helps you
+          decide what to do next.
         </p>
         <div className="mt-4 flex gap-2">
           <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer">
@@ -110,7 +114,6 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Three pillars */}
       <section className="w-full max-w-3xl px-4 pt-2 pb-12">
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
           {PILLARS.map(({ icon: Icon, title, description }) => (
@@ -125,10 +128,9 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Source logos */}
       <section className="flex flex-col items-center px-4 pb-16">
         <p className="mb-6 text-sm text-muted-foreground">
-          Scans the sources you care about
+          Watches the sources you care about
         </p>
         <div className="grid grid-cols-5 gap-10">
           {SOURCE_ICONS.map(({ name, icon: Icon }) => (
@@ -140,10 +142,9 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Feature grid */}
       <section className="w-full max-w-[700px] px-4 py-12">
         <h2 className="mb-6 text-center text-2xl font-semibold tracking-tight">
-          Goes deeper
+          What StewardMe does
         </h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {FEATURES.map(({ icon: Icon, title, description }) => (
@@ -165,7 +166,6 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Why StewardMe? */}
       <section className="w-full max-w-3xl px-4 py-16">
         <p className="mb-6 text-center text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
           Why StewardMe?
@@ -184,8 +184,8 @@ export default function Landing() {
               {COMPARISON_ROWS.map(({ axis, detail }) => (
                 <tr key={axis} className="border-b last:border-0">
                   <td className="px-4 py-3 font-medium">{axis}</td>
-                  <td className="px-4 py-3 text-muted-foreground">—</td>
-                  <td className="px-4 py-3 text-muted-foreground">—</td>
+                  <td className="px-4 py-3 text-muted-foreground">-</td>
+                  <td className="px-4 py-3 text-muted-foreground">-</td>
                   <td className="px-4 py-3">
                     <span className="flex items-center gap-1.5">
                       <Check className="h-4 w-4 shrink-0 text-primary" />
@@ -199,7 +199,6 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Built for developers */}
       <section className="flex w-full max-w-xl flex-col items-center px-4 py-16 text-center">
         <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
           <Code2 className="h-7 w-7 text-primary" />
@@ -240,7 +239,6 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Footer CTA + links */}
       <section className="flex flex-col items-center px-4 pt-8 pb-16">
         <div className="flex gap-3">
           <Button asChild size="lg">

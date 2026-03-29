@@ -4,7 +4,7 @@
 
 ## Overview
 
-This subsystem explains timing and priority on Home, Focus, and Radar without becoming a standalone product concept.
+This subsystem explains timing and priority on Home, Goals, and Radar without becoming a standalone product concept.
 
 ## Key Modules
 

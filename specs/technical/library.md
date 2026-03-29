@@ -1,10 +1,10 @@
-# Library
+# Research
 
 **Status:** Updated for the simplified product model
 
 ## Overview
 
-Library is the durable reference workspace for uploaded documents, generated reports, and archived dossier outputs.
+Research is the durable reference workspace for uploaded documents, generated reports, and archived dossier outputs.
 
 ## Key Modules
 
@@ -57,4 +57,4 @@ Library is the durable reference workspace for uploaded documents, generated rep
 ## Simplified Product Notes
 
 - Active dossiers stay in Radar until archived.
-- Library should feel like a reference surface, not an active monitoring console.
+- Research should feel like a reference surface, not an active monitoring console.

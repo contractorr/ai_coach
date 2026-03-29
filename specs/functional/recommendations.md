@@ -4,24 +4,24 @@
 
 ## Purpose
 
-Recommendations are exposed as small, obvious next steps in Home and Focus rather than as a concept the user must learn separately.
+Recommendations are exposed as small, obvious next steps in Home and Goals rather than as a concept the user must learn separately.
 
 ## Product Placement
 
 - `Home` shows at most three prioritized next-step cards
-- `Focus` shows best next moves and the weekly plan
+- `Goals` shows best next moves and the weekly plan
 - Feedback remains available for improving future recommendation quality
 
 ## Current Behavior
 
 - Home prioritizes a short set of next-step cards near the top of the page.
-- Focus keeps recommendation cards close to active execution work.
+- Goals keeps recommendation cards close to active execution work.
 - Ratings and notes remain part of the recommendation feedback loop.
 
 ## User Flows
 
 - Review a next-step card from Home.
-- Track or score a recommendation from Focus.
+- Track or score a recommendation from Goals.
 - Improve future suggestions through feedback.
 
 ## Key System Components

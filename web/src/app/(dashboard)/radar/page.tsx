@@ -264,7 +264,7 @@ export default function RadarPage() {
         actions={
           <>
             <Button variant="outline" asChild>
-              <Link href="/intel">Open advanced radar</Link>
+              <Link href="/intel">Open advanced intel</Link>
             </Button>
             <Button onClick={handleScrape} disabled={refreshing}>
               {refreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
@@ -527,7 +527,7 @@ export default function RadarPage() {
                           Refresh research
                         </Button>
                         <Button variant="ghost" onClick={() => void handleDossierAction(dossier.dossier_id, "archive")} disabled={busyKey === `dossier-${dossier.dossier_id}-archive`}>
-                          Archive to Library
+                          Archive to Research
                         </Button>
                       </div>
                     </CardContent>

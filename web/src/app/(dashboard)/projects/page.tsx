@@ -141,9 +141,9 @@ export default function ProjectsPage() {
   return (
     <div className="mx-auto max-w-7xl space-y-6 p-4 md:p-6">
       <WorkspacePageHeader
-        eyebrow="Build next"
-        title="Projects & opportunities"
-        description="Turn your profile and recent radar into concrete next bets. Review matched GitHub issues, then generate side-project ideas when you want a fresh angle."
+        eyebrow="Explore"
+        title="Opportunities"
+        description="Turn radar signals and your profile into concrete next bets. Review matched issues, then generate project ideas when you want a broader option."
         badge={`${issues.length} issue${issues.length === 1 ? "" : "s"} surfaced`}
         actions={
           <>
@@ -161,7 +161,7 @@ export default function ProjectsPage() {
               ) : (
                 <Sparkles className="mr-2 h-4 w-4" />
               )}
-              Generate ideas
+              Generate project ideas
             </Button>
           </>
         }

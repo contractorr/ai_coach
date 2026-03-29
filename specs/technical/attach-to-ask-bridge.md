@@ -17,7 +17,7 @@ The attach-to-ask bridge keeps same-turn PDF uploads inside the Home Ask flow an
 
 - attachment upload and indexing before advisor submission
 - `POST /api/advisor/ask/stream` with `attachment_ids`
-- Library retrieval for uploaded PDFs and derived reports
+- Research retrieval for uploaded PDFs and derived reports
 
 ## Simplified Product Notes
 

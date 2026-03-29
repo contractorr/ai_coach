@@ -1,10 +1,10 @@
-# Curriculum / Library
+# Curriculum / Learn
 
 **Status:** Proposed Simplification
 
 ## Purpose
 
-Library is the app's lightweight learning workspace. Its job is simple:
+Learn is the app's lightweight learning workspace. Its job is simple:
 
 - help the user pick something worth learning
 - help them continue where they left off
@@ -23,7 +23,8 @@ system.
 
 ## Product Placement
 
-- Workspace: `Library`
+- Workspace: `Learn`
+- Guide catalog: `Guide Library`
 - Primary job: study practical material in small steps
 - Core question answered: `What should I learn next?`
 - Relationship to Home: Home can surface the next learning step, but the full learning workflow lives in `/learn`
@@ -73,16 +74,16 @@ Everything else is secondary or deferred.
 - That card contains:
   - one primary next action
   - a small reviews-due count when relevant
-  - a single link into Library
+  - a single link into the Guide Library
 - Home should not expose multiple learning concepts at once.
 
-### Library landing page
+### Learn landing page
 
-The Library page should have only three primary sections:
+The Learn page should have only three primary sections:
 
 1. `Next up`
 2. `Reviews`
-3. `Browse guides`
+3. `Guide Library`
 
 #### Next up
 
@@ -100,13 +101,18 @@ The Library page should have only three primary sections:
 - Use one review entry point: `Start review`.
 - Do not split the user into different review concepts such as normal review vs retry review in the main UI.
 
-#### Browse guides
+#### Guide Library
 
 - Show a simple searchable guide list.
 - Keep filtering lightweight.
+- Support one lightweight topic filter based on broad guide category.
+- Support one simple order control:
+  - `Recommended order`
+  - `A-Z`
 - Prioritize:
   - in-progress guides first
-  - then not-started guides
+  - then guides the user can start now
+  - then later guides with unmet prerequisites
 - The primary browse goal is choosing a guide, not understanding a graph.
 
 ### Guide detail
@@ -152,13 +158,13 @@ Optional support can exist below the core reading flow, but it must stay seconda
 
 ### Start learning
 
-- User opens Library.
+- User opens Learn.
 - They see one obvious next step.
 - If nothing is in progress, they browse guides and start one.
 
 ### Continue learning
 
-- User opens Library.
+- User opens Learn.
 - They see the chapter they should continue.
 - One click takes them back into reading.
 
@@ -171,9 +177,9 @@ Optional support can exist below the core reading flow, but it must stay seconda
 
 ### Review material
 
-- When reviews are due, Library highlights that clearly.
+- When reviews are due, Learn highlights that clearly.
 - User starts one review session.
-- User completes the batch and returns to Library.
+- User completes the batch and returns to Learn.
 
 ### Browse and switch
 
@@ -220,13 +226,14 @@ minimal loop proves useful.
 ## Acceptance Criteria
 
 - [ ] Home shows one learning CTA, not multiple learning decisions.
-- [ ] `/learn` has at most three primary sections: `Next up`, `Reviews`, and `Browse guides`.
+- [ ] `/learn` has at most three primary sections: `Next up`, `Reviews`, and `Guide Library`.
 - [ ] `/learn` can be understood without knowing what a program, path, track, or assessment is.
 - [ ] A user can start or continue learning from the landing page in one click.
 - [ ] A guide detail page has one obvious primary action.
 - [ ] A chapter reader keeps the reading flow primary and secondary tools visually subordinate.
 - [ ] Reviews are entered through one simple entry point.
 - [ ] Progress can advance without requiring reflection, quiz completion, or Journal usage.
+- [ ] Guide Library supports lightweight topic filtering and a clear recommended order without exposing tracks or trees.
 - [ ] Search is sufficient for finding guides in the normal case.
 - [ ] Learning does not auto-create goals or drafts as part of the default flow.
 
@@ -235,16 +242,16 @@ minimal loop proves useful.
 | Scenario | Expected Behavior |
 |----------|-------------------|
 | User has one active guide and due reviews | The page chooses one recommended next step and still shows the other option clearly |
-| User has no active guide | Library defaults to a simple browse-and-start state |
+| User has no active guide | Learn defaults to a simple browse-and-start state |
 | User has no reviews due | Review section stays quiet and does not create dead space |
-| User returns after a long gap | Library still shows one obvious next action rather than a dense dashboard |
+| User returns after a long gap | Learn still shows one obvious next action rather than a dense dashboard |
 | User wants a deeper exercise | The app can link outward, but the default learning flow stays lightweight |
 | Content is missing or sync fails | The page degrades to a simple empty or reduced state without exposing internal complexity |
 
 ## Design Notes
 
 - Prefer plain language:
-  - use `Next up`, `Guide`, `Chapter`, `Review`
+  - use `Next up`, `Guide`, `Chapter`, `Review`, and `Guide Library`
   - avoid `program path`, `placement`, `teach-back`, `assessment`, and `retry mode` in the main flow
 - Prefer one strong CTA over several equal CTAs.
 - Avoid dashboards full of badges, counts, and status cues unless they change the next action.

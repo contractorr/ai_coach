@@ -9,7 +9,7 @@ Capture receipts explain what the system learned from a note and suggest the nex
 ## Product Placement
 
 - Surfaces: `Home` and the deeper Journal flow
-- Related destinations: `Focus`, `Radar`, and the Journal shortcut
+- Related destinations: `Goals`, `Radar`, and the Journal shortcut
 - Primary job: confirm capture and guide the next step
 
 ## Current Behavior

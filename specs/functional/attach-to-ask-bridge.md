@@ -10,19 +10,19 @@ Keep PDF attachment handling inside the Home Ask flow so files feel like context
 
 - Workspace: `Home`
 - Primary job: ask grounded questions about uploaded files
-- Related durable storage: `Library`
+- Related durable storage: `Research`
 
 ## Current Behavior
 
 - Attachments are available only in Ask mode.
 - Same-turn uploads can be indexed and referenced in the streamed answer.
-- Uploaded files remain durable and user-scoped for later reuse in Library.
+- Uploaded files remain durable and user-scoped for later reuse in Research.
 
 ## User Flows
 
 - Attach one or more PDFs while in Ask mode.
 - Submit a grounded question and receive an answer.
-- Revisit the stored file or derived report later from Library.
+- Revisit the stored file or derived report later from Research.
 
 ## Key System Components
 

@@ -7,7 +7,7 @@
 
 User-authored guide generation is deferred while the core learning experience is simplified.
 
-The current product direction for Library is to make learning feel minimalist and intuitive. That
+The current product direction for Learn is to make learning feel minimalist and intuitive. That
 means the primary workflow should stay focused on:
 
 - choosing a guide
@@ -22,7 +22,7 @@ and extra UI surface area before the core loop is simple enough.
 - It adds creation flows before the browse-and-study flow is fully clear.
 - It introduces ownership concepts (`built-in`, `user`, `extension`) that are not necessary for the
   default learning experience.
-- It makes the Library landing page more complex by adding separate sections and dialogs.
+- It makes the Learn landing page more complex by adding separate sections and dialogs.
 - It pushes the product toward a content-generation tool instead of a simple learning workspace.
 
 ## Revisit Conditions
@@ -42,4 +42,4 @@ Signals that justify revisiting it:
 - extend guide
 - archive and restore custom guides
 - user-owned guide sections on the landing page
-- mixing generated guides into the default Library experience
+- mixing generated guides into the default Learn experience

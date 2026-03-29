@@ -4,7 +4,7 @@
 
 ## Overview
 
-The intelligence layer powers Radar, the Home next-step feed, and part of Focus by ranking and annotating relevant external signals.
+The intelligence layer powers Radar, the Home next-step feed, and part of Goals by ranking and annotating relevant external signals.
 
 ## Key Modules
 

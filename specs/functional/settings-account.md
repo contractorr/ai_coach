@@ -4,7 +4,7 @@
 
 ## Purpose
 
-Settings owns account-level and advanced configuration tasks so everyday work can stay in Home, Focus, Radar, and Library. It is also where users manage model access, connect multiple AI providers, and control whether steward can use a multi-model council for higher-stakes questions.
+Settings owns account-level and advanced configuration tasks so everyday work can stay in Home, Goals, Radar, Learn, and Research. It is also where users manage model access, connect multiple AI providers, and control whether steward can use a multi-model council for higher-stakes questions.
 
 ## Product Placement
 

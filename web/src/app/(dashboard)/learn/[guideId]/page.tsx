@@ -104,7 +104,7 @@ export default function GuideDetailPage() {
         <p className="text-muted-foreground">Guide not found</p>
         <Link href="/learn">
           <Button variant="ghost" className="mt-2">
-            Back to Library
+            Back to Guide Library
           </Button>
         </Link>
       </div>
@@ -154,7 +154,7 @@ export default function GuideDetailPage() {
             {acting ? "Opening..." : primaryActionLabel}
           </Button>
           <Button variant="outline" asChild>
-            <Link href="/learn">Back to Library</Link>
+            <Link href="/learn">Back to Guide Library</Link>
           </Button>
         </CardContent>
       </Card>

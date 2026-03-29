@@ -41,40 +41,40 @@ interface ChatMessage {
 }
 
 const features = [
-  { icon: Newspaper, text: "Surface what matters from HN, GitHub, arXiv, Reddit & RSS" },
-  { icon: Sparkles, text: "Proactive guidance grounded in your context + real-time intel" },
-  { icon: Target, text: "Align goals against market trends and opportunities" },
-  { icon: BookOpen, text: "Journal reflections that sharpen your steward's guidance" },
+  { icon: Newspaper, text: "Watch what matters across HN, GitHub, arXiv, Reddit, and RSS" },
+  { icon: Sparkles, text: "Ask for grounded guidance shaped by your context and live signals" },
+  { icon: Target, text: "Keep goals connected to the changes and opportunities around you" },
+  { icon: BookOpen, text: "Capture notes and research that sharpen future guidance" },
 ];
 
 const introSections = [
   {
     icon: Newspaper,
-    title: "Intelligence Radar",
+    title: "Radar",
     description:
-      "Scans HN, GitHub trending, arXiv, Reddit & RSS. Surfaces what matters, skips the noise.",
+      "Watches HN, GitHub, arXiv, Reddit, and RSS so the strongest signals rise to the top.",
   },
   {
     icon: Brain,
-    title: "AI Steward",
+    title: "Guidance",
     description:
-      "Proactive guidance grounded in your context and real-time intel. Spots opportunities, flags what needs attention.",
+      "Turns your notes, goals, and live signals into grounded help with what to do next.",
   },
   {
     icon: Target,
-    title: "Goal Alignment",
+    title: "Goals",
     description:
-      "Tracks objectives against trends and opportunities. Flags when priorities should shift.",
+      "Keeps your priorities visible so StewardMe can rank what matters against them.",
   },
   {
     icon: BookOpen,
     title: "Journal",
     description:
-      "Capture reflections, decisions, and observations. Every entry sharpens your steward's guidance.",
+      "Capture reflections, decisions, and observations. Every entry sharpens future guidance.",
   },
   {
     icon: FlaskConical,
-    title: "Deep Research",
+    title: "Research",
     description:
       "Deep dives into opportunities, technologies, or trends — driven by your goals and interests.",
   },
@@ -237,7 +237,7 @@ export function OnboardingDialog({ open, onClose, onComplete, token, startPhase 
 
               <div className="rounded-lg border bg-muted/50 p-3 text-xs text-muted-foreground leading-relaxed">
                 <span className="font-medium text-foreground">How it connects:</span>{" "}
-                Journal + intel feed your steward. Goals shape what surfaces. Research fills gaps. More context = sharper guidance.
+                Journal and goals shape what matters. Radar watches the world. Research helps when a topic needs a deeper dive.
               </div>
             </div>
 
@@ -293,7 +293,7 @@ export function OnboardingDialog({ open, onClose, onComplete, token, startPhase 
               </div>
               <SheetTitle className="text-center text-xl"><span className="text-primary">StewardMe</span></SheetTitle>
               <SheetDescription className="text-center">
-                Let&apos;s set up your AI steward
+                Let&apos;s set up your steward
               </SheetDescription>
             </SheetHeader>
 

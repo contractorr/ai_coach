@@ -10,7 +10,7 @@ Explain how repeated signals and threads graduate into dossier suggestions insid
 
 - Workspace: `Radar`
 - Primary job: decide when a signal deserves deeper ongoing tracking
-- Resulting artifact: active dossier in Radar, archived dossier in Library
+- Resulting artifact: active dossier in Radar, archived dossier in Research
 
 ## Current Behavior
 
@@ -22,7 +22,7 @@ Explain how repeated signals and threads graduate into dossier suggestions insid
 
 - Review an escalation in Radar.
 - Accept it to start a dossier or dismiss/snooze it.
-- Track the resulting dossier until it is archived into Library.
+- Track the resulting dossier until it is archived into Research.
 
 ## Key System Components
 

@@ -21,4 +21,4 @@ The escalation engine decides when repeated signals or threads deserve active do
 ## Simplified Product Notes
 
 - Accepting an escalation creates active dossier work in Radar.
-- The user-facing lifecycle stays simple: active in Radar, archived in Library.
+- The user-facing lifecycle stays simple: active in Radar, archived in Research.

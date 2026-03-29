@@ -498,7 +498,7 @@ export default function GoalsPage() {
     }
 
     return {
-      title: "No focus goals yet",
+      title: "No current goals yet",
       description: "Create a goal or reactivate an archived one to bring it back into your working list.",
     };
   })();
@@ -722,13 +722,13 @@ export default function GoalsPage() {
   return (
     <div className="mx-auto max-w-7xl space-y-6 p-4 md:p-6">
       <WorkspacePageHeader
-        eyebrow="Work on"
-        title="Focus"
-        description="See your best next moves, keep active goals moving, and turn opportunities into progress."
+        eyebrow="Move forward"
+        title="Goals"
+        description="Keep active goals moving and turn the best opportunities into steady progress."
         actions={
           <>
             <Button variant="outline" asChild>
-              <Link href="/projects">More opportunities</Link>
+              <Link href="/projects">Open opportunities</Link>
             </Button>
             <Sheet open={createOpen} onOpenChange={setCreateOpen}>
               <SheetTrigger asChild>
@@ -794,7 +794,7 @@ export default function GoalsPage() {
           <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-muted">
             <Target className="h-7 w-7 text-muted-foreground" />
           </div>
-          <h3 className="text-lg font-medium">Nothing in focus yet</h3>
+          <h3 className="text-lg font-medium">No goals yet</h3>
           <p className="mt-1 max-w-sm text-sm text-muted-foreground">
             Start by setting a goal or exploring opportunities. I&apos;ll keep the strongest next steps at the top.
           </p>
@@ -810,7 +810,7 @@ export default function GoalsPage() {
             <Card className="gap-3 py-4">
               <CardHeader className="px-4 pb-0">
                 <CardDescription className="flex items-center gap-2 text-xs uppercase tracking-wide">
-                  <Target className="h-3.5 w-3.5" /> In focus
+                  <Target className="h-3.5 w-3.5" /> Active
                 </CardDescription>
                 <CardTitle className="text-2xl">{goalCounts.focus}</CardTitle>
               </CardHeader>
@@ -905,7 +905,7 @@ export default function GoalsPage() {
         <div className="space-y-3">
           <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
             <Lightbulb className="h-4 w-4" />
-            Best next moves
+            Recommended next steps
           </div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {unanchored.map((rec) =>

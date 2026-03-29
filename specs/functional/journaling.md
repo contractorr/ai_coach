@@ -4,13 +4,13 @@
 
 ## Purpose
 
-Journaling is the product's capture flywheel. Quick capture belongs on Home, while the full Journal workspace stays one tap away through the sidebar shortcut and related Library handoff.
+Journaling is the product's capture flywheel. Quick capture belongs on Home, while the full Journal workspace stays one tap away through the sidebar shortcut and related Research handoff.
 
 ## Product Placement
 
 - Primary capture surface: `Home`
 - Deep workspace: `Journal` sidebar shortcut
-- Related reference path: `Library` handoff when the user wants durable artifacts instead of source notes
+- Related reference path: `Research` handoff when the user wants durable artifacts instead of source notes
 
 ## Current Behavior
 
@@ -22,7 +22,7 @@ Journaling is the product's capture flywheel. Quick capture belongs on Home, whi
 
 - Capture a quick note from Home.
 - Open the Journal shortcut for deeper editing and browsing.
-- Use Journal history to improve future Focus and Radar behavior.
+- Use Journal history to improve future Goals and Radar behavior.
 
 ## Key System Components
 

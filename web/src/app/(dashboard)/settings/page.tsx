@@ -1305,7 +1305,7 @@ export default function SettingsPage() {
           <div className="space-y-3">
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Intelligence</p>
             {([
-              { key: "feature_research_enabled", label: "Deep research", description: "LLM-synthesised topic reports via Tavily or DuckDuckGo." },
+              { key: "feature_research_enabled", label: "Research", description: "Generate topic reports from saved context and live web search." },
               { key: "feature_entity_extraction_enabled", label: "Entity extraction", description: "Extract companies, people, and concepts from intel." },
               { key: "feature_trending_radar_enabled", label: "Trending radar", description: "Cross-source topic convergence detection." },
               { key: "feature_heartbeat_enabled", label: "Goal-intel matching", description: "Proactively match incoming intel to your goals." },

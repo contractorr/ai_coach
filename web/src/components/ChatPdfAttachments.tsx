@@ -68,7 +68,7 @@ export function ChatAttachmentBadges({
           token,
         );
         setSavedIds((current) => ({ ...current, [attachment.library_item_id]: true }));
-        toast.success("Saved to Library");
+        toast.success("Saved to Research");
       } catch (error) {
         toast.error(error instanceof Error ? error.message : "Failed to save attachment.");
       } finally {
@@ -105,7 +105,7 @@ export function ChatAttachmentBadges({
             )}
             {saved ? (
               <Badge variant="secondary" className="text-[11px]">
-                Saved to Library
+                Saved to Research
               </Badge>
             ) : (
               <Button
@@ -121,7 +121,7 @@ export function ChatAttachmentBadges({
                 ) : (
                   <Save className="h-3 w-3" />
                 )}
-                Save to Library
+                Save to Research
               </Button>
             )}
           </div>
@@ -206,7 +206,7 @@ export function ChatPdfAttachmentPicker({
           Attach PDF
         </Button>
         <span className="text-xs text-muted-foreground">
-          Uploads privately for this chat. Save it to Library later if it proves useful.
+          Uploads privately for this chat. Save it to Research later if it proves useful.
         </span>
       </div>
     </div>

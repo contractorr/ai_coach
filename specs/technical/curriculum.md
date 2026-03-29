@@ -4,7 +4,7 @@
 
 ## Overview
 
-The curriculum subsystem powers the Library workspace. It scans the curriculum corpus, normalizes
+The curriculum subsystem powers the Learn workspace. It scans the curriculum corpus, normalizes
 content metadata, stores per-user progress and review state, exposes web and MCP surfaces, and
 supports richer rendering and recommendation behavior than the original markdown-only reader.
 
@@ -396,10 +396,10 @@ context that includes:
   - one learning card backed by `/api/curriculum/today`
   - one primary next-step CTA
   - quiet review summary when work is due
-- Library landing page:
+- Learn landing page:
   - `Next up` section with a single recommended action
   - `Reviews` section with a single review entry point
-  - `Browse guides` section with simple search and guide cards
+  - `Browse guides` section with simple search, lightweight topic filters, a minimal order control, and guide cards
 - guide detail:
   - chapter list
   - simple progress summary

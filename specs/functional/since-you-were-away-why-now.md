@@ -9,7 +9,7 @@ Return briefs and why-now evidence reduce re-orientation time and help users und
 ## Product Placement
 
 - Return brief: `Home`
-- Why-now chips: Home next steps, Focus cards, Radar cards when helpful
+- Why-now chips: Home next steps, Goals cards, Radar cards when helpful
 - Primary job: shorten the path from `I am back` to `I know what matters`
 
 ## Current Behavior
