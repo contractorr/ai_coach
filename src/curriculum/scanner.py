@@ -39,6 +39,7 @@ _CATEGORY_KEYWORDS: dict[str, GuideCategory] = {
     "religion": GuideCategory.HUMANITIES,
     "theology": GuideCategory.HUMANITIES,
     "history": GuideCategory.HUMANITIES,
+    "geography": GuideCategory.SOCIAL_SCIENCE,
     "linguistics": GuideCategory.HUMANITIES,
     "world-history": GuideCategory.HUMANITIES,
     "mathematics": GuideCategory.SCIENCE,
@@ -579,6 +580,18 @@ class CurriculumScanner:
                 GuideKind.EXTENSION if guide_metadata.get("base_guide_id") else GuideKind.STANDALONE
             )
         kind = _coerce_kind(guide_metadata.get("kind"), inferred_kind)
+        guide_summary = str(
+            guide_metadata.get("summary") or guide_metadata.get("description") or ""
+        ).strip()
+        if not guide_summary:
+            guide_summary = next(
+                (
+                    chapter.summary
+                    for chapter in guide_chapters
+                    if not chapter.is_glossary and chapter.summary
+                ),
+                "",
+            )
         guide = Guide(
             id=guide_id,
             title=str(
@@ -586,6 +599,7 @@ class CurriculumScanner:
                 or self._guide_titles.get(guide_id)
                 or _guide_title_from_dir(guide_id)
             ),
+            summary=guide_summary,
             category=_coerce_category(guide_metadata.get("category"), inferred_category),
             difficulty=_coerce_difficulty(guide_metadata.get("difficulty"), inferred_difficulty),
             source_dir=str(guide_dir),

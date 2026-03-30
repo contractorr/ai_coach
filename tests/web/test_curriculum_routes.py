@@ -151,6 +151,7 @@ def test_list_guides_hides_superseded_guides_and_exposes_programs(client, auth_h
 
     philosophy = next(guide for guide in guides if guide["id"] == "01-philosophy-guide")
     assert philosophy["canonical_guide_id"] is None
+    assert philosophy["summary"]
     assert any(program["id"] == "decision-quality" for program in philosophy["learning_programs"])
 
 
@@ -1015,7 +1016,7 @@ def test_pre_reading_generation_reuses_current_quiz_without_duplication(client, 
     assert store.get_review_item("fresh-pre-reading") is not None
 
 
-def test_today_includes_retry_task_when_weak_items_exist(client, auth_headers):
+def test_today_merges_retry_items_into_review_task(client, auth_headers):
     client.post("/api/curriculum/sync", headers=auth_headers)
     store = _curriculum_store()
     guide_id = "28-accounting"
@@ -1044,9 +1045,9 @@ def test_today_includes_retry_task_when_weak_items_exist(client, auth_headers):
 
     assert resp.status_code == 200
     payload = resp.json()
-    retry_task = next(task for task in payload["tasks"] if task["task_type"] == "retry_reviews")
-    assert retry_task["retry_count"] == 1
-    assert retry_task["cta_label"] == "Retry weak items"
+    review_task = next(task for task in payload["tasks"] if task["task_type"] == "due_reviews")
+    assert review_task["review_count"] == 1
+    assert review_task["cta_label"] == "Start review"
 
 
 def test_placement_generate_disabled(client, auth_headers):

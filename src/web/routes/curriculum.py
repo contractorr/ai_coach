@@ -803,17 +803,17 @@ def _build_today_task_from_recommendation(
     }
 
 
-def _build_due_review_task(
+def _build_review_task(
     store: CurriculumStore,
     user_id: str,
-    reviews_due: int,
+    review_count: int,
 ) -> dict | None:
-    if reviews_due <= 0:
+    if review_count <= 0:
         return None
 
-    due_preview = store.get_due_reviews(user_id, limit=min(reviews_due, 3))
+    queue_preview = store.get_review_queue(user_id, limit=min(review_count, 3))
     guide_titles: list[str] = []
-    for item in due_preview:
+    for item in queue_preview:
         guide = store.get_guide(item["guide_id"])
         if guide and guide["title"] not in guide_titles:
             guide_titles.append(guide["title"])
@@ -826,57 +826,19 @@ def _build_due_review_task(
         detail = f"Clear recall work waiting across {preview}."
 
     return {
-        "id": "due-reviews",
+        "id": "review-queue",
         "task_type": "due_reviews",
-        "title": f"Clear {reviews_due} due review{'s' if reviews_due != 1 else ''}",
+        "title": f"Clear {review_count} review{'s' if review_count != 1 else ''}",
         "detail": detail,
-        "cta_label": "Start reviews",
-        "priority": 106 if reviews_due >= 5 else 96,
-        "estimate_minutes": _estimate_task_minutes(review_count=reviews_due),
+        "cta_label": "Start review",
+        "priority": 106 if review_count >= 5 else 96,
+        "estimate_minutes": _estimate_task_minutes(review_count=review_count),
         "guide_id": None,
         "guide_title": None,
         "chapter_id": None,
         "chapter_title": None,
         "recommendation_type": None,
-        "review_count": reviews_due,
-        "signals": [],
-        "matched_programs": [],
-        "assessment": None,
-    }
-
-
-def _build_retry_review_task(store: CurriculumStore, user_id: str) -> dict | None:
-    retry_items = store.get_retry_review_items(user_id, limit=6)
-    retry_count = len(retry_items)
-    if retry_count <= 0:
-        return None
-
-    guide_titles: list[str] = []
-    for item in retry_items:
-        guide = store.get_guide(item["guide_id"])
-        if guide and guide["title"] not in guide_titles:
-            guide_titles.append(guide["title"])
-
-    detail = "Recent weak answers are worth another pass while the material is still fresh."
-    if guide_titles:
-        detail = f"Reinforce shaky recall across {', '.join(guide_titles[:2])}."
-
-    return {
-        "id": "retry-reviews",
-        "task_type": "retry_reviews",
-        "title": f"Retry {retry_count} weak review item{'s' if retry_count != 1 else ''}",
-        "detail": detail,
-        "cta_label": "Retry weak items",
-        "priority": 99,
-        "estimate_minutes": _estimate_task_minutes(review_count=retry_count),
-        "guide_id": None,
-        "guide_title": None,
-        "chapter_id": None,
-        "chapter_title": None,
-        "entry_path": None,
-        "recommendation_type": None,
-        "review_count": retry_count,
-        "retry_count": retry_count,
+        "review_count": review_count,
         "signals": [],
         "matched_programs": [],
         "assessment": None,
@@ -1051,7 +1013,7 @@ def _build_learning_today(
     scanner: CurriculumScanner,
     guide_aliases: set[str],
 ) -> dict:
-    stats = store.get_stats(user_id)
+    review_queue_count = store.count_review_queue(user_id)
     recommendation = _get_next_recommendation_v2(user_id, store, scanner, guide_aliases)
     learning_signal_map = _build_learning_signal_map(user_id, store)
     assessment_drafts = _list_assessment_drafts(user_id)
@@ -1070,15 +1032,11 @@ def _build_learning_today(
     if recommendation_task:
         tasks.append(recommendation_task)
 
-    due_review_task = _build_due_review_task(store, user_id, stats.reviews_due)
-    if due_review_task:
-        tasks.append(due_review_task)
+    review_task = _build_review_task(store, user_id, review_queue_count)
+    if review_task:
+        tasks.append(review_task)
 
-    retry_review_task = _build_retry_review_task(store, user_id)
-    if retry_review_task:
-        tasks.append(retry_review_task)
-
-    applied_task = _build_applied_practice_task(recommendation, stats.reviews_due)
+    applied_task = _build_applied_practice_task(recommendation, review_queue_count)
     if applied_task:
         tasks.append(applied_task)
 
@@ -1137,9 +1095,9 @@ def _build_learning_today(
     summary_parts = []
     if recommendation_task:
         summary_parts.append(recommendation_task["title"])
-    if stats.reviews_due > 0:
+    if review_queue_count > 0:
         summary_parts.append(
-            f"{stats.reviews_due} review{'s' if stats.reviews_due != 1 else ''} due"
+            f"{review_queue_count} review{'s' if review_queue_count != 1 else ''} waiting"
         )
     active_program_count = sum(1 for program in focus_programs if program["status"] == "active")
     if active_program_count > 0:
@@ -1158,7 +1116,7 @@ def _build_learning_today(
         "recommended_action": recommendation if recommendation.get("guide_id") else None,
         "tasks": deduped_tasks[:4],
         "focus_programs": focus_programs[:3],
-        "reviews_due": stats.reviews_due,
+        "reviews_due": review_queue_count,
     }
 
 

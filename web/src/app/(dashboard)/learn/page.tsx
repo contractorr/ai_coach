@@ -117,6 +117,32 @@ function getRecommendedGuideRank(
   return 5;
 }
 
+function getGuideReasonText(
+  guide: Guide,
+  guideLookup: Map<string, Guide>,
+  recommendedGuideId: string | null,
+): string {
+  const progress = guide.progress_pct ?? 0;
+  const isCompleted = isGuideCompleted(guide);
+  const unmetPrerequisites = getUnmetPrerequisiteCount(guide, guideLookup);
+
+  if (guide.id === recommendedGuideId) {
+    return "Best next guide for you right now.";
+  }
+  if (guide.enrolled && !isCompleted && progress > 0 && progress < 100) {
+    return "Continue where you left off.";
+  }
+  if (!isCompleted && unmetPrerequisites === 0) {
+    return "Ready to start now.";
+  }
+  if (!isCompleted && unmetPrerequisites > 0) {
+    return `Complete ${unmetPrerequisites} prerequisite guide${
+      unmetPrerequisites === 1 ? "" : "s"
+    } first.`;
+  }
+  return "Completed. Reopen it when you want a refresher.";
+}
+
 function sortGuides(
   guides: Guide[],
   allGuides: Guide[],
@@ -239,6 +265,10 @@ export default function LearnPage() {
     (guide) => (guide.progress_pct ?? 0) > 0 && (guide.progress_pct ?? 0) < 100,
   ).length;
   const recommendedGuideId = nextUpTask?.guide_id ?? today?.recommended_action?.guide_id ?? null;
+  const guideLookup = useMemo(
+    () => new Map(guides.map((guide) => [guide.id, guide])),
+    [guides],
+  );
   const visibleCategories = useMemo(
     () =>
       guideCategoryOrder.filter((category) =>
@@ -260,6 +290,7 @@ export default function LearnPage() {
       const categoryLabel = guideCategoryLabels[guide.category].toLowerCase();
       return (
         guide.title.toLowerCase().includes(query) ||
+        guide.summary.toLowerCase().includes(query) ||
         categoryLabel.includes(query)
       );
     });
@@ -464,7 +495,11 @@ export default function LearnPage() {
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {visibleGuides.map((guide) => (
-              <GuideCard key={guide.id} guide={guide} />
+              <GuideCard
+                key={guide.id}
+                guide={guide}
+                reasonText={getGuideReasonText(guide, guideLookup, recommendedGuideId)}
+              />
             ))}
           </div>
         )}

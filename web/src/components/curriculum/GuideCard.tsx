@@ -19,7 +19,13 @@ function formatCategory(category: Guide["category"]): string {
     .join(" ");
 }
 
-export function GuideCard({ guide }: { guide: Guide }) {
+export function GuideCard({
+  guide,
+  reasonText,
+}: {
+  guide: Guide;
+  reasonText?: string;
+}) {
   const pct = guide.progress_pct ?? 0;
   return (
     <Link href={`/learn/${guide.id}`}>
@@ -35,6 +41,14 @@ export function GuideCard({ guide }: { guide: Guide }) {
           </div>
         </CardHeader>
         <CardContent className="pt-0">
+          <p className="line-clamp-2 text-sm leading-relaxed text-muted-foreground">
+            {guide.summary || "Study the core ideas in this guide one chapter at a time."}
+          </p>
+          {reasonText ? (
+            <p className="mt-2 text-[11px] font-medium uppercase tracking-[0.12em] text-foreground/70">
+              {reasonText}
+            </p>
+          ) : null}
           <div className="flex items-center gap-3 text-xs text-muted-foreground">
             <span className="flex items-center gap-1">
               <BookOpen className="h-3 w-3" />

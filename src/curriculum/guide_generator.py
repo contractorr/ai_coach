@@ -178,6 +178,7 @@ class GuideGenerationService:
                 temp_dir,
                 {
                     "title": guide_title,
+                    "summary": str(plan.get("summary") or "").strip(),
                     "origin": "user",
                     "kind": kind.value,
                     "owner_user_id": self.owner_user_id,

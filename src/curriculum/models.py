@@ -87,6 +87,7 @@ class Chapter(BaseModel):
 class Guide(BaseModel):
     id: str  # directory name
     title: str
+    summary: str = ""
     category: GuideCategory = GuideCategory.HUMANITIES
     difficulty: DifficultyLevel = DifficultyLevel.INTERMEDIATE
     source_dir: str = ""  # relative path within content dir

@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { CurriculumRenderer } from "@/components/curriculum/CurriculumRenderer";
-import type { ChapterDetail, ChapterStatus, LearningStats } from "@/types/curriculum";
+import type { ChapterDetail, ChapterStatus, LearningToday } from "@/types/curriculum";
 
 function getScrollPosition(): number {
   if (typeof window === "undefined") {
@@ -251,10 +251,14 @@ export default function ChapterReaderPage() {
     let cancelled = false;
     setLoadingNextStep(true);
 
-    apiFetch<LearningStats>("/api/v1/curriculum/stats", {}, token)
-      .then((stats) => {
+    apiFetch<LearningToday>("/api/v1/curriculum/today", {}, token)
+      .then((today) => {
         if (!cancelled) {
-          setReviewsDue(stats.reviews_due);
+          const reviewTask =
+            today.tasks.find(
+              (task) => task.task_type === "due_reviews" || task.task_type === "retry_reviews",
+            ) ?? null;
+          setReviewsDue(reviewTask?.review_count ?? today.reviews_due ?? 0);
         }
       })
       .catch(() => {

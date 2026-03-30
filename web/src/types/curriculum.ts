@@ -27,6 +27,7 @@ export type ReviewItemType = "quiz" | "teachback" | "pre_reading";
 export interface Guide {
   id: string;
   title: string;
+  summary: string;
   category: GuideCategory;
   difficulty: DifficultyLevel;
   source_dir: string;

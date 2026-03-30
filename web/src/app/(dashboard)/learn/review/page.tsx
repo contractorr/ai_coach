@@ -11,6 +11,16 @@ import { Button } from "@/components/ui/button";
 import { ReviewCard } from "@/components/curriculum/ReviewCard";
 import type { ReviewItem, ReviewSubmissionResult } from "@/types/curriculum";
 
+function mergeReviewQueues(retryItems: ReviewItem[], dueItems: ReviewItem[]): ReviewItem[] {
+  const merged = new Map<string, ReviewItem>();
+  for (const item of [...retryItems, ...dueItems]) {
+    if (!merged.has(item.id)) {
+      merged.set(item.id, item);
+    }
+  }
+  return Array.from(merged.values()).slice(0, 20);
+}
+
 export default function ReviewSessionPage() {
   const token = useToken();
   const [items, setItems] = useState<ReviewItem[]>([]);
@@ -29,19 +39,15 @@ export default function ReviewSessionPage() {
       setCurrent(0);
       setGrades([]);
       try {
-        const dueItems = await apiFetch<ReviewItem[]>(
-          "/api/v1/curriculum/review/due?limit=20",
-          {},
-          token,
-        );
-        const data =
-          dueItems.length > 0
-            ? dueItems
-            : await apiFetch<ReviewItem[]>(
-                "/api/v1/curriculum/review/retry?limit=20",
-                {},
-                token,
-              ).catch(() => []);
+        const [retryItems, dueItems] = await Promise.all([
+          apiFetch<ReviewItem[]>("/api/v1/curriculum/review/retry?limit=20", {}, token).catch(
+            () => [],
+          ),
+          apiFetch<ReviewItem[]>("/api/v1/curriculum/review/due?limit=20", {}, token).catch(
+            () => [],
+          ),
+        ]);
+        const data = mergeReviewQueues(retryItems, dueItems);
         if (cancelled) return;
         setItems(data);
         if (data.length === 0) setDone(true);

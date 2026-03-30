@@ -27,6 +27,7 @@ def sample_guide():
     return Guide(
         id="01-philosophy-guide",
         title="Philosophy",
+        summary="Study the main branches of philosophy and how they shape reasoning.",
         category=GuideCategory.HUMANITIES,
         difficulty=DifficultyLevel.INTRODUCTORY,
         source_dir="/content/01-philosophy-guide",
@@ -453,6 +454,14 @@ def test_schema_v4_chapter_metadata_columns(store, sample_guide, sample_chapters
     assert chapter["content_references"] == ["curriculum:01-philosophy-guide/02-logic"]
     assert chapter["content_format"] == "mdx"
     assert chapter["schema_version"] == 1
+
+
+def test_sync_catalog_persists_guide_summary(store, sample_guide, sample_chapters):
+    store.sync_catalog([sample_guide], sample_chapters)
+
+    guide = store.get_guide("01-philosophy-guide")
+    assert guide is not None
+    assert guide["summary"] == sample_guide.summary
 
 
 def test_schema_v2_item_type_column(store, sample_guide, sample_chapters):

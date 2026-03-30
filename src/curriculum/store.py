@@ -20,7 +20,7 @@ from .spaced_repetition import sm2_update
 
 logger = structlog.get_logger()
 
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
 
 
 class CurriculumStore:
@@ -37,6 +37,7 @@ class CurriculumStore:
                 CREATE TABLE IF NOT EXISTS guides (
                     id TEXT PRIMARY KEY,
                     title TEXT NOT NULL,
+                    summary TEXT NOT NULL DEFAULT '',
                     category TEXT NOT NULL DEFAULT 'humanities',
                     difficulty TEXT NOT NULL DEFAULT 'intermediate',
                     source_dir TEXT NOT NULL DEFAULT '',
@@ -184,6 +185,12 @@ class CurriculumStore:
                     except sqlite3.OperationalError:
                         pass
 
+            if current_ver < 6:
+                try:
+                    conn.execute("ALTER TABLE guides ADD COLUMN summary TEXT NOT NULL DEFAULT ''")
+                except sqlite3.OperationalError:
+                    pass
+
             ensure_schema_version(conn, SCHEMA_VERSION)
             conn.commit()
 
@@ -192,12 +199,12 @@ class CurriculumStore:
     def upsert_guide(self, guide: Guide) -> None:
         with wal_connect(self.db_path) as conn:
             conn.execute(
-                """INSERT INTO guides (id, title, category, difficulty, source_dir, origin, kind,
+                """INSERT INTO guides (id, title, summary, category, difficulty, source_dir, origin, kind,
                    owner_user_id, base_guide_id, chapter_count, total_word_count,
                    total_reading_time_minutes, has_glossary, prerequisites, track)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                    ON CONFLICT(id) DO UPDATE SET
-                   title=excluded.title, category=excluded.category,
+                   title=excluded.title, summary=excluded.summary, category=excluded.category,
                    difficulty=excluded.difficulty, source_dir=excluded.source_dir,
                    origin=excluded.origin, kind=excluded.kind,
                    owner_user_id=excluded.owner_user_id,
@@ -211,6 +218,7 @@ class CurriculumStore:
                 (
                     guide.id,
                     guide.title,
+                    guide.summary,
                     guide.category.value,
                     guide.difficulty.value,
                     guide.source_dir,
@@ -275,12 +283,12 @@ class CurriculumStore:
         with wal_connect(self.db_path) as conn:
             for g in guides:
                 conn.execute(
-                    """INSERT INTO guides (id, title, category, difficulty, source_dir, origin,
+                    """INSERT INTO guides (id, title, summary, category, difficulty, source_dir, origin,
                        kind, owner_user_id, base_guide_id, chapter_count, total_word_count,
                        total_reading_time_minutes, has_glossary, prerequisites, track)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                        ON CONFLICT(id) DO UPDATE SET
-                       title=excluded.title, category=excluded.category,
+                       title=excluded.title, summary=excluded.summary, category=excluded.category,
                        difficulty=excluded.difficulty, source_dir=excluded.source_dir,
                        origin=excluded.origin, kind=excluded.kind,
                        owner_user_id=excluded.owner_user_id,
@@ -294,6 +302,7 @@ class CurriculumStore:
                     (
                         g.id,
                         g.title,
+                        g.summary,
                         g.category.value,
                         g.difficulty.value,
                         g.source_dir,
@@ -569,6 +578,7 @@ class CurriculumStore:
     @staticmethod
     def _deserialize_guide_row(row: sqlite3.Row | dict) -> dict:
         guide = dict(row)
+        guide["summary"] = guide.get("summary") or ""
         guide["has_glossary"] = bool(guide["has_glossary"])
         guide["prerequisites"] = json.loads(guide.get("prerequisites", "[]"))
         guide["base_guide_id"] = guide.get("base_guide_id")
@@ -1063,6 +1073,60 @@ class CurriculumStore:
                     (user_id, limit),
                 ).fetchall()
             return [dict(r) for r in rows]
+
+    def get_review_queue(
+        self,
+        user_id: str,
+        limit: int = 20,
+        guide_id: str | None = None,
+    ) -> list[dict]:
+        """Return a merged review queue across due and recently weak items."""
+        now = datetime.utcnow().isoformat()
+        weak_clause = (
+            "ri.last_reviewed IS NOT NULL AND (ri.repetitions = 0 OR ri.easiness_factor < 2.4)"
+        )
+        with wal_connect(self.db_path, row_factory=True) as conn:
+            params: list[object] = [user_id]
+            query = """SELECT ri.* FROM review_items ri
+                   JOIN guides g ON g.id = ri.guide_id
+                   WHERE ri.user_id=?
+                   AND ri.item_type != 'pre_reading'
+                   AND g.archived_at IS NULL """
+            if guide_id:
+                query += "AND ri.guide_id=? "
+                params.append(guide_id)
+            query += f"""AND (ri.next_review <= ? OR ({weak_clause}))
+                    ORDER BY
+                      CASE WHEN ({weak_clause}) THEN 0 ELSE 1 END,
+                      CASE WHEN ri.next_review IS NULL THEN 1 ELSE 0 END,
+                      ri.next_review ASC,
+                      ri.last_reviewed DESC,
+                      ri.created_at DESC
+                    LIMIT ?"""
+            params.extend([now, limit])
+            rows = conn.execute(query, tuple(params)).fetchall()
+            return [dict(r) for r in rows]
+
+    def count_review_queue(self, user_id: str, guide_id: str | None = None) -> int:
+        """Count a merged review queue across due and recently weak items."""
+        now = datetime.utcnow().isoformat()
+        weak_clause = (
+            "ri.last_reviewed IS NOT NULL AND (ri.repetitions = 0 OR ri.easiness_factor < 2.4)"
+        )
+        with wal_connect(self.db_path) as conn:
+            params: list[object] = [user_id]
+            query = """SELECT COUNT(*) FROM review_items ri
+                   JOIN guides g ON g.id = ri.guide_id
+                   WHERE ri.user_id=?
+                   AND ri.item_type != 'pre_reading'
+                   AND g.archived_at IS NULL """
+            if guide_id:
+                query += "AND ri.guide_id=? "
+                params.append(guide_id)
+            query += f"AND (ri.next_review <= ? OR ({weak_clause}))"
+            params.append(now)
+            row = conn.execute(query, tuple(params)).fetchone()
+            return row[0] if row else 0
 
     def get_review_item(self, review_id: str) -> dict | None:
         with wal_connect(self.db_path, row_factory=True) as conn:

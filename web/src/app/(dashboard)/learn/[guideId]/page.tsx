@@ -64,6 +64,13 @@ export default function GuideDetailPage() {
   const primaryActionDetail = firstReadableChapter
     ? `Next chapter: ${firstReadableChapter.title}`
     : "You've finished the reading. Use review to keep it fresh.";
+  const guideSummary =
+    guide?.summary || "Move through this guide chapter by chapter in one focused sequence.";
+  const whyNow = firstReadableChapter
+    ? guide?.enrolled
+      ? "Why now: continue from your current point instead of restarting."
+      : "Why now: this guide is ready to start and scoped for a clear first pass."
+    : "Why now: the reading is complete, so recall is the highest-value next step.";
 
   const handlePrimaryAction = async () => {
     if (!guide || acting) return;
@@ -139,6 +146,7 @@ export default function GuideDetailPage() {
             </span>
           </div>
           <div className="space-y-1">
+            <p className="text-sm leading-relaxed text-foreground/80">{guideSummary}</p>
             <CardTitle className="text-xl">{primaryActionLabel}</CardTitle>
             <CardDescription>
               {primaryActionDetail}
@@ -147,6 +155,9 @@ export default function GuideDetailPage() {
                 ? `${chaptersCompleted} of ${chaptersTotal} chapters completed.`
                 : "Start here and move through the guide chapter by chapter."}
             </CardDescription>
+            <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
+              {whyNow}
+            </p>
           </div>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2">
