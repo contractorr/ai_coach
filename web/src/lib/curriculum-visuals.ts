@@ -6,6 +6,7 @@ import type {
   CurriculumFrameworkBlock,
   CurriculumProcessStep,
   CurriculumProcessFlowBlock,
+  CurriculumTimelineBlock,
   CurriculumVisualBlock,
   CurriculumVisualBlockType,
   CurriculumVisualEdge,
@@ -18,6 +19,7 @@ const VISUAL_LANGUAGES = new Set<CurriculumVisualBlockType>([
   "framework",
   "comparison-table",
   "chart",
+  "timeline",
 ]);
 
 export function getCurriculumVisualLanguage(className?: string): string | null {
@@ -62,6 +64,8 @@ export function parseCurriculumVisualBlock(
       return parseComparisonTableBlock(parsed);
     case "chart":
       return parseChartBlock(parsed);
+    case "timeline":
+      return parseTimelineBlock(parsed);
     default:
       return null;
   }
@@ -197,6 +201,36 @@ function parseChartBlock(input: Record<string, unknown>): CurriculumChartBlock |
     yLabel: asOptionalString(input.yLabel),
     series,
     data,
+  };
+}
+
+function parseTimelineBlock(input: Record<string, unknown>): CurriculumTimelineBlock | null {
+  const rawEntries = asArray(input.entries);
+  if (!rawEntries) return null;
+
+  const entries = rawEntries
+    .map((entry, index): CurriculumTimelineBlock["entries"][number] | null => {
+      if (!isRecord(entry)) return null;
+      const period = asOptionalString(entry.period);
+      const title = asOptionalString(entry.title);
+      if (!period || !title) return null;
+      return {
+        id: asOptionalString(entry.id) ?? `timeline-${index + 1}`,
+        period,
+        title,
+        detail: asOptionalString(entry.detail),
+        emphasis: asOptionalString(entry.emphasis),
+      };
+    })
+    .filter((entry): entry is CurriculumTimelineBlock["entries"][number] => entry !== null);
+
+  if (entries.length === 0) return null;
+
+  return {
+    type: "timeline",
+    title: asOptionalString(input.title),
+    note: asOptionalString(input.note),
+    entries,
   };
 }
 

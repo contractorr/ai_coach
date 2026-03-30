@@ -37,6 +37,74 @@ Earth systems don't operate in isolation. Examples of interconnections:
 - **Cryosphere-Climate**: Ice reflects solar radiation (albedo effect); melting reduces reflection, accelerating warming.
 - **Lithosphere-Atmosphere**: Volcanic eruptions inject aerosols that can cool climate temporarily.
 
+```diagram
+{
+  "title": "Earth as a coupled system",
+  "note": "A change in one sphere propagates through the others via carbon, water, heat, and albedo feedback loops.",
+  "nodes": [
+    {
+      "id": "energy",
+      "title": "Energy balance",
+      "detail": "Solar input and outgoing heat set the planetary baseline.",
+      "column": 2,
+      "row": 1,
+      "tone": "muted"
+    },
+    {
+      "id": "atmosphere",
+      "title": "Atmosphere",
+      "detail": "Greenhouse gases, clouds, circulation, and weather.",
+      "column": 1,
+      "row": 2,
+      "tone": "accent"
+    },
+    {
+      "id": "hydrosphere",
+      "title": "Hydrosphere",
+      "detail": "Oceans, rivers, groundwater, and water vapor move heat and moisture.",
+      "column": 2,
+      "row": 3,
+      "tone": "default"
+    },
+    {
+      "id": "biosphere",
+      "title": "Biosphere",
+      "detail": "Life stores carbon, reshapes landscapes, and alters chemistry.",
+      "column": 3,
+      "row": 2,
+      "tone": "accent"
+    },
+    {
+      "id": "cryosphere",
+      "title": "Cryosphere",
+      "detail": "Ice and snow reflect sunlight and lock up freshwater.",
+      "column": 4,
+      "row": 1,
+      "tone": "muted"
+    },
+    {
+      "id": "lithosphere",
+      "title": "Lithosphere",
+      "detail": "Rocks, soils, and tectonics shape terrain, nutrients, and long carbon cycles.",
+      "column": 4,
+      "row": 3,
+      "tone": "default"
+    }
+  ],
+  "edges": [
+    { "from": "energy", "to": "atmosphere", "label": "warming / cooling" },
+    { "from": "atmosphere", "to": "hydrosphere", "label": "evaporation + storms" },
+    { "from": "hydrosphere", "to": "biosphere", "label": "water + nutrients" },
+    { "from": "biosphere", "to": "atmosphere", "label": "carbon exchange" },
+    { "from": "cryosphere", "to": "atmosphere", "label": "albedo feedback" },
+    { "from": "atmosphere", "to": "cryosphere", "label": "temperature" },
+    { "from": "lithosphere", "to": "hydrosphere", "label": "storage + runoff" },
+    { "from": "lithosphere", "to": "biosphere", "label": "soil + minerals" },
+    { "from": "hydrosphere", "to": "atmosphere", "label": "heat transport" }
+  ]
+}
+```
+
 ## Why Earth Systems Matter
 
 ### Human Dependencies

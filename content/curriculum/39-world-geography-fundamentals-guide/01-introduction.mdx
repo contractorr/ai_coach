@@ -79,6 +79,79 @@ The regional flow is:
 - Middle East and Central Asia
 - Oceania
 
+```diagram
+{
+  "title": "How this guide organizes the world",
+  "note": "Start with region for spatial orientation, then read each country through the same profile lens.",
+  "nodes": [
+    {
+      "id": "americas",
+      "title": "Americas",
+      "detail": "Hemisphere scale, coastlines, migration corridors, and resource frontiers.",
+      "column": 1,
+      "row": 2,
+      "tone": "muted"
+    },
+    {
+      "id": "europe",
+      "title": "Europe",
+      "detail": "Dense state system, urban corridors, and historical power centers.",
+      "column": 2,
+      "row": 1,
+      "tone": "muted"
+    },
+    {
+      "id": "africa",
+      "title": "Africa",
+      "detail": "Ecological zones, colonial borders, river systems, and coast corridors.",
+      "column": 2,
+      "row": 3,
+      "tone": "muted"
+    },
+    {
+      "id": "profile",
+      "title": "Country profile lens",
+      "detail": "For each country: place, internal regions, production, history, politics, and symbols.",
+      "column": 3,
+      "row": 2,
+      "tone": "accent"
+    },
+    {
+      "id": "meca",
+      "title": "Middle East and Central Asia",
+      "detail": "Drylands, chokepoints, empire routes, and energy geography.",
+      "column": 4,
+      "row": 2,
+      "tone": "muted"
+    },
+    {
+      "id": "asia",
+      "title": "Asia",
+      "detail": "Population scale, monsoon systems, trade routes, and manufacturing hubs.",
+      "column": 5,
+      "row": 1,
+      "tone": "muted"
+    },
+    {
+      "id": "oceania",
+      "title": "Oceania",
+      "detail": "Island chains, maritime distance, and coast-focused settlement.",
+      "column": 5,
+      "row": 3,
+      "tone": "muted"
+    }
+  ],
+  "edges": [
+    { "from": "americas", "to": "profile" },
+    { "from": "europe", "to": "profile" },
+    { "from": "africa", "to": "profile" },
+    { "from": "meca", "to": "profile" },
+    { "from": "asia", "to": "profile" },
+    { "from": "oceania", "to": "profile" }
+  ]
+}
+```
+
 Within each region, you will see a short overview followed by country spotlights. The spotlights were chosen because they help explain a region clearly: size, influence, diversity, historical importance, or strategic role.
 
 ## The anatomy of a country profile

@@ -10,6 +10,7 @@ import type {
   CurriculumDiagramBlock,
   CurriculumFrameworkBlock,
   CurriculumProcessFlowBlock,
+  CurriculumTimelineBlock,
   CurriculumVisualBlock,
   CurriculumVisualNode,
 } from "@/types/curriculum";
@@ -26,6 +27,8 @@ export function CurriculumVisualBlockRenderer({ block }: { block: CurriculumVisu
       return <ComparisonTableVisual block={block} />;
     case "chart":
       return <ChartVisual block={block} />;
+    case "timeline":
+      return <TimelineVisual block={block} />;
     default:
       return null;
   }
@@ -264,6 +267,66 @@ function DiagramVisual({ block }: { block: CurriculumDiagramBlock }) {
             >
               <p className="text-sm font-semibold text-foreground">{node.title}</p>
               {node.detail && <p className="mt-2 text-sm text-muted-foreground">{node.detail}</p>}
+            </div>
+          ))}
+        </div>
+      </div>
+    </VisualShell>
+  );
+}
+
+function TimelineVisual({ block }: { block: CurriculumTimelineBlock }) {
+  return (
+    <VisualShell title={block.title} note={block.note}>
+      <div className="space-y-4 md:hidden">
+        {block.entries.map((entry) => (
+          <div key={entry.id} className="flex gap-3">
+            <div className="flex flex-col items-center">
+              <span className="mt-1 h-3 w-3 rounded-full bg-primary/70" />
+              <span className="mt-1 h-full w-px bg-border" />
+            </div>
+            <div className="flex-1 rounded-xl border bg-background p-4 shadow-sm">
+              <p className="text-xs font-medium uppercase tracking-wide text-primary/80">
+                {entry.period}
+              </p>
+              <p className="mt-1 text-sm font-semibold text-foreground">{entry.title}</p>
+              {entry.detail && (
+                <p className="mt-2 text-sm text-muted-foreground">{entry.detail}</p>
+              )}
+              {entry.emphasis && (
+                <p className="mt-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  {entry.emphasis}
+                </p>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="hidden overflow-x-auto rounded-2xl border bg-background p-5 shadow-sm md:block">
+        <div className="flex min-w-[760px] items-start gap-4">
+          {block.entries.map((entry, index) => (
+            <div key={entry.id} className="flex min-w-[180px] flex-1 gap-4">
+              <div className="pt-8 text-primary/70">
+                <span className="block h-3 w-3 rounded-full bg-current" />
+                {index < block.entries.length - 1 ? (
+                  <span className="mt-3 block h-px w-20 bg-border" />
+                ) : null}
+              </div>
+              <div className="rounded-xl border bg-muted/10 p-4">
+                <p className="text-xs font-medium uppercase tracking-wide text-primary/80">
+                  {entry.period}
+                </p>
+                <p className="mt-1 text-sm font-semibold text-foreground">{entry.title}</p>
+                {entry.detail && (
+                  <p className="mt-2 text-sm text-muted-foreground">{entry.detail}</p>
+                )}
+                {entry.emphasis && (
+                  <p className="mt-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    {entry.emphasis}
+                  </p>
+                )}
+              </div>
             </div>
           ))}
         </div>

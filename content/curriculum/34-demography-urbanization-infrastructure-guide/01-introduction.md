@@ -58,6 +58,70 @@ City of 10M is ~15% more efficient per capita in infrastructure vs city of 1M, w
 - Critical nodes → disproportionate failure impact
 - **Network properties that matter:** Redundancy (alternative paths), resilience (ability to absorb shocks), efficiency (path optimization), scale-free topology (few highly-connected nodes; robust to random failure, vulnerable to targeted attack)
 
+```diagram
+{
+  "title": "How demographic change becomes infrastructure pressure",
+  "note": "Population matters operationally because it changes where demand concentrates, how networks are loaded, and how failures cascade.",
+  "nodes": [
+    {
+      "id": "population",
+      "title": "Population structure",
+      "detail": "Birth rates, aging, household size, and labor-force composition change baseline demand.",
+      "column": 1,
+      "row": 1,
+      "tone": "muted"
+    },
+    {
+      "id": "migration",
+      "title": "Migration and mobility",
+      "detail": "People move toward safety, wages, services, and opportunity.",
+      "column": 1,
+      "row": 3,
+      "tone": "muted"
+    },
+    {
+      "id": "cities",
+      "title": "Urban concentration",
+      "detail": "Population density turns cities into productivity engines and coordination problems.",
+      "column": 2,
+      "row": 2,
+      "tone": "accent"
+    },
+    {
+      "id": "networks",
+      "title": "Infrastructure networks",
+      "detail": "Energy, water, transport, food logistics, and communications carry urban life.",
+      "column": 3,
+      "row": 2,
+      "tone": "accent"
+    },
+    {
+      "id": "output",
+      "title": "Productivity and welfare",
+      "detail": "Reliable networks raise GDP, health, and daily quality of life.",
+      "column": 4,
+      "row": 1,
+      "tone": "default"
+    },
+    {
+      "id": "failure",
+      "title": "Cascading failure risk",
+      "detail": "When one critical service fails, dependent systems can fail with it.",
+      "column": 4,
+      "row": 3,
+      "tone": "default"
+    }
+  ],
+  "edges": [
+    { "from": "population", "to": "cities", "label": "age + growth" },
+    { "from": "migration", "to": "cities", "label": "concentration" },
+    { "from": "cities", "to": "networks", "label": "higher load" },
+    { "from": "networks", "to": "output", "label": "enables scale" },
+    { "from": "networks", "to": "failure", "label": "interdependence" }
+  ]
+}
+```
+
 ### 5. Jevons Paradox
 - Efficiency gains in resource use → lower cost per unit → increased total consumption
 - Example: More fuel-efficient cars → cheaper to drive → people drive more → total fuel consumption may not decrease

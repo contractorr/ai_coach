@@ -40,6 +40,51 @@ A typical private equity fund spans 10-12+ years through distinct phases:
 }
 ```
 
+```timeline
+{
+  "title": "Fund lifecycle timeline",
+  "note": "The same fund feels very different to the LP over time: commitments first, then capital calls, then distributions, then clean-up.",
+  "entries": [
+    {
+      "period": "Year -1 to 0",
+      "title": "Fundraising and closes",
+      "detail": "LPs diligence the GP, negotiate terms, and commit capital before the final close.",
+      "emphasis": "Commitments signed"
+    },
+    {
+      "period": "Years 1-2",
+      "title": "Early deployment",
+      "detail": "Capital calls accelerate, portfolio construction begins, and reported IRR often looks weak.",
+      "emphasis": "J-curve pressure"
+    },
+    {
+      "period": "Years 3-5",
+      "title": "Peak investment period",
+      "detail": "Most commitments are drawn, follow-ons start, and early exits may appear.",
+      "emphasis": "Portfolio built"
+    },
+    {
+      "period": "Years 6-8",
+      "title": "Harvest and realization",
+      "detail": "Operational improvements mature, exits increase, and distributions become meaningful.",
+      "emphasis": "Cash starts returning"
+    },
+    {
+      "period": "Years 9-10",
+      "title": "Wind-down",
+      "detail": "Remaining assets are sold, fees step down, and final net returns come into view.",
+      "emphasis": "Return crystallization"
+    },
+    {
+      "period": "Years 11+",
+      "title": "Extensions if needed",
+      "detail": "LPs approve extra time for harder exits, restructurings, or adverse markets.",
+      "emphasis": "Residual clean-up"
+    }
+  ]
+}
+```
+
 ---
 
 ## 4.2 Phase 1: Fundraising

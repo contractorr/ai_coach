@@ -462,6 +462,7 @@ Current renderer behavior:
   - `framework`
   - `comparison-table`
   - `chart`
+  - `timeline`
   - `visual`
 - falls back to legacy ASCII/data-table rendering when structured blocks are absent
 - still supports chart overlays for parseable legacy blocks
@@ -471,7 +472,8 @@ Current renderer behavior:
 **Files:** `web/src/components/curriculum/CurriculumVisualBlock.tsx`, `web/src/lib/curriculum-visuals.ts`
 
 Typed visual blocks render as web-native UI rather than plain monospace markdown. This is now
-the preferred path for diagrams in the learning content.
+the preferred path for diagrams, timelines, and lightweight in-reading visualizations in the
+learning content.
 
 ### MCP Tools
 

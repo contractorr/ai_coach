@@ -6,6 +6,51 @@ Civilizational dynamics studies birth, growth, breakdown, and disintegration of 
 
 **Scope boundaries:** NOT economic history (see economic-history-guide) or history of science (see history-of-science-guide). Focus: political systems, military conflict, cultural transmission, demographic change, civilizational trajectories.
 
+```timeline
+{
+  "title": "One-pass world history timeline",
+  "note": "A minimalist periodization that keeps chronology and system integration visible before the later theory chapters.",
+  "entries": [
+    {
+      "period": "Before 3000 BC",
+      "title": "Regional societies",
+      "detail": "Foraging, early farming, and the first durable settlements emerge in multiple centers.",
+      "emphasis": "Low integration"
+    },
+    {
+      "period": "3000 BC - 500 BC",
+      "title": "First states and Bronze/Iron Age empires",
+      "detail": "Writing, cities, bureaucracy, and long-distance exchange scale political power.",
+      "emphasis": "State formation"
+    },
+    {
+      "period": "500 BC - 500 AD",
+      "title": "Classical age",
+      "detail": "Persia, Greece, Rome, Han, Maurya, and other large systems consolidate across Eurasia.",
+      "emphasis": "Imperial consolidation"
+    },
+    {
+      "period": "500 - 1500",
+      "title": "Post-classical connectivity",
+      "detail": "Islamic, Chinese, Indic, African, steppe, and European worlds stay distinct but increasingly linked.",
+      "emphasis": "Trade and transmission"
+    },
+    {
+      "period": "1500 - 1800",
+      "title": "Oceanic integration",
+      "detail": "The Columbian Exchange and gunpowder empires connect the globe more tightly.",
+      "emphasis": "Global linkage"
+    },
+    {
+      "period": "1800 - present",
+      "title": "Industrial world-system",
+      "detail": "Fossil energy, nation-states, mass warfare, and globalization produce a single dense world system.",
+      "emphasis": "High-speed change"
+    }
+  ]
+}
+```
+
 ---
 
 ## Major Frameworks for Civilizational Analysis

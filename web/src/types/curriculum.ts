@@ -120,7 +120,8 @@ export type CurriculumVisualBlockType =
   | "process-flow"
   | "framework"
   | "comparison-table"
-  | "chart";
+  | "chart"
+  | "timeline";
 
 export interface CurriculumVisualNode {
   id: string;
@@ -196,12 +197,28 @@ export interface CurriculumChartBlock {
   data: Array<Record<string, string | number>>;
 }
 
+export interface CurriculumTimelineEntry {
+  id: string;
+  period: string;
+  title: string;
+  detail?: string;
+  emphasis?: string;
+}
+
+export interface CurriculumTimelineBlock {
+  type: "timeline";
+  title?: string;
+  note?: string;
+  entries: CurriculumTimelineEntry[];
+}
+
 export type CurriculumVisualBlock =
   | CurriculumDiagramBlock
   | CurriculumProcessFlowBlock
   | CurriculumFrameworkBlock
   | CurriculumComparisonTableBlock
-  | CurriculumChartBlock;
+  | CurriculumChartBlock
+  | CurriculumTimelineBlock;
 
 export interface UserChapterProgress {
   user_id: string;
