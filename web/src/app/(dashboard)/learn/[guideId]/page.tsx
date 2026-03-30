@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { ArrowLeft, BookOpen, Clock } from "lucide-react";
 
+import { DashboardPageContainer } from "@/components/DashboardPageContainer";
 import { ChapterList } from "@/components/curriculum/ChapterList";
 import { DifficultyBadge } from "@/components/curriculum/DifficultyBadge";
 import { Button } from "@/components/ui/button";
@@ -185,7 +186,7 @@ export default function GuideDetailPage() {
     Boolean(guide.guide_synthesis) && chaptersTotal > 0 && chaptersCompleted >= chaptersTotal;
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6 p-4 md:p-6">
+    <DashboardPageContainer className="space-y-6 py-4 md:py-6">
       <div className="flex items-center gap-2">
         <Link href="/learn">
           <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -309,6 +310,6 @@ export default function GuideDetailPage() {
           <ChapterList guideId={resolvedGuideId} chapters={guide.chapters ?? []} />
         </CardContent>
       </Card>
-    </div>
+    </DashboardPageContainer>
   );
 }

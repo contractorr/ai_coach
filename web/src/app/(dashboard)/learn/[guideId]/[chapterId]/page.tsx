@@ -5,6 +5,8 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
 import { ArrowRight, Check, ChevronLeft, Clock, PenLine } from "lucide-react";
+
+import { DashboardPageContainer } from "@/components/DashboardPageContainer";
 import { useToken } from "@/hooks/useToken";
 import { apiFetch } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -344,7 +346,7 @@ export default function ChapterReaderPage() {
           };
 
   return (
-    <div className="mx-auto max-w-5xl space-y-4 pb-28 md:pb-32">
+    <DashboardPageContainer className="space-y-4 pb-28 pt-4 md:pb-32 md:pt-6">
       <div className="sticky top-0 z-10 -mx-4 flex items-center justify-between gap-2 border-b bg-background/95 px-4 py-2.5 backdrop-blur supports-[backdrop-filter]:bg-background/80">
         <div className="flex min-w-0 items-center gap-2">
           <Link href={guideHref}>
@@ -586,6 +588,6 @@ export default function ChapterReaderPage() {
           </div>
         </div>
       ) : null}
-    </div>
+    </DashboardPageContainer>
   );
 }
