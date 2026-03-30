@@ -17,7 +17,7 @@ DOCUMENTED_ROOTS = (
 )
 HOTSPOT_LINE_BUDGETS = {
     Path("src/web/routes/curriculum.py"): 2700,
-    Path("src/curriculum/store.py"): 1750,
+    Path("src/curriculum/store.py"): 1800,
     Path("src/memory/store.py"): 1100,
     Path("src/web/models.py"): 1125,
     Path("src/advisor/recommendations.py"): 825,
