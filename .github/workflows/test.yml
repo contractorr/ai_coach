@@ -23,6 +23,23 @@ jobs:
       - name: Verify exported contracts
         run: uv run python scripts/check_contracts.py
 
+  specs:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: uv sync --frozen --extra dev --extra all-providers --extra web
+
+      - name: Verify spec harness
+        run: uv run pytest tests/test_repo_manifest.py tests/test_specs_harness.py -q
+
   test-fast:
     runs-on: ubuntu-latest
     strategy:
@@ -49,7 +66,7 @@ jobs:
 
   coverage:
     runs-on: ubuntu-latest
-    needs: [contracts, test-fast]
+    needs: [contracts, specs, test-fast]
 
     steps:
       - uses: actions/checkout@v5
@@ -78,7 +95,7 @@ jobs:
   extended-tests:
     if: github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'master')
     runs-on: ubuntu-latest
-    needs: [contracts, test-fast]
+    needs: [contracts, specs, test-fast]
 
     steps:
       - uses: actions/checkout@v5

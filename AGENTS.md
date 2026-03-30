@@ -5,6 +5,8 @@ Agent-facing repo guide for StewardMe. Use this file as the canonical starting p
 ## First read
 
 - Canonical developer workflow lives in `docs/development.md`.
+- Agent workflow for spec-driven development lives in `specs/HARNESS.md`.
+- Machine-readable spec classification lives in `specs/catalog.yaml`.
 - Machine-readable feature ownership and validation hints live in `specs/manifest.yaml`.
 - Product behavior is defined in `specs/functional/`.
 - Implementation expectations live in `specs/technical/`.
@@ -30,6 +32,7 @@ Prefer `uv`-based commands because CI uses them.
 
 ## Canonical commands
 
+- Spec harness: `uv run pytest tests/test_repo_manifest.py tests/test_specs_harness.py -q`
 - Fast backend tests: `uv run pytest -m "not slow and not web and not integration" --durations=20`
 - Coverage slice: `uv run pytest -m "not slow and not web and not integration" --cov=src --cov-report=term-missing --durations=20`
 - Web tests: `uv run pytest tests/web/ -q`
@@ -48,9 +51,11 @@ For any non-trivial change:
 
 1. Read the relevant functional spec.
 2. Read the matching technical spec.
-3. Inspect the narrowest affected module(s) before editing.
-4. Prefer targeted tests over broad reruns while iterating.
-5. Before finishing, run the smallest meaningful validation slice plus lint if code changed materially.
+3. Update `specs/catalog.yaml` if the spec tree changed.
+4. Update `specs/manifest.yaml` if tracked ownership, tests, or validation commands changed.
+5. Inspect the narrowest affected module(s) before editing.
+6. Prefer targeted tests over broad reruns while iterating.
+7. Before finishing, run `specs-check` plus the smallest meaningful validation slice and lint if code changed materially.
 
 ## Repo map
 

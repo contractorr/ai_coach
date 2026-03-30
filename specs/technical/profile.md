@@ -1,3 +1,18 @@
+---
+id: profile
+category: tracked_module
+status: stable
+implements:
+- profile-onboarding
+- settings-account
+code_paths:
+- src/profile
+- src/web/routes/onboarding.py
+- src/web/routes/profile.py
+- tests/profile
+last_reviewed: '2026-03-30'
+---
+
 # Profile
 
 **Status:** Updated for the simplified product model

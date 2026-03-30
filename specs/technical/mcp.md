@@ -1,3 +1,14 @@
+---
+id: mcp
+category: tracked_module
+status: stable
+implements: []
+code_paths:
+- src/coach_mcp
+- tests/coach_mcp
+last_reviewed: '2026-03-30'
+---
+
 # MCP Server
 
 ## Overview

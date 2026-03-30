@@ -1,3 +1,16 @@
+---
+id: intelligence-feed
+category: tracked_feature
+status: stable
+technical_specs:
+- specs/technical/intelligence.md
+- specs/technical/trending-radar.md
+- specs/technical/web.md
+foundations:
+- specs/foundations/ux-guidelines.md
+last_reviewed: '2026-03-30'
+---
+
 # Radar
 
 **Status:** Updated for the simplified product model

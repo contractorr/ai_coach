@@ -1,3 +1,16 @@
+---
+id: recommendations
+category: tracked_feature
+status: stable
+technical_specs:
+- specs/technical/action-plans.md
+- specs/technical/suggestions-engine.md
+- specs/technical/goal-learning-merge.md
+foundations:
+- specs/foundations/ux-guidelines.md
+last_reviewed: '2026-03-30'
+---
+
 # Recommendations and Next Steps
 
 **Status:** Updated for the simplified product model

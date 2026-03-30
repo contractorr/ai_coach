@@ -1,3 +1,15 @@
+---
+id: research-dossiers
+category: tracked_feature
+status: experimental
+technical_specs:
+- specs/technical/research-dossiers.md
+- specs/technical/dossier-escalation-engine.md
+foundations:
+- specs/foundations/ux-guidelines.md
+last_reviewed: '2026-03-30'
+---
+
 # Research Dossiers
 
 **Status:** Updated for the simplified product model

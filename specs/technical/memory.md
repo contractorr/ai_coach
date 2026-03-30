@@ -1,3 +1,17 @@
+---
+id: memory
+category: tracked_module
+status: stable
+implements:
+- memory-threads
+- settings-account
+code_paths:
+- src/memory
+- src/web/routes/memory.py
+- tests/memory
+last_reviewed: '2026-03-30'
+---
+
 # Memory
 
 **Status:** Updated for the simplified product model

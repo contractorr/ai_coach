@@ -1,3 +1,18 @@
+---
+id: advisor
+category: tracked_module
+status: updated
+implements:
+- ask-advice
+- recommendations
+code_paths:
+- src/advisor
+- src/web/routes/advisor.py
+- web/src/app/(dashboard)/advisor/page.tsx
+- web/src/app/(dashboard)/home/page.tsx
+last_reviewed: '2026-03-30'
+---
+
 # Advisor
 
 **Status:** Updated for the simplified product model

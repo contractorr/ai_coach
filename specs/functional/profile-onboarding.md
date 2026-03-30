@@ -1,3 +1,16 @@
+---
+id: profile-onboarding
+category: tracked_feature
+status: stable
+technical_specs:
+- specs/technical/profile.md
+- specs/technical/web.md
+foundations:
+- specs/foundations/design-system.md
+- specs/foundations/ux-guidelines.md
+last_reviewed: '2026-03-30'
+---
+
 # Profile and Onboarding
 
 **Status:** Updated for the simplified product model

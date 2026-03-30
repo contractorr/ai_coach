@@ -1,3 +1,17 @@
+---
+id: research
+category: tracked_module
+status: experimental
+implements:
+- deep-research
+code_paths:
+- src/research
+- src/web/routes/research.py
+- web/src/app/(dashboard)/research/page.tsx
+- tests/research
+last_reviewed: '2026-03-30'
+---
+
 # Research
 
 **Status:** Updated for the simplified product model

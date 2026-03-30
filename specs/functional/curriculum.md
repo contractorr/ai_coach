@@ -1,3 +1,16 @@
+---
+id: curriculum
+category: tracked_feature
+status: implemented
+technical_specs:
+- specs/technical/curriculum.md
+- specs/technical/web.md
+foundations:
+- specs/foundations/design-system.md
+- specs/foundations/ux-guidelines.md
+last_reviewed: '2026-03-30'
+---
+
 # Curriculum / Learn
 
 **Status:** Implemented Minimal Loop

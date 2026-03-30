@@ -1,3 +1,18 @@
+---
+id: settings-account
+category: tracked_feature
+status: stable
+technical_specs:
+- specs/technical/llm.md
+- specs/technical/profile.md
+- specs/technical/memory.md
+- specs/technical/web.md
+foundations:
+- specs/foundations/design-system.md
+- specs/foundations/ux-guidelines.md
+last_reviewed: '2026-03-30'
+---
+
 # Settings and Account
 
 **Status:** Updated for the simplified product model

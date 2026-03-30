@@ -1,3 +1,16 @@
+---
+id: library-reports
+category: tracked_feature
+status: partially_implemented
+technical_specs:
+- specs/technical/library.md
+- specs/technical/web.md
+foundations:
+- specs/foundations/design-system.md
+- specs/foundations/ux-guidelines.md
+last_reviewed: '2026-03-30'
+---
+
 # Research
 
 **Status:** Updated for the simplified product model

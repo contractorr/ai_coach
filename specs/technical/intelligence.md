@@ -1,3 +1,17 @@
+---
+id: intelligence
+category: tracked_module
+status: updated
+implements:
+- intelligence-feed
+code_paths:
+- src/intelligence
+- src/web/routes/intel.py
+- web/src/app/(dashboard)/radar/page.tsx
+- tests/intelligence
+last_reviewed: '2026-03-30'
+---
+
 # Intelligence
 
 **Status:** Updated for the simplified product model

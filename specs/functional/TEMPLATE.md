@@ -1,8 +1,15 @@
-# {Feature Name}
+---
+id: feature-id
+status: draft
+owner: product-or-engineering
+last_updated: YYYY-MM-DD
+technical_specs:
+  - specs/technical/example.md
+foundations:
+  - specs/foundations/ux-guidelines.md
+---
 
-**Status:** Draft | Ready for Review | Approved | Partially Implemented | Implemented
-**Author:** {name}
-**Date:** {YYYY-MM-DD}
+# {Feature Name}
 
 ## Problem
 
@@ -10,40 +17,40 @@
 
 ## Users
 
-{Who is affected? Which persona(s)? E.g., "power users who journal daily", "new users during onboarding".}
+{Who is affected? Which persona or workflow is this for?}
 
 ## Desired Behavior
 
-{Describe what the user sees and does, step by step. Use numbered steps for flows, bullet points for standalone behaviors. No implementation details - write from the user's perspective.}
+{Describe what the user sees and does. Stay product-facing.}
 
-1. User does X
-2. System shows Y
-3. User can then Z
+1. User does X.
+2. System shows Y.
+3. User can then do Z.
 
 ## Acceptance Criteria
 
-{Concrete, testable conditions that define "done". Each criterion should be verifiable without reading code.}
+{Concrete, testable conditions that define done.}
 
-- [ ] {When X, then Y}
-- [ ] {Given A, user sees B}
-- [ ] {Error case: when C fails, user sees D}
+- [ ] {Given A, user sees B.}
+- [ ] {When X happens, the system does Y.}
+- [ ] {Error case: when C fails, the user sees D.}
 
 ## Edge Cases
 
-{User-facing edge cases the implementation must handle. Not internal error paths - things a user could actually encounter.}
-
 | Scenario | Expected Behavior |
-|----------|-------------------|
-| {e.g., empty journal} | {e.g., show onboarding prompt instead of empty state} |
+| --- | --- |
+| {Empty state} | {What the user sees instead of a broken surface} |
 
 ## Out of Scope
 
-{Explicitly list what this feature does NOT cover to prevent scope creep.}
+- {Related but explicitly excluded work}
 
-- {Thing that might seem related but isn't part of this}
+## Validation Notes
+
+- Smallest meaningful validation slice:
+- Contract impact:
+- Follow-up spec work:
 
 ## Open Questions
 
-{Unresolved decisions. Remove this section once all are answered.}
-
-- {Question about behavior or scope?}
+- {Remove this section once resolved}

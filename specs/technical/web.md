@@ -1,3 +1,27 @@
+---
+id: web
+category: tracked_module
+status: updated
+implements:
+- analytics-admin
+- ask-advice
+- curriculum
+- deep-research
+- goal-tracking
+- intelligence-feed
+- journaling
+- landing-page
+- library-reports
+- memory-threads
+- profile-onboarding
+- settings-account
+code_paths:
+- src/web
+- web/src
+- tests/web
+last_reviewed: '2026-03-30'
+---
+
 # Web
 
 **Status:** Updated for the simplified product model

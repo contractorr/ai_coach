@@ -1,3 +1,18 @@
+---
+id: research-dossiers
+category: tracked_module
+status: experimental
+implements:
+- research-dossiers
+code_paths:
+- src/research/dossiers.py
+- src/research/escalation.py
+- src/web/routes/dossier_escalations.py
+- tests/research/test_dossiers.py
+- tests/research/test_escalation.py
+last_reviewed: '2026-03-30'
+---
+
 # Research Dossiers
 
 **Status:** Updated for the simplified product model

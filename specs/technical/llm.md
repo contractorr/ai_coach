@@ -1,3 +1,16 @@
+---
+id: llm
+category: tracked_module
+status: stable
+implements:
+- settings-account
+code_paths:
+- src/llm
+- src/web/routes/settings.py
+- tests/llm
+last_reviewed: '2026-03-30'
+---
+
 # LLM
 
 ## Overview

@@ -1,3 +1,16 @@
+---
+id: analytics-admin
+category: tracked_feature
+status: stable
+technical_specs:
+- specs/technical/web.md
+- specs/technical/usage-cost-estimation.md
+foundations:
+- specs/foundations/design-system.md
+- specs/foundations/ux-guidelines.md
+last_reviewed: '2026-03-30'
+---
+
 # Analytics & Admin
 
 **Status:** Implemented

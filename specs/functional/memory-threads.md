@@ -1,3 +1,15 @@
+---
+id: memory-threads
+category: tracked_feature
+status: experimental
+technical_specs:
+- specs/technical/memory.md
+- specs/technical/recurring-thread-inbox.md
+foundations:
+- specs/foundations/ux-guidelines.md
+last_reviewed: '2026-03-30'
+---
+
 # Memory and Threads
 
 **Status:** Updated for the simplified product model

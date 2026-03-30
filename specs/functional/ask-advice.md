@@ -1,3 +1,16 @@
+---
+id: ask-advice
+category: tracked_feature
+status: stable
+technical_specs:
+- specs/technical/advisor.md
+- specs/technical/web.md
+- specs/technical/conversation-storage.md
+foundations:
+- specs/foundations/ux-guidelines.md
+last_reviewed: '2026-03-30'
+---
+
 # Home Capture and Ask
 
 **Status:** Updated for the simplified product model

@@ -16,6 +16,9 @@ sync:
 test-fast:
     uv run pytest -m "not slow and not web and not integration" --durations=20
 
+specs-check:
+    uv run pytest tests/test_repo_manifest.py tests/test_specs_harness.py -q
+
 test-advisor:
     uv run pytest tests/advisor/ tests/web/test_advisor_routes.py -q
 
@@ -78,6 +81,7 @@ contracts-check:
     uv run python scripts/check_contracts.py
 
 verify:
+    just specs-check
     just lint
     just typecheck
     just test-fast

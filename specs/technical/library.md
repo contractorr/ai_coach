@@ -1,3 +1,17 @@
+---
+id: library
+category: tracked_module
+status: updated
+implements:
+- library-reports
+code_paths:
+- src/library
+- src/web/routes/library.py
+- web/src/app/(dashboard)/research/page.tsx
+- tests/library
+last_reviewed: '2026-03-30'
+---
+
 # Research
 
 **Status:** Updated for the simplified product model

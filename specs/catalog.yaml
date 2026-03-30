@@ -1,0 +1,399 @@
+version: 1
+description: >
+  Machine-readable catalog for spec-driven development. Use this file to find
+  the canonical spec set, separate tracked features from supporting specs, and
+  keep AI agents on a stable navigation path.
+canonical_artifacts:
+  harness: specs/HARNESS.md
+  feature_manifest: specs/manifest.yaml
+  development_workflow: docs/development.md
+  functional_template: specs/functional/TEMPLATE.md
+  technical_template: specs/technical/TEMPLATE.md
+  spec_validation: tests/test_specs_harness.py
+lifecycle_statuses:
+  tracked_features:
+    - draft
+    - ready_for_review
+    - approved
+    - partially_implemented
+    - implemented
+    - stable
+    - experimental
+    - archived
+  tracked_modules:
+    - draft
+    - stable
+    - updated
+    - experimental
+    - deprecated
+    - archived
+foundations:
+  - specs/foundations/design-system.md
+  - specs/foundations/ux-guidelines.md
+functional_specs:
+  tracked_features:
+    analytics-admin:
+      path: specs/functional/analytics-admin.md
+      status: stable
+      technical_specs:
+        - specs/technical/web.md
+        - specs/technical/usage-cost-estimation.md
+      foundations:
+        - specs/foundations/design-system.md
+        - specs/foundations/ux-guidelines.md
+    ask-advice:
+      path: specs/functional/ask-advice.md
+      status: stable
+      technical_specs:
+        - specs/technical/advisor.md
+        - specs/technical/web.md
+        - specs/technical/conversation-storage.md
+      foundations:
+        - specs/foundations/ux-guidelines.md
+    curriculum:
+      path: specs/functional/curriculum.md
+      status: implemented
+      technical_specs:
+        - specs/technical/curriculum.md
+        - specs/technical/web.md
+      foundations:
+        - specs/foundations/design-system.md
+        - specs/foundations/ux-guidelines.md
+    deep-research:
+      path: specs/functional/deep-research.md
+      status: experimental
+      technical_specs:
+        - specs/technical/research.md
+        - specs/technical/web.md
+      foundations:
+        - specs/foundations/ux-guidelines.md
+    goal-tracking:
+      path: specs/functional/goal-tracking.md
+      status: experimental
+      technical_specs:
+        - specs/technical/action-plans.md
+        - specs/technical/goal-learning-merge.md
+        - specs/technical/web.md
+      foundations:
+        - specs/foundations/ux-guidelines.md
+    intelligence-feed:
+      path: specs/functional/intelligence-feed.md
+      status: stable
+      technical_specs:
+        - specs/technical/intelligence.md
+        - specs/technical/trending-radar.md
+        - specs/technical/web.md
+      foundations:
+        - specs/foundations/ux-guidelines.md
+    journaling:
+      path: specs/functional/journaling.md
+      status: stable
+      technical_specs:
+        - specs/technical/journal.md
+        - specs/technical/extraction-receipt.md
+        - specs/technical/web.md
+      foundations:
+        - specs/foundations/design-system.md
+        - specs/foundations/ux-guidelines.md
+    landing-page:
+      path: specs/functional/landing-page.md
+      status: stable
+      technical_specs:
+        - specs/technical/landing-page.md
+        - specs/technical/web.md
+      foundations:
+        - specs/foundations/design-system.md
+        - specs/foundations/ux-guidelines.md
+    library-reports:
+      path: specs/functional/library-reports.md
+      status: partially_implemented
+      technical_specs:
+        - specs/technical/library.md
+        - specs/technical/web.md
+      foundations:
+        - specs/foundations/design-system.md
+        - specs/foundations/ux-guidelines.md
+    memory-threads:
+      path: specs/functional/memory-threads.md
+      status: experimental
+      technical_specs:
+        - specs/technical/memory.md
+        - specs/technical/recurring-thread-inbox.md
+      foundations:
+        - specs/foundations/ux-guidelines.md
+    profile-onboarding:
+      path: specs/functional/profile-onboarding.md
+      status: stable
+      technical_specs:
+        - specs/technical/profile.md
+        - specs/technical/web.md
+      foundations:
+        - specs/foundations/design-system.md
+        - specs/foundations/ux-guidelines.md
+    recommendations:
+      path: specs/functional/recommendations.md
+      status: stable
+      technical_specs:
+        - specs/technical/action-plans.md
+        - specs/technical/suggestions-engine.md
+        - specs/technical/goal-learning-merge.md
+      foundations:
+        - specs/foundations/ux-guidelines.md
+    research-dossiers:
+      path: specs/functional/research-dossiers.md
+      status: experimental
+      technical_specs:
+        - specs/technical/research-dossiers.md
+        - specs/technical/dossier-escalation-engine.md
+      foundations:
+        - specs/foundations/ux-guidelines.md
+    settings-account:
+      path: specs/functional/settings-account.md
+      status: stable
+      technical_specs:
+        - specs/technical/llm.md
+        - specs/technical/profile.md
+        - specs/technical/memory.md
+        - specs/technical/web.md
+      foundations:
+        - specs/foundations/design-system.md
+        - specs/foundations/ux-guidelines.md
+  supporting:
+    - specs/functional/action-plans.md
+    - specs/functional/agentic-context-compression.md
+    - specs/functional/ai-capabilities.md
+    - specs/functional/ai-mind-map.md
+    - specs/functional/api-versioning.md
+    - specs/functional/assumption-watchlist.md
+    - specs/functional/attach-to-ask-bridge.md
+    - specs/functional/company-movement-pipeline.md
+    - specs/functional/configurable-embeddings.md
+    - specs/functional/conversation-storage.md
+    - specs/functional/curriculum-user-authored-guides.md
+    - specs/functional/dossier-escalation-engine.md
+    - specs/functional/engagement-scoring.md
+    - specs/functional/entity-extraction.md
+    - specs/functional/extraction-receipt.md
+    - specs/functional/github-project-monitoring.md
+    - specs/functional/goal-intel-matching.md
+    - specs/functional/graceful-degradation-ui.md
+    - specs/functional/graceful-degradation.md
+    - specs/functional/heartbeat-hybrid.md
+    - specs/functional/hiring-activity-pipeline.md
+    - specs/functional/hybrid-retrieval.md
+    - specs/functional/infra-hardening.md
+    - specs/functional/llm-council.md
+    - specs/functional/memory-graph-activation.md
+    - specs/functional/memory-observation-consolidation.md
+    - specs/functional/memory-parent-score-propagation.md
+    - specs/functional/notifications.md
+    - specs/functional/nudge-engine.md
+    - specs/functional/observability-export.md
+    - specs/functional/outcome-harvester.md
+    - specs/functional/projects-opportunities.md
+    - specs/functional/prompt-caching.md
+    - specs/functional/recurring-thread-inbox.md
+    - specs/functional/regulatory-change-pipeline.md
+    - specs/functional/scheduler-refactor.md
+    - specs/functional/signals.md
+    - specs/functional/since-you-were-away-why-now.md
+    - specs/functional/suggestions-engine.md
+    - specs/functional/trending-radar.md
+    - specs/functional/unified-tool-registry.md
+    - specs/functional/usage-cost-estimation.md
+    - specs/functional/x-list-scraper.md
+  archived: []
+technical_specs:
+  tracked_modules:
+    architecture:
+      path: specs/technical/architecture.md
+      status: updated
+      implements: []
+      code_paths:
+        - src
+        - web/src
+        - tests
+    advisor:
+      path: specs/technical/advisor.md
+      status: updated
+      implements:
+        - ask-advice
+        - recommendations
+      code_paths:
+        - src/advisor
+        - src/web/routes/advisor.py
+        - web/src/app/(dashboard)/advisor/page.tsx
+        - web/src/app/(dashboard)/home/page.tsx
+    cli:
+      path: specs/technical/cli.md
+      status: stable
+      implements: []
+      code_paths:
+        - src/cli
+        - tests/cli
+    curriculum:
+      path: specs/technical/curriculum.md
+      status: stable
+      implements:
+        - curriculum
+      code_paths:
+        - src/curriculum
+        - src/web/routes/curriculum.py
+        - web/src/app/(dashboard)/learn
+        - tests/curriculum
+    intelligence:
+      path: specs/technical/intelligence.md
+      status: updated
+      implements:
+        - intelligence-feed
+      code_paths:
+        - src/intelligence
+        - src/web/routes/intel.py
+        - web/src/app/(dashboard)/radar/page.tsx
+        - tests/intelligence
+    journal:
+      path: specs/technical/journal.md
+      status: stable
+      implements:
+        - journaling
+      code_paths:
+        - src/journal
+        - src/web/routes/journal.py
+        - web/src/app/(dashboard)/journal/page.tsx
+        - tests/journal
+    library:
+      path: specs/technical/library.md
+      status: updated
+      implements:
+        - library-reports
+      code_paths:
+        - src/library
+        - src/web/routes/library.py
+        - web/src/app/(dashboard)/research/page.tsx
+        - tests/library
+    llm:
+      path: specs/technical/llm.md
+      status: stable
+      implements:
+        - settings-account
+      code_paths:
+        - src/llm
+        - src/web/routes/settings.py
+        - tests/llm
+    mcp:
+      path: specs/technical/mcp.md
+      status: stable
+      implements: []
+      code_paths:
+        - src/coach_mcp
+        - tests/coach_mcp
+    memory:
+      path: specs/technical/memory.md
+      status: stable
+      implements:
+        - memory-threads
+        - settings-account
+      code_paths:
+        - src/memory
+        - src/web/routes/memory.py
+        - tests/memory
+    profile:
+      path: specs/technical/profile.md
+      status: stable
+      implements:
+        - profile-onboarding
+        - settings-account
+      code_paths:
+        - src/profile
+        - src/web/routes/onboarding.py
+        - src/web/routes/profile.py
+        - tests/profile
+    research:
+      path: specs/technical/research.md
+      status: experimental
+      implements:
+        - deep-research
+      code_paths:
+        - src/research
+        - src/web/routes/research.py
+        - web/src/app/(dashboard)/research/page.tsx
+        - tests/research
+    research-dossiers:
+      path: specs/technical/research-dossiers.md
+      status: experimental
+      implements:
+        - research-dossiers
+      code_paths:
+        - src/research/dossiers.py
+        - src/research/escalation.py
+        - src/web/routes/dossier_escalations.py
+        - tests/research/test_dossiers.py
+        - tests/research/test_escalation.py
+    web:
+      path: specs/technical/web.md
+      status: updated
+      implements:
+        - analytics-admin
+        - ask-advice
+        - curriculum
+        - deep-research
+        - goal-tracking
+        - intelligence-feed
+        - journaling
+        - landing-page
+        - library-reports
+        - memory-threads
+        - profile-onboarding
+        - settings-account
+      code_paths:
+        - src/web
+        - web/src
+        - tests/web
+  supporting:
+    - specs/technical/action-plans.md
+    - specs/technical/agentic-context-compression.md
+    - specs/technical/ai-capabilities.md
+    - specs/technical/ai-mind-map.md
+    - specs/technical/api-versioning.md
+    - specs/technical/assumption-watchlist.md
+    - specs/technical/attach-to-ask-bridge.md
+    - specs/technical/company-movement-pipeline.md
+    - specs/technical/configurable-embeddings.md
+    - specs/technical/conversation-storage.md
+    - specs/technical/curriculum-user-authored-guides.md
+    - specs/technical/data-export.md
+    - specs/technical/dossier-escalation-engine.md
+    - specs/technical/engagement-scoring.md
+    - specs/technical/entity-extraction.md
+    - specs/technical/extraction-receipt.md
+    - specs/technical/github-project-monitoring.md
+    - specs/technical/goal-intel-matching.md
+    - specs/technical/goal-learning-merge.md
+    - specs/technical/graceful-degradation-ui.md
+    - specs/technical/graceful-degradation.md
+    - specs/technical/greeting-cache.md
+    - specs/technical/hiring-activity-pipeline.md
+    - specs/technical/hybrid-retrieval.md
+    - specs/technical/infra-hardening.md
+    - specs/technical/landing-page.md
+    - specs/technical/llm-council.md
+    - specs/technical/memory-graph-activation.md
+    - specs/technical/memory-observation-consolidation.md
+    - specs/technical/memory-parent-score-propagation.md
+    - specs/technical/notifications.md
+    - specs/technical/nudge-engine.md
+    - specs/technical/observability-export.md
+    - specs/technical/outcome-harvester.md
+    - specs/technical/prompt-caching.md
+    - specs/technical/recurring-thread-inbox.md
+    - specs/technical/regulatory-change-pipeline.md
+    - specs/technical/scheduler-refactor.md
+    - specs/technical/signals.md
+    - specs/technical/since-you-were-away-why-now.md
+    - specs/technical/suggestions-engine.md
+    - specs/technical/trending-radar.md
+    - specs/technical/unified-tool-registry.md
+    - specs/technical/usage-cost-estimation.md
+    - specs/technical/user-data-storage.md
+    - specs/technical/x-list-scraper.md
+  archived: []

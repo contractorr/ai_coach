@@ -20,6 +20,7 @@ npm ci --prefix web
 
 ## Canonical Validation
 
+- Spec harness: `just specs-check`
 - Fast backend slice: `just test-fast`
 - Targeted advisor slice: `just test-advisor`
 - Targeted curriculum slice: `just test-curriculum`
@@ -62,6 +63,8 @@ frontend models. Prefer the generated API contract for new transport-layer work.
 
 ## Navigation Aids
 
+- Spec harness guide: `specs/HARNESS.md`
+- Spec catalog: `specs/catalog.yaml`
 - Feature-to-code map: `specs/manifest.yaml`
 - Functional specs: `specs/functional/`
 - Technical specs: `specs/technical/`
@@ -70,5 +73,7 @@ frontend models. Prefer the generated API contract for new transport-layer work.
 ## Working Rules
 
 - Follow functional spec -> technical spec -> code.
+- When the spec tree changes, update `specs/catalog.yaml` in the same change.
+- When a tracked feature's ownership, tests, or validation slice changes, update `specs/manifest.yaml`.
 - Prefer the narrowest validation slice that covers the edited files.
 - Treat hotspot files as split candidates, not default extension points.

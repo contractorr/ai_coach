@@ -1,3 +1,17 @@
+---
+id: journal
+category: tracked_module
+status: stable
+implements:
+- journaling
+code_paths:
+- src/journal
+- src/web/routes/journal.py
+- web/src/app/(dashboard)/journal/page.tsx
+- tests/journal
+last_reviewed: '2026-03-30'
+---
+
 # Journal
 
 **Status:** Updated for the simplified product model

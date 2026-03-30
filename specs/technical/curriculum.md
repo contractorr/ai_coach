@@ -1,3 +1,17 @@
+---
+id: curriculum
+category: tracked_module
+status: stable
+implements:
+- curriculum
+code_paths:
+- src/curriculum
+- src/web/routes/curriculum.py
+- web/src/app/(dashboard)/learn
+- tests/curriculum
+last_reviewed: '2026-03-30'
+---
+
 # Curriculum
 
 **Status:** Implemented

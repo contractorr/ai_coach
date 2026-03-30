@@ -1,3 +1,14 @@
+---
+id: cli
+category: tracked_module
+status: stable
+implements: []
+code_paths:
+- src/cli
+- tests/cli
+last_reviewed: '2026-03-30'
+---
+
 # CLI
 
 ## Overview

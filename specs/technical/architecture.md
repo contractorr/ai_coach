@@ -1,3 +1,15 @@
+---
+id: architecture
+category: tracked_module
+status: updated
+implements: []
+code_paths:
+- src
+- web/src
+- tests
+last_reviewed: '2026-03-30'
+---
+
 # Architecture
 
 **Status:** Updated for the simplified product model

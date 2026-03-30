@@ -1,3 +1,15 @@
+---
+id: deep-research
+category: tracked_feature
+status: experimental
+technical_specs:
+- specs/technical/research.md
+- specs/technical/web.md
+foundations:
+- specs/foundations/ux-guidelines.md
+last_reviewed: '2026-03-30'
+---
+
 # Research
 
 **Status:** Updated for the simplified product model

@@ -6,6 +6,7 @@
 ## Linked Context
 
 - Issue:
+- Manifest feature id:
 - Functional spec:
 - Technical spec:
 
@@ -29,6 +30,8 @@
 
 ## Checklist
 
+- [ ] I updated `specs/catalog.yaml`, or confirmed the spec tree did not change.
+- [ ] I updated `specs/manifest.yaml` if tracked feature ownership, tests, or validation commands changed.
 - [ ] I updated the relevant functional spec, or this change is spec-neutral.
 - [ ] I updated the relevant technical spec, or this change does not alter implementation expectations.
 - [ ] I added or updated tests where behavior changed.
