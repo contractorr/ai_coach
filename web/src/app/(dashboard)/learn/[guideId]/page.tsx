@@ -18,13 +18,36 @@ import {
 } from "@/components/ui/card";
 import { useToken } from "@/hooks/useToken";
 import { apiFetch } from "@/lib/api";
-import type { GuideDetail } from "@/types/curriculum";
+import type { Guide, GuideDetail } from "@/types/curriculum";
 
 function formatTime(minutes: number): string {
   if (minutes < 60) return `${minutes}m`;
   const hours = Math.floor(minutes / 60);
   const remainingMinutes = minutes % 60;
   return remainingMinutes > 0 ? `${hours}h ${remainingMinutes}m` : `${hours}h`;
+}
+
+function isGuideCompleted(guide: Pick<Guide, "enrollment_completed_at" | "chapters_total" | "chapters_completed" | "progress_pct">): boolean {
+  if (guide.enrollment_completed_at) {
+    return true;
+  }
+  if (
+    typeof guide.chapters_total === "number" &&
+    typeof guide.chapters_completed === "number" &&
+    guide.chapters_total > 0 &&
+    guide.chapters_completed >= guide.chapters_total
+  ) {
+    return true;
+  }
+  return (guide.progress_pct ?? 0) >= 100;
+}
+
+function formatGuideTitleFromId(id: string): string {
+  return id
+    .replace(/^\d+-/, "")
+    .replace(/-guide$/, "")
+    .replace(/-/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
 export default function GuideDetailPage() {
@@ -34,14 +57,21 @@ export default function GuideDetailPage() {
   const guideId = params.guideId as string;
 
   const [guide, setGuide] = useState<GuideDetail | null>(null);
+  const [allGuides, setAllGuides] = useState<Guide[]>([]);
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState(false);
 
   useEffect(() => {
     if (!token || !guideId) return;
     setLoading(true);
-    apiFetch<GuideDetail>(`/api/v1/curriculum/guides/${guideId}`, {}, token)
-      .then(setGuide)
+    Promise.all([
+      apiFetch<GuideDetail>(`/api/v1/curriculum/guides/${guideId}`, {}, token),
+      apiFetch<Guide[]>("/api/v1/curriculum/guides", {}, token),
+    ])
+      .then(([guideData, guidesData]) => {
+        setGuide(guideData);
+        setAllGuides(guidesData);
+      })
       .catch((e) => toast.error((e as Error).message))
       .finally(() => setLoading(false));
   }, [token, guideId]);
@@ -56,20 +86,51 @@ export default function GuideDetailPage() {
       null,
     [guide],
   );
+  const guideLookup = useMemo(
+    () => new Map(allGuides.map((item) => [item.id, item])),
+    [allGuides],
+  );
+  const unmetPrerequisites = useMemo(
+    () =>
+      (guide?.prerequisites ?? [])
+        .map((prereqId) => {
+          const prereqGuide = guideLookup.get(prereqId);
+          return {
+            id: prereqId,
+            title: prereqGuide?.title ?? formatGuideTitleFromId(prereqId),
+            completed: prereqGuide ? isGuideCompleted(prereqGuide) : false,
+          };
+        })
+        .filter((prereq) => !prereq.completed),
+    [guide?.prerequisites, guideLookup],
+  );
+  const hasUnmetPrerequisites = unmetPrerequisites.length > 0;
 
   const primaryActionLabel = firstReadableChapter
-    ? (guide?.enrolled ? "Continue" : "Start")
+    ? guide?.enrolled
+      ? "Continue"
+      : hasUnmetPrerequisites
+        ? "Start anyway"
+        : "Start"
     : "Review";
 
   const primaryActionDetail = firstReadableChapter
-    ? `Next chapter: ${firstReadableChapter.title}`
+    ? hasUnmetPrerequisites && !guide?.enrolled
+      ? `Recommended first: ${unmetPrerequisites
+          .map((prereq) => prereq.title)
+          .join(", ")}. You can still start this guide now.`
+      : `Next chapter: ${firstReadableChapter.title}`
     : "You've finished the reading. Use review to keep it fresh.";
   const guideSummary =
     guide?.summary || "Move through this guide chapter by chapter in one focused sequence.";
   const whyNow = firstReadableChapter
     ? guide?.enrolled
       ? "Why now: continue from your current point instead of restarting."
-      : "Why now: this guide is ready to start and scoped for a clear first pass."
+      : hasUnmetPrerequisites
+        ? `Why now: this guide builds on ${unmetPrerequisites.length} recommended prerequisite guide${
+            unmetPrerequisites.length === 1 ? "" : "s"
+          }, but you can ignore that advice if you want to start here.`
+        : "Why now: this guide is ready to start and scoped for a clear first pass."
     : "Why now: the reading is complete, so recall is the highest-value next step.";
 
   const handlePrimaryAction = async () => {
@@ -155,20 +216,41 @@ export default function GuideDetailPage() {
               {" "}
               {guide.enrolled
                 ? `${chaptersCompleted} of ${chaptersTotal} chapters completed.`
-                : "Start here and move through the guide chapter by chapter."}
+                : hasUnmetPrerequisites
+                  ? "You can still start here, but the recommended order is to complete the guides below first."
+                  : "Start here and move through the guide chapter by chapter."}
             </CardDescription>
             <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
               {whyNow}
             </p>
           </div>
         </CardHeader>
-        <CardContent className="flex flex-wrap gap-2">
+        <CardContent className="space-y-4">
+          {hasUnmetPrerequisites && !guide.enrolled ? (
+            <div className="space-y-2 rounded-lg border border-amber-200 bg-amber-50/60 p-3 text-sm dark:border-amber-900/60 dark:bg-amber-950/20">
+              <p className="text-xs font-medium uppercase tracking-[0.14em] text-amber-900/80 dark:text-amber-200/90">
+                Recommended first
+              </p>
+              <p className="text-foreground/80">
+                These guides are recommended prerequisites. You can ignore this and start anyway.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {unmetPrerequisites.map((prereq) => (
+                  <Button key={prereq.id} variant="outline" size="sm" asChild>
+                    <Link href={`/learn/${prereq.id}`}>{prereq.title}</Link>
+                  </Button>
+                ))}
+              </div>
+            </div>
+          ) : null}
+          <div className="flex flex-wrap gap-2">
           <Button onClick={() => void handlePrimaryAction()} disabled={acting}>
             {acting ? "Opening..." : primaryActionLabel}
           </Button>
           <Button variant="outline" asChild>
             <Link href="/learn">Back to Guide Library</Link>
           </Button>
+          </div>
         </CardContent>
       </Card>
 
