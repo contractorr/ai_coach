@@ -298,7 +298,7 @@ export default function LearnPage() {
   }, [guides, recommendedGuideId, search, selectedCategory, sortMode]);
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6 p-4 md:p-6">
+    <div className="mx-auto max-w-7xl space-y-6 p-4 md:p-6">
       <WorkspacePageHeader
         title="Learn"
         description="Use your Guide Library to start a guide, continue the next chapter, and clear reviews when they are due."

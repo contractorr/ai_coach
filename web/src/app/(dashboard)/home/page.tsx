@@ -356,7 +356,7 @@ export default function HomePage() {
   if (!token || !greetingLoaded) {
     return (
       <div className="flex h-full flex-col">
-        <div className="mx-auto w-full max-w-4xl flex-1 animate-pulse space-y-4 px-4 py-8">
+        <div className="mx-auto w-full max-w-7xl flex-1 animate-pulse space-y-4 px-4 py-8">
           <div className="h-28 rounded-2xl bg-muted" />
           <div className="h-44 rounded-2xl bg-muted" />
           <div className="h-52 rounded-2xl bg-muted" />
@@ -379,7 +379,7 @@ export default function HomePage() {
   return (
     <div className="flex h-full flex-col">
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4">
-        <div className="mx-auto max-w-4xl space-y-4 pb-8">
+        <div className="mx-auto max-w-7xl space-y-4 pb-8">
           {showReturnBrief && returnBrief ? (
             <ReturnBriefCard
               brief={returnBrief}
