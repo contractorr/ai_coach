@@ -115,7 +115,7 @@ export function CurriculumRenderer({ content, guideId }: CurriculumRendererProps
         }
 
         if (visualBlock) {
-          return <CurriculumVisualBlockRenderer block={visualBlock} />;
+          return <CurriculumVisualBlockRenderer block={visualBlock} chapterContent={content} />;
         }
 
         const isDiagram = isAsciiDiagram(text);
@@ -240,7 +240,7 @@ export function CurriculumRenderer({ content, guideId }: CurriculumRendererProps
         return <em className="italic text-foreground/90">{children}</em>;
       },
     }),
-    [guideId]
+    [content, guideId]
   );
 
   return (

@@ -121,7 +121,8 @@ export type CurriculumVisualBlockType =
   | "framework"
   | "comparison-table"
   | "chart"
-  | "timeline";
+  | "timeline"
+  | "map";
 
 export interface CurriculumVisualNode {
   id: string;
@@ -212,13 +213,22 @@ export interface CurriculumTimelineBlock {
   entries: CurriculumTimelineEntry[];
 }
 
+export interface CurriculumMapBlock {
+  type: "map";
+  title?: string;
+  note?: string;
+  mapId: string;
+  initialCountry?: string;
+}
+
 export type CurriculumVisualBlock =
   | CurriculumDiagramBlock
   | CurriculumProcessFlowBlock
   | CurriculumFrameworkBlock
   | CurriculumComparisonTableBlock
   | CurriculumChartBlock
-  | CurriculumTimelineBlock;
+  | CurriculumTimelineBlock
+  | CurriculumMapBlock;
 
 export interface UserChapterProgress {
   user_id: string;

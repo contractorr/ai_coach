@@ -477,6 +477,7 @@ Current renderer behavior:
   - `comparison-table`
   - `chart`
   - `timeline`
+  - `map`
   - `visual`
 - falls back to legacy ASCII/data-table rendering when structured blocks are absent
 - still supports chart overlays for parseable legacy blocks
@@ -488,6 +489,9 @@ Current renderer behavior:
 Typed visual blocks render as web-native UI rather than plain monospace markdown. This is now
 the preferred path for diagrams, timelines, and lightweight in-reading visualizations in the
 learning content.
+
+The `map` visual block is used by the world geography curriculum to render interactive region maps
+with country markers, hover-or-tap fact callouts, and landmark cues derived from chapter content.
 
 ### MCP Tools
 

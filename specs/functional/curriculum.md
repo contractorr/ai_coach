@@ -167,6 +167,8 @@ Visible actions should be kept to:
 - optional reflection below the primary flow
 
 Optional support can exist below the core reading flow, but it must stay secondary and compact.
+When spatial understanding materially improves the lesson, the reader may embed compact interactive
+maps or other visual aids directly inside the chapter body.
 
 ### Review session
 

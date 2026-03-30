@@ -25,6 +25,13 @@ def _roster_countries(filename: str) -> set[str]:
     return countries
 
 
+def _map_block(filename: str) -> str:
+    text = (GUIDE_ROOT / filename).read_text(encoding="utf-8")
+    start = text.index("```map") + len("```map")
+    end = text.index("```", start)
+    return text[start:end].strip()
+
+
 def test_world_geography_rosters_cover_expected_country_sets():
     expected_rosters = {
         "02-africa-country-profiles.mdx": {
@@ -245,3 +252,20 @@ def test_world_geography_rosters_cover_expected_country_sets():
         all_countries.update(actual)
 
     assert len(all_countries) == 197
+
+
+def test_world_geography_region_chapters_include_map_blocks():
+    expected_map_ids = {
+        "02-africa-country-profiles.mdx": '"mapId": "africa"',
+        "03-americas-country-profiles.mdx": '"mapId": "americas"',
+        "04-asia-country-profiles.mdx": '"mapId": "asia"',
+        "05-europe-country-profiles.mdx": '"mapId": "europe"',
+        "06-middle-east-and-central-asia-country-profiles.mdx": '"mapId": "middle-east-central-asia"',
+        "07-oceania-country-profiles.mdx": '"mapId": "oceania"',
+    }
+
+    for filename, expected_map_id in expected_map_ids.items():
+        block = _map_block(filename)
+        assert expected_map_id in block
+        assert '"title":' in block
+        assert '"note":' in block

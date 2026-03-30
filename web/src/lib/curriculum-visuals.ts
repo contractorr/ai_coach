@@ -4,6 +4,7 @@ import type {
   CurriculumDiagramBlock,
   CurriculumFrameworkPillar,
   CurriculumFrameworkBlock,
+  CurriculumMapBlock,
   CurriculumProcessStep,
   CurriculumProcessFlowBlock,
   CurriculumTimelineBlock,
@@ -20,6 +21,7 @@ const VISUAL_LANGUAGES = new Set<CurriculumVisualBlockType>([
   "comparison-table",
   "chart",
   "timeline",
+  "map",
 ]);
 
 export function getCurriculumVisualLanguage(className?: string): string | null {
@@ -66,6 +68,8 @@ export function parseCurriculumVisualBlock(
       return parseChartBlock(parsed);
     case "timeline":
       return parseTimelineBlock(parsed);
+    case "map":
+      return parseMapBlock(parsed);
     default:
       return null;
   }
@@ -231,6 +235,19 @@ function parseTimelineBlock(input: Record<string, unknown>): CurriculumTimelineB
     title: asOptionalString(input.title),
     note: asOptionalString(input.note),
     entries,
+  };
+}
+
+function parseMapBlock(input: Record<string, unknown>): CurriculumMapBlock | null {
+  const mapId = asOptionalString(input.mapId) ?? asOptionalString(input.region);
+  if (!mapId) return null;
+
+  return {
+    type: "map",
+    title: asOptionalString(input.title),
+    note: asOptionalString(input.note),
+    mapId,
+    initialCountry: asOptionalString(input.initialCountry),
   };
 }
 
