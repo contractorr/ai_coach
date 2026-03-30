@@ -345,6 +345,23 @@ def test_load_manifest_guide_titles_canonicalizes_aliases(content_dir_with_manif
     assert titles["industry-healthcare"] == "Healthcare Industry Essentials"
 
 
+def test_catalog_fingerprint_changes_when_manifest_changes(content_dir_with_manifest):
+    scanner = CurriculumScanner([content_dir_with_manifest])
+    original = scanner.get_catalog_fingerprint()
+
+    manifest = content_dir_with_manifest / "skill_tree.yaml"
+    manifest.write_text(
+        manifest.read_text(encoding="utf-8").replace(
+            "Economics Essentials",
+            "Economics and Markets",
+        ),
+        encoding="utf-8",
+    )
+
+    updated = CurriculumScanner([content_dir_with_manifest]).get_catalog_fingerprint()
+    assert updated != original
+
+
 def test_repo_manifest_has_no_deprecated_alias_references():
     manifest_path = Path("content/curriculum/skill_tree.yaml")
     data = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))

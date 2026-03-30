@@ -137,8 +137,15 @@ def _ensure_catalog_initialized(
 ) -> CurriculumScanner:
     """Populate the curriculum catalog on first use for this user DB."""
     scanner = scanner or CurriculumScanner(_content_dirs(user_id))
-    if not store.list_guides():
-        _sync_catalog(store, user_id=user_id, scanner=scanner)
+    current_fingerprint = scanner.get_catalog_fingerprint()
+    stored_fingerprint = store.get_catalog_meta("catalog_fingerprint")
+    if not store.list_guides() or stored_fingerprint != current_fingerprint:
+        _sync_catalog(
+            store,
+            user_id=user_id,
+            scanner=scanner,
+            catalog_fingerprint=current_fingerprint,
+        )
     return scanner
 
 
@@ -2605,6 +2612,7 @@ def _sync_catalog(
     *,
     user_id: str | None = None,
     scanner: CurriculumScanner | None = None,
+    catalog_fingerprint: str | None = None,
 ) -> int:
     """Run scanner and sync results into store."""
     scanner = scanner or CurriculumScanner(_content_dirs(user_id))
@@ -2612,4 +2620,8 @@ def _sync_catalog(
     if guides:
         store.sync_catalog(guides, chapters)
     store.reconcile_guide_aliases(scanner.get_guide_aliases())
+    store.set_catalog_meta(
+        "catalog_fingerprint",
+        catalog_fingerprint or scanner.get_catalog_fingerprint(),
+    )
     return len(guides)

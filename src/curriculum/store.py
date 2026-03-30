@@ -20,7 +20,7 @@ from .spaced_repetition import sm2_update
 
 logger = structlog.get_logger()
 
-SCHEMA_VERSION = 6
+SCHEMA_VERSION = 7
 
 
 class CurriculumStore:
@@ -81,6 +81,12 @@ class CurriculumStore:
             conn.execute("""
                 CREATE INDEX IF NOT EXISTS idx_chapters_guide
                 ON chapters(guide_id, "order")
+            """)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS catalog_meta (
+                    key TEXT PRIMARY KEY,
+                    value TEXT NOT NULL DEFAULT ''
+                )
             """)
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS user_guide_enrollment (
@@ -190,6 +196,14 @@ class CurriculumStore:
                     conn.execute("ALTER TABLE guides ADD COLUMN summary TEXT NOT NULL DEFAULT ''")
                 except sqlite3.OperationalError:
                     pass
+
+            if current_ver < 7:
+                conn.execute("""
+                    CREATE TABLE IF NOT EXISTS catalog_meta (
+                        key TEXT PRIMARY KEY,
+                        value TEXT NOT NULL DEFAULT ''
+                    )
+                """)
 
             ensure_schema_version(conn, SCHEMA_VERSION)
             conn.commit()
@@ -357,6 +371,23 @@ class CurriculumStore:
                         c.content_hash,
                     ),
                 )
+            conn.commit()
+
+    def get_catalog_meta(self, key: str) -> str | None:
+        with wal_connect(self.db_path, row_factory=True) as conn:
+            row = conn.execute("SELECT value FROM catalog_meta WHERE key=?", (key,)).fetchone()
+            if not row:
+                return None
+            return str(dict(row).get("value") or "")
+
+    def set_catalog_meta(self, key: str, value: str) -> None:
+        with wal_connect(self.db_path) as conn:
+            conn.execute(
+                """INSERT INTO catalog_meta (key, value)
+                   VALUES (?, ?)
+                   ON CONFLICT(key) DO UPDATE SET value=excluded.value""",
+                (key, value),
+            )
             conn.commit()
 
     def reconcile_guide_aliases(self, guide_aliases: dict[str, str]) -> dict[str, int]:

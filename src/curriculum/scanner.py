@@ -84,6 +84,8 @@ _INDUSTRY_CATEGORY = GuideCategory.INDUSTRY
 # Difficulty heuristics based on guide order (lower = more introductory)
 _ADVANCED_KEYWORDS = {"private-markets", "geopolitics", "cybersecurity", "ai-ml"}
 _INTRO_KEYWORDS = {"introduction", "fundamentals", "crash-course"}
+_CATALOG_CONTENT_SUFFIXES = {".md", ".mdx"}
+_CATALOG_METADATA_FILENAMES = {"skill_tree.yaml", "guide.yaml"}
 
 
 def _infer_category(dir_name: str, is_industry: bool = False) -> GuideCategory:
@@ -130,6 +132,32 @@ def _detect_formulas(content: str) -> bool:
 
 def _content_hash(content: str) -> str:
     return hashlib.sha256(content.encode()).hexdigest()[:16]
+
+
+def _compute_catalog_fingerprint(content_dirs: list[Path]) -> str:
+    """Hash curriculum content + metadata file paths and stat info."""
+    digest = hashlib.sha256()
+    for content_dir in sorted((Path(d).expanduser().resolve() for d in content_dirs), key=str):
+        digest.update(str(content_dir).encode("utf-8"))
+        if not content_dir.exists():
+            digest.update(b":missing")
+            continue
+        for path in sorted(
+            content_dir.rglob("*"), key=lambda item: str(item.relative_to(content_dir))
+        ):
+            if not path.is_file():
+                continue
+            if (
+                path.suffix.lower() not in _CATALOG_CONTENT_SUFFIXES
+                and path.name not in _CATALOG_METADATA_FILENAMES
+            ):
+                continue
+            stat = path.stat()
+            relative_path = path.relative_to(content_dir)
+            digest.update(str(relative_path).encode("utf-8"))
+            digest.update(str(stat.st_size).encode("utf-8"))
+            digest.update(str(stat.st_mtime_ns).encode("utf-8"))
+    return digest.hexdigest()
 
 
 def _guide_title_from_dir(dir_name: str) -> str:
@@ -427,6 +455,10 @@ class CurriculumScanner:
     def get_guide_aliases(self) -> dict[str, str]:
         """Return alias -> canonical guide mappings from the manifest."""
         return dict(self._guide_aliases)
+
+    def get_catalog_fingerprint(self) -> str:
+        """Return a fingerprint for curriculum content and manifest metadata."""
+        return _compute_catalog_fingerprint(self.content_dirs)
 
     def canonicalize_guide_id(self, guide_id: str) -> str:
         """Resolve a guide ID through manifest aliases when present."""

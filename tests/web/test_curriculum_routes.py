@@ -435,6 +435,49 @@ def test_today_auto_syncs_catalog_when_empty(client, auth_headers):
     assert "focus_programs" in data
 
 
+def test_stats_auto_refreshes_catalog_when_manifest_changes(client, auth_headers, tmp_path):
+    guide_dir = tmp_path / "01-philosophy-guide"
+    guide_dir.mkdir()
+    (guide_dir / "01-introduction.md").write_text(
+        "# Introduction to Philosophy\n\nOverview of philosophy.\n",
+        encoding="utf-8",
+    )
+    manifest_path = tmp_path / "skill_tree.yaml"
+    manifest_path.write_text(
+        """version: 1
+guide_titles:
+  "01-philosophy-guide": "Old Title"
+tracks:
+  foundations:
+    title: "Foundations"
+    description: "Core frameworks"
+    color: "#6366f1"
+    guides:
+      - id: "01-philosophy-guide"
+        prerequisites: []
+""",
+        encoding="utf-8",
+    )
+
+    store = _curriculum_store()
+    with patch("web.routes.curriculum._content_dirs", return_value=[tmp_path]):
+        first = client.get("/api/curriculum/stats", headers=auth_headers)
+        assert first.status_code == 200
+        assert store.get_guide("01-philosophy-guide")["title"] == "Old Title"
+
+        manifest_path.write_text(
+            manifest_path.read_text(encoding="utf-8").replace(
+                "Old Title",
+                "New Guide Title",
+            ),
+            encoding="utf-8",
+        )
+
+        second = client.get("/api/curriculum/stats", headers=auth_headers)
+        assert second.status_code == 200
+        assert store.get_guide("01-philosophy-guide")["title"] == "New Guide Title"
+
+
 def test_next_continues_enrolled_guide(client, auth_headers):
     """GET /api/curriculum/next continues enrolled guide."""
     client.post("/api/curriculum/sync", headers=auth_headers)
