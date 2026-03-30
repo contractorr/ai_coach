@@ -41,10 +41,18 @@ This spec describes the current shipped architecture rather than the earlier pro
 - `objectives`
 - `checkpoints`
 - `content_references`
+- optional `causal_lens`
+- optional `misconception_card`
 - `body`
 - `content_format`
 - `schema_version`
 - frontmatter presence and raw metadata
+
+The schema layer also derives compact fallback learning aids for the default Learn UI:
+
+- `derive_causal_lens()` extracts a small drivers / mechanism / effects model when the chapter has clear causal language
+- `derive_misconception_card()` extracts a common-wrong-model correction when the chapter explicitly contains that signal
+- `derive_guide_synthesis()` builds a guide-end synthesis from `guide.yaml` metadata or the guide summary + chapter titles
 
 #### Lint coverage
 
@@ -104,6 +112,7 @@ This spec describes the current shipped architecture rather than the earlier pro
 - Canonicalizes guide IDs through alias mappings before graph assignment.
 - Applies optional manifest-driven `guide_titles` so consumer-facing guide names can be curated without changing stable IDs.
 - Loads typed chapter metadata from the content schema layer rather than only from raw markdown.
+- Loads optional guide-level metadata from `guide.yaml`, including guide summary and guide-end synthesis.
 - Falls back to directory-order prerequisite inference only when no manifest metadata is present.
 
 #### Exposed helpers
@@ -130,7 +139,7 @@ This spec describes the current shipped architecture rather than the earlier pro
 
 #### Current schema
 
-The store is now on schema version `4`.
+The store is now on schema version `6`.
 
 Key tables:
 
@@ -149,11 +158,18 @@ Chapter rows persist schema-aware metadata such as:
 - `content_format`
 - `schema_version`
 
+Guide rows persist:
+
+- `summary`
+- origin / kind / archive metadata for built-in vs user-authored guides
+
 #### Notable behaviors
 
 - progress updates accumulate reading time rather than replacing it
+- chapter progress persists `scroll_position`, which the chapter reader uses for exact resume
 - guide completion ignores glossary chapters
 - track and tree aggregation are batched, not computed with per-guide N+1 queries
+- the default Learn experience uses a merged review queue across due items and recently weak items
 - alias reconciliation migrates:
   - enrollments
   - chapter progress
@@ -170,6 +186,8 @@ Chapter rows persist schema-aware metadata such as:
 - `enroll()`
 - `update_progress()`
 - `get_due_reviews()`
+- `get_review_queue()`
+- `count_review_queue()`
 - `grade_review()`
 - `get_ready_guides()`
 - `complete_guide_placement()`
@@ -181,7 +199,7 @@ Chapter rows persist schema-aware metadata such as:
 
 **File:** `src/curriculum/spaced_repetition.py`
 
-Standard SM-2 scheduling is used for quiz and teach-back review items.
+Standard SM-2 scheduling is used for quiz, prediction, and teach-back review items.
 
 Current properties:
 
@@ -189,7 +207,7 @@ Current properties:
 - easiness-factor floor `1.3`
 - reset on failing recall
 - interval expansion on successful recall
-- recently weak items can also be queried separately for retry-mode review sessions
+- recently weak items can still be queried separately, but the default Learn UI merges them back into one review queue
 
 ### Question Generation and Grading
 
@@ -198,6 +216,7 @@ Current properties:
 #### Responsibilities
 
 - Generate chapter quiz questions.
+- Generate short prediction questions inside the normal review stream.
 - Grade quiz answers.
 - Generate and grade teach-back prompts.
 - Generate placement/test-out questions.
@@ -205,7 +224,8 @@ Current properties:
 #### Current behavior
 
 - quiz generation can also include pre-reading prompts in the same generation flow
-- quiz items are persisted as review items
+- quiz and prediction items are persisted as review items
+- the default generated mix includes one higher-order `prediction` item when the batch is large enough
 - pre-reading items are stored but excluded from SM-2 review behavior
 - placement questions are ephemeral and never persisted as review items
 - applied deliverables can be rubric-graded and fall back to heuristic grading when no LLM is
@@ -325,8 +345,12 @@ The web API currently exposes 25 curriculum routes.
 - guide payloads are decorated with:
   - `canonical_guide_id`
   - `learning_programs`
+  - `guide_synthesis` on guide detail
   - `applied_assessments` on guide detail
   - draft metadata for launched applied assessments
+- chapter detail payloads can include:
+  - `causal_lens`
+  - `misconception_card`
 - `/next` returns:
   - `recommendation_type`
   - `signals`
@@ -344,7 +368,7 @@ The web API currently exposes 25 curriculum routes.
   - ranked `tasks`
   - `focus_programs`
   - `reviews_due`
-  - a retry-review task when recently weak recall exists
+  - one unified review task/count that merges due recall and recently weak recall
 - `/today` focus-program ordering now blends:
   - active/recommended/available status
   - revision backlog aggregated across the path
@@ -405,14 +429,19 @@ context that includes:
 - guide detail:
   - chapter list
   - simple progress summary
+  - guide-end synthesis once reading is complete
   - one primary action: start, continue, or review
 - chapter reader:
   - renderer
+  - exact scroll-position resume
   - completion
+  - one system-chosen next step after completion
+  - optional collapsed `How it works` / `Common mistake` aids below the reading flow
   - optional reflection after completion
-  - review CTA after completion
 - review page:
   - one simple review session flow
+  - quick-recall items for lower-level prompts
+  - occasional prediction items inside the same session
   - retry items can still be used as backend fallback, but they are not exposed as a separate primary mode
 
 Advanced curriculum capabilities such as applied assessments, placement, related chapters,

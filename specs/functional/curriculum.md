@@ -1,6 +1,6 @@
 # Curriculum / Learn
 
-**Status:** Proposed Simplification
+**Status:** Implemented Minimal Loop
 
 ## Purpose
 
@@ -59,6 +59,7 @@ Everything else is secondary or deferred.
 - A chapter supports:
   - reading
   - marking complete
+  - lightweight model aids such as `How it works` and `Common mistake`
   - optional recap or reflection
 
 ### Review
@@ -122,12 +123,14 @@ Guide detail should answer only:
 - What is this guide about?
 - How long is it?
 - Where should I start or continue?
+- What durable model should I keep after finishing it?
 
 Guide detail should include:
 
 - guide title and summary
 - chapter list
 - simple progress
+- a short synthesis once the guide reading is complete
 - one obvious CTA:
   - `Start`
   - `Continue`
@@ -141,17 +144,18 @@ The chapter reader should focus on finishing the chapter with minimal distractio
 
 Visible actions should be kept to:
 
-- `Mark complete`
-- `Start review` or `Review later`
-- previous / next chapter navigation
+- `Mark complete` while reading
+- one system-chosen next step after completion
+- optional reflection below the primary flow
 
-Optional support can exist below the core reading flow, but it must stay secondary.
+Optional support can exist below the core reading flow, but it must stay secondary and compact.
 
 ### Review session
 
 - Review should be one lightweight session flow.
 - The user enters, answers a small batch, and exits.
 - Completion should feel satisfying and quick.
+- The session can include occasional short prediction prompts without becoming a separate mode.
 - The system can keep richer scheduling logic internally, but the UI should present one simple review concept.
 
 ## Core User Flows
@@ -166,13 +170,14 @@ Optional support can exist below the core reading flow, but it must stay seconda
 
 - User opens Learn.
 - They see the chapter they should continue.
-- One click takes them back into reading.
+- One click takes them back into the exact reading position when possible.
 
 ### Finish a chapter
 
 - User reads a chapter.
 - User marks it complete.
 - The system can optionally offer a short recap question or reflection.
+- The system can surface a compact causal or misconception aid below the reading flow when it helps.
 - Completion moves the user forward without requiring extra work.
 
 ### Review material
@@ -193,6 +198,7 @@ Optional support can exist below the core reading flow, but it must stay seconda
 - Chapter reading
 - Enrollment / progress tracking
 - Simple review queue
+- Lightweight synthesis and model aids that stay secondary to reading
 - Home handoff into learning
 - Basic search across guides
 
@@ -230,8 +236,11 @@ minimal loop proves useful.
 - [ ] `/learn` can be understood without knowing what a program, path, track, or assessment is.
 - [ ] A user can start or continue learning from the landing page in one click.
 - [ ] A guide detail page has one obvious primary action.
+- [ ] Guide detail can show a short synthesis after completion without adding a new workflow.
 - [ ] A chapter reader keeps the reading flow primary and secondary tools visually subordinate.
+- [ ] Optional model aids in the chapter reader stay compact and non-blocking.
 - [ ] Reviews are entered through one simple entry point.
+- [ ] Review can include occasional prediction prompts without becoming a separate mode.
 - [ ] Progress can advance without requiring reflection, quiz completion, or Journal usage.
 - [ ] Guide Library supports lightweight topic filtering and a clear recommended order without exposing tracks or trees.
 - [ ] Search is sufficient for finding guides in the normal case.
@@ -246,6 +255,7 @@ minimal loop proves useful.
 | User has no reviews due | Review section stays quiet and does not create dead space |
 | User returns after a long gap | Learn still shows one obvious next action rather than a dense dashboard |
 | User wants a deeper exercise | The app can link outward, but the default learning flow stays lightweight |
+| A chapter has no authored or inferred learning aids | The reader falls back to plain reading without empty panels or placeholders |
 | Content is missing or sync fails | The page degrades to a simple empty or reduced state without exposing internal complexity |
 
 ## Design Notes
@@ -256,6 +266,7 @@ minimal loop proves useful.
 - Prefer one strong CTA over several equal CTAs.
 - Avoid dashboards full of badges, counts, and status cues unless they change the next action.
 - Favor vertical reading flow over control-heavy layouts.
+- Keep synthesis, causal lenses, and misconception aids visually secondary to the core reading path.
 
 ## Key System Components
 
