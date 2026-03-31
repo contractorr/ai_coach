@@ -1,19 +1,25 @@
 "use client";
 
-import { useId, useMemo, useState, type ReactNode } from "react";
-import { ArrowDown, ArrowRight, Globe2, MapPin, Star } from "lucide-react";
+import { useMemo, useState, type ReactNode } from "react";
+import { Globe2, MapPin, Star } from "lucide-react";
 import {
   ComposableMap,
   Geographies,
   Geography,
   Marker,
-  Sphere,
-  createCoordinates,
   getBestGeographyCoordinates,
 } from "@vnedyalk0v/react19-simple-maps";
+import { geoMercator } from "d3-geo";
+import type { FeatureCollection, Geometry } from "geojson";
 import { ChartOverlay } from "@/components/curriculum/ChartOverlay";
+import { MermaidVisual } from "@/components/curriculum/MermaidVisual";
 import type { ParsedChartData } from "@/lib/chart-parser";
+import {
+  getDiagramNodesInDisplayOrder,
+  toCurriculumMermaidDefinition,
+} from "@/lib/curriculum-mermaid";
 import countryTopology from "world-atlas/countries-10m.json";
+import { feature as topologyFeature } from "topojson-client";
 import {
   buildWorldGeographyRegionMapData,
   normalizeCountryKey,
@@ -39,6 +45,20 @@ const MAP_SUBREGION_COLORS = [
   "#0891b2",
   "#059669",
 ];
+
+const MAP_WIDTH = 820;
+const MAP_HEIGHT = 680;
+const MAP_PADDING_X = 28;
+const MAP_PADDING_Y = 24;
+const emptyFeatureCollection: FeatureCollection<Geometry> = {
+  type: "FeatureCollection",
+  features: [],
+};
+interface CountriesTopology {
+  objects: {
+    countries: object;
+  };
+}
 
 export function CurriculumVisualBlockRenderer({
   block,
@@ -80,31 +100,15 @@ function ChartVisual({ block }: { block: CurriculumChartBlock }) {
 }
 
 function ProcessFlowVisual({ block }: { block: CurriculumProcessFlowBlock }) {
+  const mermaidDefinition = useMemo(() => toCurriculumMermaidDefinition(block), [block]);
+
   return (
     <VisualShell title={block.title} note={block.note}>
-      <div className="space-y-3 md:hidden">
-        {block.steps.map((step, index) => (
-          <div key={step.id} className="space-y-3">
-            <ProcessCard step={step} index={index} />
-            {index < block.steps.length - 1 && (
-              <div className="flex justify-center text-muted-foreground">
-                <ArrowDown className="h-4 w-4" />
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
+      <MermaidVisual definition={mermaidDefinition} ariaLabel={block.title ?? "Process flow"} />
 
-      <div className="hidden items-stretch gap-3 md:flex md:overflow-x-auto md:pb-1">
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         {block.steps.map((step, index) => (
-          <div key={step.id} className="flex min-w-[220px] items-center gap-3">
-            <ProcessCard step={step} index={index} />
-            {index < block.steps.length - 1 && (
-              <div className="flex shrink-0 items-center text-muted-foreground">
-                <ArrowRight className="h-4 w-4" />
-              </div>
-            )}
-          </div>
+          <ProcessCard key={step.id} step={step} index={index} />
         ))}
       </div>
     </VisualShell>
@@ -204,14 +208,14 @@ function ComparisonTableVisual({ block }: { block: CurriculumComparisonTableBloc
 }
 
 function DiagramVisual({ block }: { block: CurriculumDiagramBlock }) {
-  const nodes = normalizeDiagramNodes(block.nodes);
-  const columns = Math.max(...nodes.map((node) => node.column ?? 1), 1);
-  const rows = Math.max(...nodes.map((node) => node.row ?? 1), 1);
-  const markerId = useId().replace(/:/g, "");
+  const mermaidDefinition = useMemo(() => toCurriculumMermaidDefinition(block), [block]);
+  const nodes = useMemo(() => getDiagramNodesInDisplayOrder(block.nodes), [block.nodes]);
 
   return (
     <VisualShell title={block.title} note={block.note}>
-      <div className="space-y-3 md:hidden">
+      <MermaidVisual definition={mermaidDefinition} ariaLabel={block.title ?? "Diagram"} />
+
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         {nodes.map((node) => (
           <div
             key={node.id}
@@ -222,147 +226,32 @@ function DiagramVisual({ block }: { block: CurriculumDiagramBlock }) {
           </div>
         ))}
       </div>
-
-      <div
-        className="relative hidden overflow-x-auto rounded-2xl border bg-gradient-to-br from-background via-muted/10 to-background p-6 shadow-sm md:block"
-        style={{ minHeight: `${Math.max(rows, 2) * 150}px` }}
-      >
-        <svg
-          viewBox={`0 0 ${columns * 100} ${rows * 100}`}
-          className="absolute inset-0 h-full w-full"
-          aria-hidden="true"
-        >
-          <defs>
-            <marker
-              id={markerId}
-              markerWidth="8"
-              markerHeight="8"
-              refX="7"
-              refY="4"
-              orient="auto"
-            >
-              <path d="M0,0 L8,4 L0,8 z" className="fill-primary/50" />
-            </marker>
-          </defs>
-
-          {(block.edges ?? []).map((edge) => {
-            const from = nodes.find((node) => node.id === edge.from);
-            const to = nodes.find((node) => node.id === edge.to);
-            if (!from || !to) return null;
-
-            const startX = ((from.column ?? 1) - 0.5) * 100;
-            const startY = ((from.row ?? 1) - 0.5) * 100;
-            const endX = ((to.column ?? 1) - 0.5) * 100;
-            const endY = ((to.row ?? 1) - 0.5) * 100;
-            const midY = (startY + endY) / 2;
-
-            return (
-              <g key={`${edge.from}-${edge.to}`}>
-                <path
-                  d={`M ${startX} ${startY} C ${startX} ${midY}, ${endX} ${midY}, ${endX} ${endY}`}
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  className="text-primary/35"
-                  markerEnd={`url(#${markerId})`}
-                />
-                {edge.label && (
-                  <text
-                    x={(startX + endX) / 2}
-                    y={midY - 4}
-                    textAnchor="middle"
-                    className="fill-muted-foreground"
-                    style={{ fontSize: 9 }}
-                  >
-                    {edge.label}
-                  </text>
-                )}
-              </g>
-            );
-          })}
-        </svg>
-
-        <div
-          className="relative z-10 grid gap-4"
-          style={{
-            gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
-            gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))`,
-          }}
-        >
-          {nodes.map((node) => (
-            <div
-              key={node.id}
-              className={`rounded-xl border p-4 shadow-sm ${getNodeToneClasses(node.tone)}`}
-              style={{
-                gridColumn: `${node.column ?? 1} / span 1`,
-                gridRow: `${node.row ?? 1} / span 1`,
-              }}
-            >
-              <p className="text-sm font-semibold text-foreground">{node.title}</p>
-              {node.detail && <p className="mt-2 text-sm text-muted-foreground">{node.detail}</p>}
-            </div>
-          ))}
-        </div>
-      </div>
     </VisualShell>
   );
 }
 
 function TimelineVisual({ block }: { block: CurriculumTimelineBlock }) {
+  const mermaidDefinition = useMemo(() => toCurriculumMermaidDefinition(block), [block]);
+
   return (
     <VisualShell title={block.title} note={block.note}>
-      <div className="space-y-4 md:hidden">
+      <MermaidVisual definition={mermaidDefinition} ariaLabel={block.title ?? "Timeline"} />
+
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         {block.entries.map((entry) => (
-          <div key={entry.id} className="flex gap-3">
-            <div className="flex flex-col items-center">
-              <span className="mt-1 h-3 w-3 rounded-full bg-primary/70" />
-              <span className="mt-1 h-full w-px bg-border" />
-            </div>
-            <div className="flex-1 rounded-xl border bg-background p-4 shadow-sm">
-              <p className="text-xs font-medium uppercase tracking-wide text-primary/80">
-                {entry.period}
+          <div key={entry.id} className="rounded-xl border bg-background p-4 shadow-sm">
+            <p className="text-xs font-medium uppercase tracking-wide text-primary/80">
+              {entry.period}
+            </p>
+            <p className="mt-1 text-sm font-semibold text-foreground">{entry.title}</p>
+            {entry.detail && <p className="mt-2 text-sm text-muted-foreground">{entry.detail}</p>}
+            {entry.emphasis && (
+              <p className="mt-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                {entry.emphasis}
               </p>
-              <p className="mt-1 text-sm font-semibold text-foreground">{entry.title}</p>
-              {entry.detail && (
-                <p className="mt-2 text-sm text-muted-foreground">{entry.detail}</p>
-              )}
-              {entry.emphasis && (
-                <p className="mt-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  {entry.emphasis}
-                </p>
-              )}
-            </div>
+            )}
           </div>
         ))}
-      </div>
-
-      <div className="hidden overflow-x-auto rounded-2xl border bg-background p-5 shadow-sm md:block">
-        <div className="flex min-w-[760px] items-start gap-4">
-          {block.entries.map((entry, index) => (
-            <div key={entry.id} className="flex min-w-[180px] flex-1 gap-4">
-              <div className="pt-8 text-primary/70">
-                <span className="block h-3 w-3 rounded-full bg-current" />
-                {index < block.entries.length - 1 ? (
-                  <span className="mt-3 block h-px w-20 bg-border" />
-                ) : null}
-              </div>
-              <div className="rounded-xl border bg-muted/10 p-4">
-                <p className="text-xs font-medium uppercase tracking-wide text-primary/80">
-                  {entry.period}
-                </p>
-                <p className="mt-1 text-sm font-semibold text-foreground">{entry.title}</p>
-                {entry.detail && (
-                  <p className="mt-2 text-sm text-muted-foreground">{entry.detail}</p>
-                )}
-                {entry.emphasis && (
-                  <p className="mt-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    {entry.emphasis}
-                  </p>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
       </div>
     </VisualShell>
   );
@@ -383,6 +272,37 @@ function MapVisual({
     () => new Map((mapData?.countries ?? []).map((country) => [country.topologyKey, country])),
     [mapData],
   );
+  const regionFeatureCollection = useMemo(() => {
+    if (!mapData) return null;
+
+    const topology = countryTopology as CountriesTopology;
+    const worldFeatures = topologyFeature(
+      topology as never,
+      topology.objects.countries as never,
+    ) as unknown as FeatureCollection<Geometry>;
+
+    const features = worldFeatures.features.filter((geography) =>
+      countriesByTopologyKey.has(normalizeCountryKey(getGeographyName(geography))),
+    );
+
+    return {
+      type: "FeatureCollection",
+      features,
+    } satisfies FeatureCollection<Geometry>;
+  }, [countriesByTopologyKey, mapData]);
+  const fittedProjection = useMemo(() => {
+    if (!regionFeatureCollection || regionFeatureCollection.features.length === 0) {
+      return geoMercator();
+    }
+
+    return geoMercator().fitExtent(
+      [
+        [MAP_PADDING_X, MAP_PADDING_Y],
+        [MAP_WIDTH - MAP_PADDING_X, MAP_HEIGHT - MAP_PADDING_Y],
+      ],
+      regionFeatureCollection,
+    );
+  }, [regionFeatureCollection]);
   const [selectedCountryId, setSelectedCountryId] = useState<string>("");
   const [hoveredCountryId, setHoveredCountryId] = useState<string | null>(null);
 
@@ -429,21 +349,16 @@ function MapVisual({
 
           <div className="relative overflow-hidden rounded-2xl border bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.16),_transparent_32%),linear-gradient(180deg,_rgba(255,255,255,0.04),_rgba(15,23,42,0.02))]">
             <ComposableMap
-              projection="geoMercator"
-              projectionConfig={{
-                center: createCoordinates(mapData.center[0], mapData.center[1]),
-                scale: mapData.scale,
-              }}
-              width={820}
-              height={520}
-              className="h-full w-full"
+              projection={fittedProjection}
+              width={MAP_WIDTH}
+              height={MAP_HEIGHT}
+              className="block h-auto w-full"
               aria-label={mapData.title}
             >
-              <Sphere fill="#f8fafc" stroke="#93c5fd" strokeWidth={0.8} />
-              <Geographies geography={countryTopology}>
+              <Geographies geography={regionFeatureCollection ?? emptyFeatureCollection}>
                 {({ geographies }) => (
                   <>
-                    {geographies.map((geography) => {
+                    {geographies.map((geography, index) => {
                       const geographyName = getGeographyName(geography);
                       const country = countriesByTopologyKey.get(
                         normalizeCountryKey(geographyName),
@@ -456,7 +371,7 @@ function MapVisual({
 
                       return (
                         <Geography
-                          key={geography.rsmKey}
+                          key={getGeographyKey(geographyName, geography.id, index)}
                           geography={geography}
                           className={country ? "cursor-pointer" : undefined}
                           aria-label={country ? `Show ${country.name} details` : geographyName}
@@ -527,7 +442,7 @@ function MapVisual({
                       );
                     })}
 
-                    {geographies.map((geography) => {
+                    {geographies.map((geography, index) => {
                       const geographyName = getGeographyName(geography);
                       const country = countriesByTopologyKey.get(
                         normalizeCountryKey(geographyName),
@@ -539,7 +454,7 @@ function MapVisual({
 
                       return (
                         <Marker
-                          key={`${country.id}-anchor`}
+                          key={`${country.id}-anchor-${getGeographyKey(geographyName, geography.id, index)}`}
                           coordinates={coordinates}
                           pointerEvents="none"
                         >
@@ -715,6 +630,14 @@ function getGeographyName(geography: { properties?: Record<string, unknown> | nu
   return typeof name === "string" ? name : "";
 }
 
+function getGeographyKey(name: string, geographyId: unknown, index: number): string {
+  const idPart =
+    typeof geographyId === "string" || typeof geographyId === "number"
+      ? String(geographyId)
+      : name;
+  return `${idPart || "geo"}-${index}`;
+}
+
 function VisualShell({
   title,
   note,
@@ -735,15 +658,6 @@ function VisualShell({
       {children}
     </section>
   );
-}
-
-function normalizeDiagramNodes(nodes: CurriculumVisualNode[]): CurriculumVisualNode[] {
-  return nodes.map((node, index) => ({
-    ...node,
-    column: node.column ?? ((index % 3) + 1),
-    row: node.row ?? (Math.floor(index / 3) + 1),
-    tone: node.tone ?? "default",
-  }));
 }
 
 function getNodeToneClasses(tone: CurriculumVisualNode["tone"]): string {
