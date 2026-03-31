@@ -2,9 +2,22 @@
 
 import { useId, useMemo, useState, type ReactNode } from "react";
 import { ArrowDown, ArrowRight, Globe2, MapPin, Star } from "lucide-react";
+import {
+  ComposableMap,
+  Geographies,
+  Geography,
+  Marker,
+  Sphere,
+  createCoordinates,
+  getBestGeographyCoordinates,
+} from "@vnedyalk0v/react19-simple-maps";
 import { ChartOverlay } from "@/components/curriculum/ChartOverlay";
 import type { ParsedChartData } from "@/lib/chart-parser";
-import { buildWorldGeographyRegionMapData } from "@/lib/world-geography-maps";
+import countryTopology from "world-atlas/countries-10m.json";
+import {
+  buildWorldGeographyRegionMapData,
+  normalizeCountryKey,
+} from "@/lib/world-geography-maps";
 import type {
   CurriculumChartBlock,
   CurriculumComparisonTableBlock,
@@ -366,11 +379,14 @@ function MapVisual({
     () => buildWorldGeographyRegionMapData(block, chapterContent),
     [block, chapterContent],
   );
+  const countriesByTopologyKey = useMemo(
+    () => new Map((mapData?.countries ?? []).map((country) => [country.topologyKey, country])),
+    [mapData],
+  );
   const [selectedCountryId, setSelectedCountryId] = useState<string>("");
   const [hoveredCountryId, setHoveredCountryId] = useState<string | null>(null);
 
   if (!mapData) return null;
-
   const effectiveSelectedCountryId = mapData.countries.some(
     (country) => country.id === selectedCountryId,
   )
@@ -382,16 +398,12 @@ function MapVisual({
   const hoveredCountry = hoveredCountryId
     ? mapData.countries.find((country) => country.id === hoveredCountryId) ?? null
     : null;
-  const hoveredCountryColor = hoveredCountry
-    ? getSubregionColor(hoveredCountry.subregion, mapData.countries)
-    : null;
+  const activeCountry = hoveredCountry ?? selectedCountry;
   const selectedCountryColor = getSubregionColor(selectedCountry.subregion, mapData.countries);
   const selectedLandmarks =
     selectedCountry.landmarks.length > 0
       ? selectedCountry.landmarks
-      : mapData.landmarks
-          .filter((landmark) => landmark.countryId === selectedCountry.id)
-          .map((landmark) => landmark.label);
+      : [];
   const orderedSubregions = Array.from(
     new Set(mapData.countries.map((country) => country.subregion)),
   );
@@ -407,7 +419,7 @@ function MapVisual({
             </span>
             <span className="inline-flex items-center gap-1 rounded-full bg-muted/60 px-2.5 py-1">
               <Star className="h-3.5 w-3.5 text-amber-500" />
-              Landmark cue
+              Anchor country
             </span>
             <span className="inline-flex items-center gap-1 rounded-full bg-muted/60 px-2.5 py-1">
               <Globe2 className="h-3.5 w-3.5" />
@@ -415,128 +427,161 @@ function MapVisual({
             </span>
           </div>
 
-          <div className="relative aspect-square overflow-hidden rounded-2xl border bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.16),_transparent_32%),linear-gradient(180deg,_rgba(255,255,255,0.04),_rgba(15,23,42,0.02))]">
-            <svg
-              viewBox={`0 0 ${mapData.width} ${mapData.height}`}
-              className="absolute inset-0 h-full w-full"
+          <div className="relative overflow-hidden rounded-2xl border bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.16),_transparent_32%),linear-gradient(180deg,_rgba(255,255,255,0.04),_rgba(15,23,42,0.02))]">
+            <ComposableMap
+              projection="geoMercator"
+              projectionConfig={{
+                center: createCoordinates(mapData.center[0], mapData.center[1]),
+                scale: mapData.scale,
+              }}
+              width={820}
+              height={520}
+              className="h-full w-full"
               aria-label={mapData.title}
-              role="img"
             >
-              <rect x="0" y="0" width={mapData.width} height={mapData.height} fill="#f8fafc" />
-              <g opacity="0.16">
-                <path
-                  d={`M 0 ${mapData.height / 2} L ${mapData.width} ${mapData.height / 2}`}
-                  stroke="#64748b"
-                  strokeDasharray="3 4"
-                  strokeWidth="0.4"
-                />
-                <path
-                  d={`M ${mapData.width / 2} 0 L ${mapData.width / 2} ${mapData.height}`}
-                  stroke="#64748b"
-                  strokeDasharray="3 4"
-                  strokeWidth="0.4"
-                />
-              </g>
-              {mapData.backgroundPaths.map((path, index) => (
-                <path
-                  key={index}
-                  d={path}
-                  fill="#dbeafe"
-                  stroke="#93c5fd"
-                  strokeWidth="0.7"
-                  opacity="0.95"
-                />
-              ))}
+              <Sphere fill="#f8fafc" stroke="#93c5fd" strokeWidth={0.8} />
+              <Geographies geography={countryTopology}>
+                {({ geographies }) => (
+                  <>
+                    {geographies.map((geography) => {
+                      const geographyName = getGeographyName(geography);
+                      const country = countriesByTopologyKey.get(
+                        normalizeCountryKey(geographyName),
+                      );
+                      const isSelected = country?.id === selectedCountry.id;
+                      const isHovered = country?.id === hoveredCountry?.id;
+                      const color = country
+                        ? getSubregionColor(country.subregion, mapData.countries)
+                        : "#cbd5e1";
 
-              {mapData.landmarks.map((landmark) => (
-                <g key={landmark.id} transform={`translate(${landmark.x}, ${landmark.y})`}>
-                  <circle r="1.85" fill="#f59e0b" stroke="#ffffff" strokeWidth="0.8" />
-                  <circle r="0.65" fill="#78350f" />
-                </g>
-              ))}
+                      return (
+                        <Geography
+                          key={geography.rsmKey}
+                          geography={geography}
+                          className={country ? "cursor-pointer" : undefined}
+                          aria-label={country ? `Show ${country.name} details` : geographyName}
+                          tabIndex={country ? 0 : -1}
+                          onClick={
+                            country ? () => setSelectedCountryId(country.id) : undefined
+                          }
+                          onMouseEnter={
+                            country ? () => setHoveredCountryId(country.id) : undefined
+                          }
+                          onMouseLeave={
+                            country
+                              ? () =>
+                                  setHoveredCountryId((current) =>
+                                    current === country.id ? null : current,
+                                  )
+                              : undefined
+                          }
+                          onFocus={country ? () => setHoveredCountryId(country.id) : undefined}
+                          onBlur={
+                            country
+                              ? () =>
+                                  setHoveredCountryId((current) =>
+                                    current === country.id ? null : current,
+                                  )
+                              : undefined
+                          }
+                          onKeyDown={
+                            country
+                              ? (event) => {
+                                  if (event.key === "Enter" || event.key === " ") {
+                                    event.preventDefault();
+                                    setSelectedCountryId(country.id);
+                                  }
+                                }
+                              : undefined
+                          }
+                          style={{
+                            default: {
+                              fill: country ? withAlpha(color, 0.34) : "#e2e8f0",
+                              outline: "none",
+                              stroke: country ? color : "#cbd5e1",
+                              strokeWidth: country ? (isSelected ? 1.7 : 0.8) : 0.45,
+                              opacity: country ? 1 : 0.55,
+                            },
+                            hover: {
+                              fill: country ? withAlpha(color, 0.62) : "#e2e8f0",
+                              outline: "none",
+                              stroke: country ? color : "#cbd5e1",
+                              strokeWidth: country ? 1.5 : 0.45,
+                            },
+                            pressed: {
+                              fill: country ? withAlpha(color, 0.78) : "#e2e8f0",
+                              outline: "none",
+                              stroke: country ? color : "#cbd5e1",
+                              strokeWidth: country ? 1.8 : 0.45,
+                            },
+                            focused: {
+                              fill: country
+                                ? withAlpha(color, isSelected || isHovered ? 0.72 : 0.54)
+                                : "#e2e8f0",
+                              outline: "none",
+                              stroke: country ? color : "#cbd5e1",
+                              strokeWidth: country ? 1.5 : 0.45,
+                            },
+                          }}
+                        />
+                      );
+                    })}
 
-              {mapData.countries.map((country) => {
-                const isSelected = country.id === selectedCountry.id;
-                const isHovered = country.id === hoveredCountry?.id;
-                const color = getSubregionColor(country.subregion, mapData.countries);
+                    {geographies.map((geography) => {
+                      const geographyName = getGeographyName(geography);
+                      const country = countriesByTopologyKey.get(
+                        normalizeCountryKey(geographyName),
+                      );
+                      if (!country?.isAnchor) return null;
 
-                return (
-                  <g key={country.id} transform={`translate(${country.x}, ${country.y})`}>
-                    {(isSelected || isHovered) && (
-                      <circle
-                        r="3.5"
-                        fill="none"
-                        stroke={color}
-                        strokeWidth="1.2"
-                        opacity={isSelected ? 0.95 : 0.7}
-                      />
-                    )}
-                    <circle
-                      r={country.isAnchor ? "2.45" : "2.1"}
-                      fill={color}
-                      stroke="#ffffff"
-                      strokeWidth={isSelected ? "1.15" : "0.8"}
-                    />
-                  </g>
-                );
-              })}
-            </svg>
+                      const coordinates = getBestGeographyCoordinates(geography);
+                      if (!coordinates) return null;
 
-            <div className="absolute inset-0">
-              {mapData.countries.map((country) => (
-                <button
-                  key={country.id}
-                  type="button"
-                  className="absolute -translate-x-1/2 -translate-y-1/2 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-                  style={{
-                    left: `${country.x}%`,
-                    top: `${country.y}%`,
-                    width: "28px",
-                    height: "28px",
-                  }}
-                  onMouseEnter={() => setHoveredCountryId(country.id)}
-                  onMouseLeave={() =>
-                    setHoveredCountryId((current) =>
-                      current === country.id ? null : current,
-                    )
-                  }
-                  onFocus={() => setHoveredCountryId(country.id)}
-                  onBlur={() =>
-                    setHoveredCountryId((current) =>
-                      current === country.id ? null : current,
-                    )
-                  }
-                  onClick={() => setSelectedCountryId(country.id)}
-                  aria-label={`Show ${country.name} details`}
-                />
-              ))}
-            </div>
+                      return (
+                        <Marker
+                          key={`${country.id}-anchor`}
+                          coordinates={coordinates}
+                          pointerEvents="none"
+                        >
+                          <circle r="4.3" fill="#ffffff" opacity="0.9" />
+                          <path
+                            d="M0 -4.3 L1.3 -1.2 L4.6 -1.1 L2 0.9 L3 4.1 L0 2.4 L-3 4.1 L-2 0.9 L-4.6 -1.1 L-1.3 -1.2 Z"
+                            fill="#f59e0b"
+                            stroke="#78350f"
+                            strokeWidth="0.4"
+                          />
+                        </Marker>
+                      );
+                    })}
+                  </>
+                )}
+              </Geographies>
+            </ComposableMap>
 
-            {hoveredCountry && hoveredCountryColor ? (
-              <div
-                className="pointer-events-none absolute z-10 hidden w-56 -translate-x-1/2 -translate-y-[110%] rounded-xl border bg-background/95 p-3 shadow-xl backdrop-blur md:block"
-                style={{ left: `${hoveredCountry.x}%`, top: `${hoveredCountry.y}%` }}
-              >
-                <div className="mb-2 flex items-center gap-2">
-                  <span
-                    className="h-2.5 w-2.5 rounded-full"
-                    style={{ backgroundColor: hoveredCountryColor }}
-                  />
-                  <p className="text-sm font-semibold text-foreground">{hoveredCountry.name}</p>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {hoveredCountry.capital} / {hoveredCountry.subregion}
-                </p>
-                <p className="mt-2 text-xs leading-relaxed text-foreground/85">
-                  {hoveredCountry.keyFact}
-                </p>
-                {hoveredCountry.landmarks.length > 0 ? (
-                  <p className="mt-2 text-[11px] text-muted-foreground">
-                    Landmark cues: {hoveredCountry.landmarks.slice(0, 2).join(", ")}
+            <div className="pointer-events-none absolute inset-x-3 bottom-3 z-10 rounded-xl border bg-background/92 p-3 shadow-lg backdrop-blur">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-[11px] font-medium uppercase tracking-wide text-primary/80">
+                    Map focus
                   </p>
-                ) : null}
+                  <p className="mt-1 text-sm font-semibold text-foreground">{activeCountry.name}</p>
+                </div>
+                <span
+                  className="rounded-full px-2 py-1 text-[11px] font-medium text-white"
+                  style={{
+                    backgroundColor: getSubregionColor(activeCountry.subregion, mapData.countries),
+                  }}
+                >
+                  {activeCountry.subregion}
+                </span>
               </div>
-            ) : null}
+              <p className="mt-2 text-xs text-muted-foreground">
+                {activeCountry.capital} / {activeCountry.geographyType}
+              </p>
+              <p className="mt-2 text-xs leading-relaxed text-foreground/85">
+                {activeCountry.keyFact}
+              </p>
+            </div>
           </div>
 
           <div className="mt-4 flex flex-wrap gap-2">
@@ -552,6 +597,40 @@ function MapVisual({
                 {subregion}
               </span>
             ))}
+          </div>
+
+          <div className="mt-4 rounded-xl border bg-background/80 p-3">
+            <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+              Country roster
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {mapData.countries.map((country) => {
+                const color = getSubregionColor(country.subregion, mapData.countries);
+                const isSelected = country.id === selectedCountry.id;
+
+                return (
+                  <button
+                    key={country.id}
+                    type="button"
+                    className="rounded-full border px-2.5 py-1 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                    style={{
+                      borderColor: withAlpha(color, 0.65),
+                      backgroundColor: isSelected ? withAlpha(color, 0.18) : "transparent",
+                      color: isSelected ? color : "rgb(71 85 105)",
+                    }}
+                    onClick={() => setSelectedCountryId(country.id)}
+                    onMouseEnter={() => setHoveredCountryId(country.id)}
+                    onMouseLeave={() =>
+                      setHoveredCountryId((current) =>
+                        current === country.id ? null : current,
+                      )
+                    }
+                  >
+                    {country.name}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
 
@@ -629,6 +708,11 @@ function MapVisual({
       </div>
     </VisualShell>
   );
+}
+
+function getGeographyName(geography: { properties?: Record<string, unknown> | null }): string {
+  const name = geography.properties?.name;
+  return typeof name === "string" ? name : "";
 }
 
 function VisualShell({
@@ -722,4 +806,15 @@ function getSubregionColor(
   const orderedSubregions = Array.from(new Set(countries.map((country) => country.subregion)));
   const index = orderedSubregions.findIndex((candidate) => candidate === subregion);
   return MAP_SUBREGION_COLORS[index % MAP_SUBREGION_COLORS.length] ?? MAP_SUBREGION_COLORS[0];
+}
+
+function withAlpha(hexColor: string, alpha: number): string {
+  const normalized = hexColor.replace("#", "");
+  if (normalized.length !== 6) return hexColor;
+
+  const red = Number.parseInt(normalized.slice(0, 2), 16);
+  const green = Number.parseInt(normalized.slice(2, 4), 16);
+  const blue = Number.parseInt(normalized.slice(4, 6), 16);
+
+  return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
 }
